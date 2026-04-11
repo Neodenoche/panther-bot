@@ -557,6 +557,29 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         })()
         await handlers[query.data](fake_update, context)
 
+# ── /ayuda ────────────────────────────────────────────────────────────────────
+async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🐆 *CÓMO FUNCIONA LA MANADA PANTHER*\n\n"
+        "*Ganás puntos haciendo:*\n"
+        "🔥 Check-in diario — mantené la racha\n"
+        "👥 Referir amigos al canal\n"
+        "📱 Compartir contenido de Panther\n"
+        "🎰 Girar la ruleta una vez por día\n\n"
+        "*Rachas especiales:*\n"
+        "7 días seguidos → +50 pts bonus\n"
+        "14 días seguidos → +150 pts bonus\n"
+        "30 días seguidos → +500 pts bonus\n\n"
+        "*Los niveles:*\n"
+        "🐾 Cachorro → 🔍 Rastreador → 🛡️ Guardián\n"
+        "🧭 Explorador → ⚡ Embajador → 🐆 Alfa → 👑 Leyenda\n\n"
+        "*El top 20 mensual gana recompensas en PNT y USDT* 💰\n\n"
+        "Usá /niveles para ver la tabla completa\n"
+        "Usá /ranking para ver quién va ganando",
+        parse_mode="Markdown",
+        reply_markup=main_keyboard()
+    )
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     if not TOKEN:
@@ -574,6 +597,7 @@ def main():
     app.add_handler(CommandHandler("ruleta",    cmd_ruleta))
     app.add_handler(CommandHandler("misiones",  cmd_misiones))
     app.add_handler(CommandHandler("compartir", cmd_compartir))
+    app.add_handler(CommandHandler("ayuda",     cmd_ayuda))
     app.add_handler(CommandHandler("aprobar",   cmd_aprobar))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))

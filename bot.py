@@ -134,6 +134,7 @@ def main_keyboard():
             InlineKeyboardButton("📋 Misiones", callback_data="misiones"),
         ],
         [InlineKeyboardButton("🎫 Mi código referido", callback_data="referido")],
+        [InlineKeyboardButton("🏅 Tabla de niveles", callback_data="niveles")],
     ])
 
 # ── /start ────────────────────────────────────────────────────────────────────
@@ -266,6 +267,37 @@ async def cmd_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👥 Referidos: *{refs}*\n"
         f"🎫 Código: `{data['referral_code']}`\n\n"
         f"{'📈 Próximo: *' + next_lv + '* — faltan *' + str(pts_needed) + ' pts*' if next_lv else '👑 ¡Sos Leyenda!'}",
+        parse_mode="Markdown",
+        reply_markup=main_keyboard()
+    )
+
+# ── /niveles ─────────────────────────────────────────────────────────────────
+async def cmd_niveles(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    db   = load_db()
+    uid  = str(user.id)
+    data = get_user(db, uid, user)
+    save_db(db)
+
+    current = get_level(data["points"])
+
+    lines = ["🏅 *NIVELES — MANADA PANTHER*\n"]
+    for mn, mx, name in LEVELS:
+        marker = " ✅ ← estás aquí" if name == current else ""
+        pts_range = f"{mn:,} – {mx:,} pts" if mx < 999999 else f"{mn:,}+ pts"
+        lines.append(f"{name}{marker}\n_{pts_range}_\n")
+
+    lines.append(
+        f"⭐ *Tus puntos actuales: {data['points']}*\n\n"
+        f"*¿Cómo subir de nivel?*\n"
+        f"🔥 Check-in diario → /checkin\n"
+        f"🎰 Ruleta diaria → /ruleta\n"
+        f"👥 Referir amigos → /referido\n"
+        f"📱 Compartir contenido → /compartir"
+    )
+
+    await update.message.reply_text(
+        "\n".join(lines),
         parse_mode="Markdown",
         reply_markup=main_keyboard()
     )
@@ -513,6 +545,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ruleta":   cmd_ruleta,
         "misiones": cmd_misiones,
         "referido": cmd_referido,
+        "niveles":  cmd_niveles,
     }
 
     if query.data in handlers:
@@ -536,6 +569,7 @@ def main():
     app.add_handler(CommandHandler("checkin",   cmd_checkin))
     app.add_handler(CommandHandler("puntos",    cmd_puntos))
     app.add_handler(CommandHandler("ranking",   cmd_ranking))
+    app.add_handler(CommandHandler("niveles",   cmd_niveles))
     app.add_handler(CommandHandler("referido",  cmd_referido))
     app.add_handler(CommandHandler("ruleta",    cmd_ruleta))
     app.add_handler(CommandHandler("misiones",  cmd_misiones))

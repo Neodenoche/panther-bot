@@ -627,7 +627,14 @@ function copyCode(){
   setTimeout(()=>b.textContent='📋 Copiar código',1500);
 }
 
-function shareLink(){ alert("OK"); }
+function shareLink(){
+  const code = document.getElementById('ref-code-display').textContent;
+  const fullText = '🐆 Unite a la Manada Panther! Usá mi código: ' + code + ' — https://t.me/ManadaPantherBot/manada';
+  const b = document.getElementById('ref-share-btn');
+  navigator.clipboard.writeText(fullText).catch(()=>{});
+  b.textContent = '✅ ¡Copiado! Pegalo en cualquier chat';
+  setTimeout(()=>b.textContent='🚀 Copiar link para compartir', 2500);
+}
 
 // SPLASH
 (function(){

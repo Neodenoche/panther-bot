@@ -883,20 +883,19 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "total": 5,
             })
 
+        elif path == "/app":
+            try:
+                with open("panther_miniapp.html", "r", encoding="utf-8") as f:
+                    content = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(content.encode())
+            except:
+                self.send_json({"error": "App not found"}, 404)
         else:
-            elif path == "/app":
-    try:
-        with open("panther_miniapp.html", "r", encoding="utf-8") as f:
-            content = f.read()
-        self.send_response(200)
-        self.send_header("Content-Type", "text/html; charset=utf-8")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(content.encode())
-    except:
-        self.send_json({"error": "App not found"}, 404)
-else:
-    self.send_json({"status": "Panther Mini App API", "version": "1.0"})
+            self.send_json({"status": "Panther Mini App API", "version": "1.0"})
     def do_POST(self):
         parsed  = urlparse(self.path)
         path    = parsed.path

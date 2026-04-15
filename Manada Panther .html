@@ -627,10 +627,7 @@ function copyCode(){
   setTimeout(()=>b.textContent='📋 Copiar código',1500);
 }
 
-function shareLink(){
-  const code=document.getElementById('ref-code-display').textContent;
-  if(navigator.share)navigator.share({text:`🐆 Unite a la Manada Panther: ${code}\nhttps://t.me/PantherWalletBot?start=${code}`});
-}
+function shareLink(){ alert("OK"); }
 
 // SPLASH
 (function(){

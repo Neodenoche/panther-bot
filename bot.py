@@ -885,7 +885,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
         elif path == "/app":
             try:
-                with open("panther_miniapp.html", "r", encoding="utf-8") as f:
+                with open("Manada Panther .html", "r", encoding="utf-8") as f:
                     content = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")

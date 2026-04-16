@@ -222,6 +222,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <span class="badge">🐾 Lv.1</span>
 </div>
 
+<!-- DEBUG -->
+<div id="debug-info" style="background:#1a0a00;color:#ff6b1a;font-size:10px;padding:4px 18px;text-align:center;letter-spacing:1px;"></div>
+
 <!-- MISIONES -->
 <div class="screen active" id="s-misiones">
   <div class="hero">
@@ -363,16 +366,38 @@ if (window.Telegram && window.Telegram.WebApp) {
   if (tgUser) USER_ID = String(tgUser.id);
 }
 
+// Debug: show USER_ID in topbar temporarily
+setTimeout(() => {
+  const badge = document.querySelector('.badge');
+  if (badge) badge.title = 'ID: ' + (USER_ID || 'null');
+  // Show debug bar
+  const dbg = document.createElement('div');
+  dbg.id = 'debug-bar';
+  dbg.style.cssText = 'background:#1a0d00;color:#ff6b1a;font-size:10px;padding:4px 18px;letter-spacing:1px;';
+  dbg.textContent = 'ID: ' + (USER_ID || 'NO ID') + ' | API: ' + API_BASE;
+  const topbar = document.querySelector('.topbar');
+  if (topbar) topbar.after(dbg);
+}, 500);
+
 // Load user data from API
 async function loadUserData() {
-  if (!USER_ID) return;
+  // Show debug info
+  const debugEl = document.getElementById('debug-info');
+  if(debugEl) debugEl.textContent = `ID: ${USER_ID || 'NO ID'}`;
+  
+  if (!USER_ID) {
+    if(debugEl) debugEl.textContent = 'Sin ID de Telegram';
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/user?id=${USER_ID}`);
+    if(debugEl) debugEl.textContent = `ID: ${USER_ID} | Status: ${res.status}`;
     if (!res.ok) return;
     userData = await res.json();
+    if(debugEl) debugEl.textContent = `✅ ${userData.first_name}: ${userData.points} pts`;
     updateUI();
   } catch(e) {
-    console.error('API error:', e);
+    if(debugEl) debugEl.textContent = `Error: ${e.message}`;
   }
 }
 

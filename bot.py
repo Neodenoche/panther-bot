@@ -898,6 +898,17 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "total": 5,
             })
 
+        elif path == "/app":
+            try:
+                with open("Manada Panther .html", "r", encoding="utf-8") as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(html.encode())
+            except Exception as e:
+                self.send_json({"error": f"App not found: {str(e)}"}, 404)
         else:
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
 

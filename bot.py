@@ -1003,6 +1003,7 @@ def run_http_server():
 class CombinedHandler(MiniAppHandler):
     """Handler that serves both API and passes Telegram updates to the app"""
     tg_app = None
+    tg_loop = None
 
     def do_POST(self):
         parsed = urlparse(self.path)
@@ -1014,14 +1015,18 @@ class CombinedHandler(MiniAppHandler):
             length = int(self.headers.get("Content-Length", 0))
             body = self.rfile.read(length)
             self.send_response(200)
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
-            if CombinedHandler.tg_app:
-                import asyncio
-                update = Update.de_json(json.loads(body), CombinedHandler.tg_app.bot)
-                asyncio.run_coroutine_threadsafe(
-                    CombinedHandler.tg_app.process_update(update),
-                    CombinedHandler.tg_app.loop if hasattr(CombinedHandler.tg_app, 'loop') else asyncio.get_event_loop()
-                )
+            self.wfile.write(b'{"ok":true}')
+            if CombinedHandler.tg_app and CombinedHandler.tg_loop:
+                try:
+                    update = Update.de_json(json.loads(body), CombinedHandler.tg_app.bot)
+                    asyncio.run_coroutine_threadsafe(
+                        CombinedHandler.tg_app.process_update(update),
+                        CombinedHandler.tg_loop
+                    )
+                except Exception as e:
+                    logger.error(f"Error procesando update: {e}")
         else:
             super().do_POST()
 
@@ -1067,26 +1072,40 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    port = int(os.environ.get("PORT", 8000))
+    port = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:
-        # WEBHOOK MODE — no Conflict, production ready
+        # WEBHOOK MODE — use our HTTP server for both API and webhook
         webhook_path = f"/webhook/{TOKEN}"
         full_webhook_url = f"{WEBHOOK_URL}{webhook_path}"
         print(f"🐆 Panther Bot iniciando en modo WEBHOOK: {full_webhook_url}")
 
-        # Add webhook handler to existing HTTP server
-        app.run_webhook(
-            listen="0.0.0.0",
-            port=port,
-            url_path=webhook_path,
-            webhook_url=full_webhook_url,
-            allowed_updates=Update.ALL_TYPES,
-        )
+        # Set webhook via Telegram API
+        import urllib.request
+        set_webhook_url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={full_webhook_url}&drop_pending_updates=true"
+        urllib.request.urlopen(set_webhook_url)
+        print(f"✅ Webhook registrado: {full_webhook_url}")
+
+        # Store app reference for webhook handler
+        CombinedHandler.tg_app = app
+
+        # Initialize the app
+        async def init_app():
+            await app.initialize()
+            await app.start()
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(init_app())
+        CombinedHandler.tg_loop = loop
+
+        # Run HTTP server (handles both API and webhook)
+        server = HTTPServer(("0.0.0.0", port), CombinedHandler)
+        print(f"🌐 Servidor HTTP corriendo en puerto {port}")
+        server.serve_forever()
     else:
-        # POLLING MODE fallback (dev only)
-        print("🐆 Panther Bot iniciando en modo POLLING (dev)...")
-        # Start HTTP API in separate thread
+        # POLLING MODE fallback
+        print("🐆 Panther Bot iniciando en modo POLLING...")
         http_thread = threading.Thread(target=run_http_server, daemon=True)
         http_thread.start()
         app.run_polling(allowed_updates=Update.ALL_TYPES)

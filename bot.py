@@ -14,6 +14,9 @@ from telegram.ext import (
     ContextTypes, MessageHandler, filters
 )
 
+# Webhook configuration
+WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")  # e.g. https://panther-bot-production.up.railway.app
+
 logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -997,6 +1000,31 @@ def run_http_server():
     logger.info(f"🌐 API HTTP corriendo en puerto {port}")
     server.serve_forever()
 
+class CombinedHandler(MiniAppHandler):
+    """Handler that serves both API and passes Telegram updates to the app"""
+    tg_app = None
+
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        token_path = f"/webhook/{TOKEN}"
+
+        if path == token_path:
+            # Telegram webhook update
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length)
+            self.send_response(200)
+            self.end_headers()
+            if CombinedHandler.tg_app:
+                import asyncio
+                update = Update.de_json(json.loads(body), CombinedHandler.tg_app.bot)
+                asyncio.run_coroutine_threadsafe(
+                    CombinedHandler.tg_app.process_update(update),
+                    CombinedHandler.tg_app.loop if hasattr(CombinedHandler.tg_app, 'loop') else asyncio.get_event_loop()
+                )
+        else:
+            super().do_POST()
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -1008,7 +1036,6 @@ def main():
         return
 
     # Test escritura en volumen
-    import os
     db_dir = os.path.dirname(DB_FILE)
     if db_dir and not os.path.exists(db_dir):
         try:
@@ -1023,29 +1050,46 @@ def main():
     except Exception as e:
         print(f"❌ No se puede escribir en {DB_FILE}: {e}")
 
-    # Iniciar API HTTP en thread separado
-    http_thread = threading.Thread(target=run_http_server, daemon=True)
-    http_thread.start()
-
     app = Application.builder().token(TOKEN).build()
 
-    app.add_handler(CommandHandler("start",     cmd_start))
-    app.add_handler(CommandHandler("checkin",   cmd_checkin))
-    app.add_handler(CommandHandler("puntos",    cmd_puntos))
-    app.add_handler(CommandHandler("ranking",   cmd_ranking))
-    app.add_handler(CommandHandler("niveles",   cmd_niveles))
-    app.add_handler(CommandHandler("referido",  cmd_referido))
-    app.add_handler(CommandHandler("ruleta",    cmd_ruleta))
-    app.add_handler(CommandHandler("misiones",  cmd_misiones))
-    app.add_handler(CommandHandler("compartir", cmd_compartir))
-    app.add_handler(CommandHandler("ayuda",     cmd_ayuda))
-    app.add_handler(CommandHandler("aprobar",   cmd_aprobar))
+    app.add_handler(CommandHandler("start",      cmd_start))
+    app.add_handler(CommandHandler("checkin",    cmd_checkin))
+    app.add_handler(CommandHandler("puntos",     cmd_puntos))
+    app.add_handler(CommandHandler("ranking",    cmd_ranking))
+    app.add_handler(CommandHandler("niveles",    cmd_niveles))
+    app.add_handler(CommandHandler("referido",   cmd_referido))
+    app.add_handler(CommandHandler("ruleta",     cmd_ruleta))
+    app.add_handler(CommandHandler("misiones",   cmd_misiones))
+    app.add_handler(CommandHandler("compartir",  cmd_compartir))
+    app.add_handler(CommandHandler("ayuda",      cmd_ayuda))
+    app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    print("🐆 Panther Game Bot + API iniciados...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    port = int(os.environ.get("PORT", 8000))
+
+    if WEBHOOK_URL:
+        # WEBHOOK MODE — no Conflict, production ready
+        webhook_path = f"/webhook/{TOKEN}"
+        full_webhook_url = f"{WEBHOOK_URL}{webhook_path}"
+        print(f"🐆 Panther Bot iniciando en modo WEBHOOK: {full_webhook_url}")
+
+        # Add webhook handler to existing HTTP server
+        app.run_webhook(
+            listen="0.0.0.0",
+            port=port,
+            url_path=webhook_path,
+            webhook_url=full_webhook_url,
+            allowed_updates=Update.ALL_TYPES,
+        )
+    else:
+        # POLLING MODE fallback (dev only)
+        print("🐆 Panther Bot iniciando en modo POLLING (dev)...")
+        # Start HTTP API in separate thread
+        http_thread = threading.Thread(target=run_http_server, daemon=True)
+        http_thread.start()
+        app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()

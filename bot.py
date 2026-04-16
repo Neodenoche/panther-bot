@@ -18,7 +18,7 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=lo
 logger = logging.getLogger(__name__)
 
 TOKEN   = os.environ.get("BOT_TOKEN", "")
-DB_FILE = "panther_db.json"
+DB_FILE = "/data/panther_db.json"
 
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524").split(",") if x.strip()]

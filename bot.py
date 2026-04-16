@@ -742,6 +742,21 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handlers[data_str](fake_update, context)
 
 # ── /ayuda ────────────────────────────────────────────────────────────────────
+async def cmd_resetcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Reset check-in for testing — solo moderadores"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("❌ No tenés permisos.")
+        return
+    db = load_db()
+    uid = str(update.effective_user.id)
+    if uid in db:
+        db[uid]["last_checkin"] = None
+        db[uid]["last_ruleta"] = None
+        save_db(db)
+        await update.message.reply_text("✅ Check-in y ruleta reseteados. Ya podés probar de nuevo.")
+    else:
+        await update.message.reply_text("❌ Usuario no encontrado.")
+
 async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "🐆 *CÓMO FUNCIONA LA MANADA PANTHER*\n\n"
@@ -883,19 +898,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "total": 5,
             })
 
-        elif path == "/app":
-            try:
-                with open("Manada Panther .html", "r", encoding="utf-8") as f:
-                    content = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(content.encode())
-            except:
-                self.send_json({"error": "App not found"}, 404)
         else:
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
+
     def do_POST(self):
         parsed  = urlparse(self.path)
         path    = parsed.path
@@ -996,6 +1001,7 @@ def main():
     app.add_handler(CommandHandler("compartir", cmd_compartir))
     app.add_handler(CommandHandler("ayuda",     cmd_ayuda))
     app.add_handler(CommandHandler("aprobar",   cmd_aprobar))
+    app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 

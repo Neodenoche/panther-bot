@@ -362,8 +362,32 @@ let userData = null;
 if (window.Telegram && window.Telegram.WebApp) {
   window.Telegram.WebApp.ready();
   window.Telegram.WebApp.expand();
+  
+  // Try initDataUnsafe first
   const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-  if (tgUser) USER_ID = String(tgUser.id);
+  if (tgUser && tgUser.id) {
+    USER_ID = String(tgUser.id);
+  } else {
+    // Try parsing initData manually
+    const initData = window.Telegram.WebApp.initData;
+    if (initData) {
+      const params = new URLSearchParams(initData);
+      const userStr = params.get('user');
+      if (userStr) {
+        try {
+          const userObj = JSON.parse(decodeURIComponent(userStr));
+          if (userObj.id) USER_ID = String(userObj.id);
+        } catch(e) {}
+      }
+    }
+  }
+}
+
+// Fallback: try URL params (for testing)
+if (!USER_ID) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const testId = urlParams.get('id');
+  if (testId) USER_ID = testId;
 }
 
 // Debug: show USER_ID in topbar temporarily

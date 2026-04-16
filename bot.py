@@ -231,6 +231,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level = get_level(data["points"])
     next_lv, pts_needed = get_next_level(data["points"])
 
+    app_url = f"https://panther-bot-production-fd1f.up.railway.app/app?id={uid}"
+
     text = (
         f"{'🐆 *¡Bienvenido a la Manada Panther!*' if is_new else f'🐾 *¡Hola, {user.first_name}!*'}\n\n"
         f"🏅 Nivel: *{level}*\n"
@@ -240,7 +242,22 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"_Hacé check-in cada día, referí amigos y subí en el ranking para ganar recompensas en PNT y USDT 💰_"
     )
 
-    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_keyboard())
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🐆 Abrir Manada Panther", url=app_url)],
+        [InlineKeyboardButton("✅ Check-in diario", callback_data="checkin")],
+        [
+            InlineKeyboardButton("📊 Mis puntos", callback_data="puntos"),
+            InlineKeyboardButton("🏆 Ranking",    callback_data="ranking"),
+        ],
+        [
+            InlineKeyboardButton("🎰 Ruleta",     callback_data="ruleta"),
+            InlineKeyboardButton("📋 Misiones",   callback_data="misiones"),
+        ],
+        [InlineKeyboardButton("🎫 Mi código referido", callback_data="referido")],
+        [InlineKeyboardButton("🏅 Tabla de niveles",   callback_data="niveles")],
+    ])
+
+    await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
 
 # ── /checkin ──────────────────────────────────────────────────────────────────
 async def do_checkin(uid: str, user, context):

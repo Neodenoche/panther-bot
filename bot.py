@@ -1075,33 +1075,43 @@ def main():
     port = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:
-        # WEBHOOK MODE — use our HTTP server for both API and webhook
         webhook_path = f"/webhook/{TOKEN}"
         full_webhook_url = f"{WEBHOOK_URL}{webhook_path}"
         print(f"🐆 Panther Bot iniciando en modo WEBHOOK: {full_webhook_url}")
 
-        # Set webhook via Telegram API
-        import urllib.request
-        set_webhook_url = f"https://api.telegram.org/bot{TOKEN}/setWebhook?url={full_webhook_url}&drop_pending_updates=true"
-        urllib.request.urlopen(set_webhook_url)
-        print(f"✅ Webhook registrado: {full_webhook_url}")
+        # Create event loop
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
 
-        # Store app reference for webhook handler
-        CombinedHandler.tg_app = app
-
-        # Initialize the app
+        # Initialize telegram app
         async def init_app():
             await app.initialize()
             await app.start()
+            # Set webhook
+            await app.bot.set_webhook(
+                url=full_webhook_url,
+                drop_pending_updates=True
+            )
+            print(f"✅ Webhook registrado: {full_webhook_url}")
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
         loop.run_until_complete(init_app())
+
+        # Store references
+        CombinedHandler.tg_app = app
         CombinedHandler.tg_loop = loop
 
-        # Run HTTP server (handles both API and webhook)
+        # Start HTTP server in main thread (Railway needs this to be responsive)
         server = HTTPServer(("0.0.0.0", port), CombinedHandler)
         print(f"🌐 Servidor HTTP corriendo en puerto {port}")
+
+        # Run loop in background thread to process telegram updates
+        def run_loop():
+            loop.run_forever()
+
+        loop_thread = threading.Thread(target=run_loop, daemon=True)
+        loop_thread.start()
+
+        # Serve HTTP in main thread
         server.serve_forever()
     else:
         # POLLING MODE fallback

@@ -909,6 +909,18 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 self.wfile.write(html.encode())
             except Exception as e:
                 self.send_json({"error": f"App not found: {str(e)}"}, 404)
+        elif path == "/debug":
+            import os
+            db_exists = os.path.exists(DB_FILE)
+            db_size = os.path.getsize(DB_FILE) if db_exists else 0
+            db = load_db()
+            self.send_json({
+                "db_file": DB_FILE,
+                "db_exists": db_exists,
+                "db_size": db_size,
+                "user_count": len(db),
+                "users": list(db.keys()),
+            })
         else:
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
 

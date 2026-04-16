@@ -1007,6 +1007,22 @@ def main():
         print("❌ Falta BOT_TOKEN en las variables de entorno")
         return
 
+    # Test escritura en volumen
+    import os
+    db_dir = os.path.dirname(DB_FILE)
+    if db_dir and not os.path.exists(db_dir):
+        try:
+            os.makedirs(db_dir, exist_ok=True)
+            print(f"✅ Directorio {db_dir} creado")
+        except Exception as e:
+            print(f"❌ No se pudo crear {db_dir}: {e}")
+    try:
+        with open(DB_FILE, "a") as f:
+            pass
+        print(f"✅ DB accesible en {DB_FILE}")
+    except Exception as e:
+        print(f"❌ No se puede escribir en {DB_FILE}: {e}")
+
     # Iniciar API HTTP en thread separado
     http_thread = threading.Thread(target=run_http_server, daemon=True)
     http_thread.start()

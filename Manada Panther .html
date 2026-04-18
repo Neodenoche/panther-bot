@@ -6,6 +6,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
 <title>Manada Panther</title>
 <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
 <style>
 :root{--or:#ff6b1a;--ol:#ff8c42;--og:#ff6b1a22;--ob:#ff6b1a55;--bg:#0d0d0d;--card:#181818;--t:#fff;--t2:#ccc;--t3:#888;--green:#4ade80}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -347,32 +348,31 @@ const API_BASE = 'https://go.mypanther.io';
 let USER_ID = null;
 let userData = null;
 
-// Get Telegram user ID
+// Get Telegram user ID using official SDK
 if (window.Telegram && window.Telegram.WebApp) {
-  window.Telegram.WebApp.ready();
-  window.Telegram.WebApp.expand();
+  const tg = window.Telegram.WebApp;
+  tg.ready();
+  tg.expand();
   
-  // Try initDataUnsafe first
-  const tgUser = window.Telegram.WebApp.initDataUnsafe?.user;
-  if (tgUser && tgUser.id) {
-    USER_ID = String(tgUser.id);
-  } else {
-    // Try parsing initData manually
-    const initData = window.Telegram.WebApp.initData;
-    if (initData) {
-      const params = new URLSearchParams(initData);
+  // Method 1: initDataUnsafe (works when properly loaded via SDK)
+  if (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id) {
+    USER_ID = String(tg.initDataUnsafe.user.id);
+  }
+  
+  // Method 2: parse initData string manually
+  if (!USER_ID && tg.initData) {
+    try {
+      const params = new URLSearchParams(tg.initData);
       const userStr = params.get('user');
       if (userStr) {
-        try {
-          const userObj = JSON.parse(decodeURIComponent(userStr));
-          if (userObj.id) USER_ID = String(userObj.id);
-        } catch(e) {}
+        const userObj = JSON.parse(userStr);
+        if (userObj && userObj.id) USER_ID = String(userObj.id);
       }
-    }
+    } catch(e) {}
   }
 }
 
-// Fallback: try URL params (for testing)
+// Fallback: URL params
 if (!USER_ID) {
   const urlParams = new URLSearchParams(window.location.search);
   const testId = urlParams.get('id');

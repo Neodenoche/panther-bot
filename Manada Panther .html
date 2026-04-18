@@ -274,14 +274,8 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 <!-- RANKING -->
 <div class="screen" id="s-ranking">
   <div class="rank-hero"><div class="rank-title">🏆 Ranking Manada</div><div class="rank-sub">Top jugadores · actualización diaria</div><div class="rank-mypos">Tu posición: <strong>#47</strong> · 28 pts</div></div>
-  <div class="rank-list">
-    <div class="rank-row"><div class="rank-pos">1</div><div class="rank-avatar">🐆</div><div class="rank-info"><div class="rank-name">PantherKing</div><div class="rank-lv">⚡ EMBAJADOR</div></div><div class="rank-pts">2,840</div></div>
-    <div class="rank-row"><div class="rank-pos">2</div><div class="rank-avatar">🦁</div><div class="rank-info"><div class="rank-name">CryptoAlpha</div><div class="rank-lv">🐆 ALFA</div></div><div class="rank-pts">2,210</div></div>
-    <div class="rank-row"><div class="rank-pos">3</div><div class="rank-avatar">🔥</div><div class="rank-info"><div class="rank-name">WalletLord</div><div class="rank-lv">⚡ EMBAJADOR</div></div><div class="rank-pts">1,980</div></div>
-    <div class="rank-row"><div class="rank-pos">4</div><div class="rank-avatar">🛡️</div><div class="rank-info"><div class="rank-name">PNTmaxi</div><div class="rank-lv">🧭 EXPLORADOR</div></div><div class="rank-pts">890</div></div>
-    <div class="rank-row"><div class="rank-pos">5</div><div class="rank-avatar">⚡</div><div class="rank-info"><div class="rank-name">ManadaOG</div><div class="rank-lv">🛡️ GUARDIÁN</div></div><div class="rank-pts">740</div></div>
-    <div class="rank-dots">· · ·</div>
-    <div class="rank-row me"><div class="rank-pos">#47</div><div class="rank-avatar">🐾</div><div class="rank-info"><div class="rank-name">Tú</div><div class="rank-lv">🐾 CACHORRO</div></div><div class="rank-pts">28</div></div>
+  <div class="rank-list" id="rank-list">
+    <div style="text-align:center;padding:20px;color:var(--t3)">Cargando ranking...</div>
   </div>
 </div>
 
@@ -516,6 +510,60 @@ const originalGoTo = function(n) {
 
 function goTo(n){
   originalGoTo(n);
+  if(n === 'ranking') loadRanking();
+}
+
+async function loadRanking() {
+  const list = document.getElementById('rank-list');
+  const mypos = document.getElementById('rank-mypos');
+  if(!list) return;
+  try {
+    const res = await fetch(`${API_BASE}/ranking`);
+    if(!res.ok) return;
+    const data = await res.json();
+    
+    const medals = ['🥇','🥈','🥉'];
+    const avatars = ['🐆','🦁','🔥','🛡️','⚡','🧭','🎯','💎','🌟','🏆'];
+    
+    let html = '';
+    let myRank = null;
+    
+    data.forEach((u, i) => {
+      const isMe = USER_ID && u.id === USER_ID;
+      if(isMe) myRank = i+1;
+      const pos = i < 3 ? medals[i] : (i+1);
+      const avatar = avatars[i % avatars.length];
+      html += `<div class="rank-row${isMe?' me':''}">
+        <div class="rank-pos">${pos}</div>
+        <div class="rank-avatar">${avatar}</div>
+        <div class="rank-info">
+          <div class="rank-name">${isMe ? 'Tú' : (u.username || 'Anónimo')}</div>
+          <div class="rank-lv">${u.level}</div>
+        </div>
+        <div class="rank-pts">${u.points.toLocaleString()}</div>
+      </div>`;
+    });
+    
+    // Add my position if not in top 20
+    if(!myRank && userData) {
+      html += '<div class="rank-dots">· · ·</div>';
+      html += `<div class="rank-row me">
+        <div class="rank-pos">#?</div>
+        <div class="rank-avatar">🐾</div>
+        <div class="rank-info"><div class="rank-name">Tú</div><div class="rank-lv">${userData.level}</div></div>
+        <div class="rank-pts">${userData.points}</div>
+      </div>`;
+    }
+    
+    list.innerHTML = html;
+    
+    if(mypos) {
+      if(myRank) mypos.innerHTML = `Tu posición: <strong>#${myRank}</strong> · ${userData ? userData.points : 0} pts`;
+      else if(userData) mypos.innerHTML = `Tu posición: <strong>#?</strong> · ${userData.points} pts`;
+    }
+  } catch(e) {
+    console.error('Ranking error:', e);
+  }
 }
 
 let spinning=false,totalDeg=0;

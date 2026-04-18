@@ -317,7 +317,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 <div class="screen" id="s-referido">
   <div class="ref-hero"><div style="font-size:40px;margin-bottom:10px">🔗</div><div class="ref-title">Mi código referido</div><div class="ref-sub">Invita amigos y gana puntos juntos</div></div>
   <div class="ref-code-box"><div class="ref-code-lbl">Tu código único</div><div class="ref-code" id="ref-code-display">PANTH-X7K2</div><button class="ref-copy-btn" id="copy-btn" onclick="copyCode()">📋 Copiar código</button>
-  <button class="ref-copy-btn" id="ref-share-btn" onclick="shareLink()" style="width:100%;margin-top:8px;padding:12px;font-size:13px;background:#ff6b1a;color:#fff;border-color:#ff6b1a;">🚀 Copiar link para compartir</button>
+  <button class="ref-copy-btn" id="ref-share-btn" onclick="shareLink()" style="width:100%;margin-top:8px;padding:12px;font-size:13px;background:#ff6b1a;color:#fff;border-color:#ff6b1a;">🚀 COMPARTIR ENLACE</button>
   </div>
   <div class="ref-stats">
     <div class="ref-stat"><div class="ref-stat-n">2</div><div class="ref-stat-l">Invitados</div></div>
@@ -558,8 +558,9 @@ async function loadRanking() {
     list.innerHTML = html;
     
     if(mypos) {
-      if(myRank) mypos.innerHTML = `Tu posición: <strong>#${myRank}</strong> · ${userData ? userData.points : 0} pts`;
+      if(myRank && userData) mypos.innerHTML = `Tu posición: <strong>#${myRank}</strong> · ${userData.points} pts`;
       else if(userData) mypos.innerHTML = `Tu posición: <strong>#?</strong> · ${userData.points} pts`;
+      else mypos.innerHTML = 'Cargando...';
     }
   } catch(e) {
     console.error('Ranking error:', e);
@@ -716,11 +717,29 @@ function copyCode(){
 
 function shareLink(){
   const code = document.getElementById('ref-code-display').textContent;
-  const fullText = '🐆 Unite a la Manada Panther! Usá mi código: ' + code + ' — https://t.me/ManadaPantherBot/manada';
+  const shareText = '🐆 Unite a la Manada Panther! Usá mi código: ' + code;
+  const shareUrl = 'https://t.me/ManadaPantherBot/manada';
   const b = document.getElementById('ref-share-btn');
-  navigator.clipboard.writeText(fullText).catch(()=>{});
-  b.textContent = '✅ ¡Copiado! Pegalo en cualquier chat';
-  setTimeout(()=>b.textContent='🚀 Copiar link para compartir', 2500);
+  
+  if(navigator.share) {
+    navigator.share({
+      title: 'Manada Panther',
+      text: shareText,
+      url: shareUrl
+    }).then(()=>{
+      b.textContent = '✅ ¡Compartido!';
+      setTimeout(()=>b.textContent='🚀 COMPARTIR ENLACE', 2000);
+    }).catch(()=>{
+      // Fallback to clipboard
+      navigator.clipboard.writeText(shareText + ' ' + shareUrl).catch(()=>{});
+      b.textContent = '✅ ¡Copiado!';
+      setTimeout(()=>b.textContent='🚀 COMPARTIR ENLACE', 2000);
+    });
+  } else {
+    navigator.clipboard.writeText(shareText + ' ' + shareUrl).catch(()=>{});
+    b.textContent = '✅ ¡Copiado! Pegalo donde quieras';
+    setTimeout(()=>b.textContent='🚀 COMPARTIR ENLACE', 2500);
+  }
 }
 
 // SPLASH

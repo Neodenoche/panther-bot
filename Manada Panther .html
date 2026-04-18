@@ -243,7 +243,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <div class="strip"><span class="strip-t">Misiones completadas hoy</span><span class="strip-n">1 / 5</span></div>
   <div class="sec">
     <div class="stitle">Diarias</div>
-    <div class="mc done" id="mc-checkin"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms">+5 a +10 pts · bonus por racha</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr ok">✓</div></div>
+    <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
     <div class="mc" id="mc-ruleta" onclick="goTo('ruleta')"><div class="mic i2">🎰</div><div class="mb"><div class="mn">Ruleta diaria</div><div class="ms">Pts, ×2 o premios en USDT</div></div><div class="mr"><div class="mpts">?</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
   </div>
   <div class="sec">
@@ -459,32 +459,28 @@ function updateUI() {
       const arr = mcCheckin.querySelector('.marr');
       if (arr) { arr.classList.add('ok'); arr.textContent = '✓'; }
       // Show countdown
-      const sub = mcCheckin.querySelector('.ms');
-      if (sub) {
-        const now = new Date();
+      const sub = document.getElementById('checkin-sub');
+      const arrDone = document.getElementById('checkin-arr');
+      if (arrDone) { arrDone.classList.add('ok'); arrDone.textContent = '✓'; }
+      const updateCountdown = () => {
         const midnight = new Date();
         midnight.setUTCHours(24, 0, 0, 0);
-        const diff = midnight - now;
+        const diff = midnight - new Date();
         const hours = Math.floor(diff / 3600000);
         const mins = Math.floor((diff % 3600000) / 60000);
-        sub.textContent = `✅ Completado · próximo en ${hours}h ${mins}m`;
-        // Update every minute
-        if (!mcCheckin._timer) {
-          mcCheckin._timer = setInterval(() => {
-            const d = new Date(midnight - new Date());
-            const h = Math.floor(d / 3600000);
-            const m = Math.floor((d % 3600000) / 60000);
-            sub.textContent = `✅ Completado · próximo en ${h}h ${m}m`;
-          }, 60000);
-        }
+        if (sub) sub.textContent = `✅ Completado · próximo en ${hours}h ${mins}m`;
+      };
+      updateCountdown();
+      if (!mcCheckin._timer) {
+        mcCheckin._timer = setInterval(updateCountdown, 60000);
       }
-      mcCheckin.onclick = null;
     } else {
       mcCheckin.classList.remove('done');
-      const sub = mcCheckin.querySelector('.ms');
-      if (sub) sub.textContent = '+5 a +10 pts · bonus por racha';
+      const subEl = document.getElementById('checkin-sub');
+      const arrEl = document.getElementById('checkin-arr');
+      if (subEl) subEl.textContent = '+5 a +10 pts · bonus por racha';
+      if (arrEl) { arrEl.classList.remove('ok'); arrEl.textContent = '→'; }
       if (mcCheckin._timer) { clearInterval(mcCheckin._timer); mcCheckin._timer = null; }
-      mcCheckin.onclick = doCheckin;
     }
   }
 
@@ -549,6 +545,12 @@ const originalGoTo = function(n) {
   // Reload data on screen change
   loadUserData();
 };
+
+function handleCheckinClick() {
+  const mcCheckin = document.getElementById('mc-checkin');
+  if (mcCheckin && mcCheckin.classList.contains('done')) return;
+  doCheckin();
+}
 
 async function doCheckin() {
   if (!USER_ID) return;

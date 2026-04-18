@@ -454,31 +454,21 @@ function updateUI() {
   // Mission cards state
   const mcCheckin = document.getElementById('mc-checkin');
   if (mcCheckin) {
+    const subCheckin = document.getElementById('checkin-sub');
+    const arrCheckin = document.getElementById('checkin-arr');
     if (checkinDone) {
       mcCheckin.classList.add('done');
-      // Show countdown
-      const sub = document.getElementById('checkin-sub');
-      const arrDone = document.getElementById('checkin-arr');
-      if (arrDone) { arrDone.classList.add('ok'); arrDone.textContent = '✓'; }
-      const updateCountdown = () => {
-        const midnight = new Date();
-        midnight.setUTCHours(24, 0, 0, 0);
-        const diff = midnight - new Date();
-        const hours = Math.floor(diff / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        if (sub) sub.textContent = `✅ Completado · próximo en ${hours}h ${mins}m`;
-      };
-      updateCountdown();
-      if (!mcCheckin._timer) {
-        mcCheckin._timer = setInterval(updateCountdown, 60000);
-      }
+      if (arrCheckin) { arrCheckin.classList.add('ok'); arrCheckin.textContent = '✓'; }
+      const midnight = new Date();
+      midnight.setUTCHours(24, 0, 0, 0);
+      const diff = midnight - new Date();
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      if (subCheckin) subCheckin.textContent = '✅ Ya completado · próximo en ' + h + 'h ' + m + 'm';
     } else {
       mcCheckin.classList.remove('done');
-      const subEl = document.getElementById('checkin-sub');
-      const arrEl = document.getElementById('checkin-arr');
-      if (subEl) subEl.textContent = '+5 a +10 pts · bonus por racha';
-      if (arrEl) { arrEl.classList.remove('ok'); arrEl.textContent = '→'; }
-      if (mcCheckin._timer) { clearInterval(mcCheckin._timer); mcCheckin._timer = null; }
+      if (arrCheckin) { arrCheckin.classList.remove('ok'); arrCheckin.textContent = '→'; }
+      if (subCheckin) subCheckin.textContent = '+5 a +10 pts · bonus por racha';
     }
   }
 

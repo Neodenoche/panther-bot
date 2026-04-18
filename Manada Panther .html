@@ -459,16 +459,26 @@ function updateUI() {
     if (checkinDone) {
       mcCheckin.classList.add('done');
       if (arrCheckin) { arrCheckin.classList.add('ok'); arrCheckin.textContent = '✓'; }
-      const midnight = new Date();
-      midnight.setUTCHours(24, 0, 0, 0);
-      const diff = midnight - new Date();
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      if (subCheckin) subCheckin.textContent = '✅ Ya completado · próximo en ' + h + 'h ' + m + 'm';
+      const updateCheckinTimer = () => {
+        const midnight = new Date();
+        midnight.setUTCHours(24, 0, 0, 0);
+        const diff = midnight - new Date();
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        if (subCheckin) subCheckin.innerHTML = '✅ Próximo en <span style="color:#ff6b1a;font-weight:700">' + 
+          String(h).padStart(2,'0') + 'h ' + 
+          String(m).padStart(2,'0') + 'm ' + 
+          String(s).padStart(2,'0') + 's</span>';
+      };
+      updateCheckinTimer();
+      if (mcCheckin._timer) clearInterval(mcCheckin._timer);
+      mcCheckin._timer = setInterval(updateCheckinTimer, 1000);
     } else {
       mcCheckin.classList.remove('done');
       if (arrCheckin) { arrCheckin.classList.remove('ok'); arrCheckin.textContent = '→'; }
       if (subCheckin) subCheckin.textContent = '+5 a +10 pts · bonus por racha';
+      if (mcCheckin._timer) { clearInterval(mcCheckin._timer); mcCheckin._timer = null; }
     }
   }
 

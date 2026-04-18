@@ -900,6 +900,84 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             ])
 
         # ── GET /missions?id=123456 ──
+        elif path == "/ruleta":
+            uid = body.get("id")
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+
+            db   = load_db()
+            data = get_user(db, uid)
+            today = date.today().isoformat()
+
+            if data.get("last_ruleta") == today:
+                return self.send_json({"already_done": True, "points": data["points"]})
+
+            result_label, pts_gain, special, _ = spin_ruleta()
+            data["last_ruleta"] = today
+
+            prize_type = None
+            prize_amount = None
+
+            if special == "usdt":
+                if data.get("usdt_won_month"):
+                    # Ya ganó USDT este mes → puntos en su lugar
+                    pts_gain = 50
+                    result_label = f"🎰 {result_label} → +{pts_gain} pts"
+                    special = None
+                else:
+                    data["usdt_won_month"] = True
+                    prize_type = "USDT"
+                    prize_amount = result_label
+            elif special == "pnt":
+                if data.get("pnt_won_month"):
+                    pts_gain = 30
+                    result_label = f"🎰 {result_label} → +{pts_gain} pts"
+                    special = None
+                else:
+                    data["pnt_won_month"] = True
+                    prize_type = "PNT"
+                    prize_amount = result_label
+
+            earned = add_points(data, pts_gain)
+
+            if "history" not in data:
+                data["history"] = []
+            data["history"].append({
+                "type": "ruleta",
+                "pts": earned,
+                "date": today,
+                "time": datetime.now().strftime("%H:%M"),
+                "prize": prize_type
+            })
+
+            db[uid] = data
+            save_db(db)
+
+            # Notify mods if economic prize
+            if prize_type and CombinedHandler.tg_app:
+                username = data.get("username") or data.get("first_name") or uid
+                msg = (
+                    f"🎰 *Premio de Ruleta*\n\n"
+                    f"👤 Usuario: {username} (ID: {uid})\n"
+                    f"🏆 Premio: *{prize_amount} {prize_type}*\n"
+                    f"📅 Fecha: {today}\n\n"
+                    f"_Verificar y procesar el pago_"
+                )
+                asyncio.run_coroutine_threadsafe(
+                    notify_mods(CombinedHandler.tg_app, msg),
+                    CombinedHandler.tg_loop
+                )
+
+            return self.send_json({
+                "status": "ok",
+                "result": result_label,
+                "pts_gained": earned,
+                "points": data["points"],
+                "prize_type": prize_type,
+                "prize_amount": prize_amount,
+                "already_done": False
+            })
+
         elif path == "/missions":
             uid = params.get("id", [None])[0]
             if not uid:

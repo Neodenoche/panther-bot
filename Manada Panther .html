@@ -456,8 +456,6 @@ function updateUI() {
   if (mcCheckin) {
     if (checkinDone) {
       mcCheckin.classList.add('done');
-      const arr = mcCheckin.querySelector('.marr');
-      if (arr) { arr.classList.add('ok'); arr.textContent = '✓'; }
       // Show countdown
       const sub = document.getElementById('checkin-sub');
       const arrDone = document.getElementById('checkin-arr');

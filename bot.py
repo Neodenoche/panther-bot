@@ -242,8 +242,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"_Hacé check-in cada día, referí amigos y subí en el ranking para ganar recompensas en PNT y USDT 💰_"
     )
 
+    from telegram import WebAppInfo
     keyboard = InlineKeyboardMarkup([
-        [InlineKeyboardButton("🐆 Abrir Manada Panther", url=app_url)],
+        [InlineKeyboardButton("🐆 Abrir Manada Panther", web_app=WebAppInfo(url=app_url))],
         [InlineKeyboardButton("✅ Check-in diario", callback_data="checkin")],
         [
             InlineKeyboardButton("📊 Mis puntos", callback_data="puntos"),

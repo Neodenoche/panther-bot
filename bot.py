@@ -29,11 +29,11 @@ def save_db(db):
 
 
 # ───────────────
-# 🐆 SERVIR MINI APP (CLAVE)
+# 🐆 SERVIR MINI APP
 # ───────────────
 @app.route("/")
 def serve_app():
-    return send_file("index.html")  # ← TU HTML
+    return send_file("index.html")
 
 
 # ───────────────
@@ -94,7 +94,6 @@ def checkin():
         return jsonify({"error": "User not found"}), 404
 
     user = db[user_id]
-
     today = datetime.utcnow().date().isoformat()
 
     if user.get("last_checkin") == today:
@@ -107,11 +106,23 @@ def checkin():
     db[user_id] = user
     save_db(db)
 
-    return jsonify({"status": "ok", "points": user["points"]})
+    return jsonify({
+        "status": "ok",
+        "points": user["points"]
+    })
 
 
 # ───────────────
-# RUN
+# HEALTH CHECK
+# ───────────────
+@app.route("/health")
+def health():
+    return jsonify({"status": "ok"})
+
+
+# ───────────────
+# RUN (FIX RAILWAY)
 # ───────────────
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    port = int(os.environ.get("PORT", 8080))
+    app.run(host="0.0.0.0", port=port)

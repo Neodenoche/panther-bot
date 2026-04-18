@@ -446,6 +446,21 @@ async def cmd_referido(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_keyboard()
     )
 
+# ── /compartir ────────────────────────────────────────────────────────────────
+async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args or []
+    tipo = args[0] if args else 'reel'
+    tipo_label = 'reel de Instagram' if tipo == 'reel' else 'historia de Instagram'
+    pts = PTS['share_reel'] if tipo == 'reel' else PTS['share_story']
+    await update.message.reply_text(
+        f"📸 *Enviá tu captura de {tipo_label}*\n\n"
+        f"1️⃣ Compartí el {tipo_label} de Panther\n"
+        f"2️⃣ Tomá una captura de pantalla\n"
+        f"3️⃣ Enviála *acá en este chat* como foto 👇\n\n"
+        f"Si se aprueba recibís *+{pts} pts* 🎉",
+        parse_mode="Markdown"
+    )
+
 # ── /ruleta ───────────────────────────────────────────────────────────────────
 async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -595,6 +610,28 @@ async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Un moderador la verificará y acreditará los puntos en menos de 24h 🐾",
         parse_mode="Markdown"
     )
+
+# ── Web App Data (desde Mini App) ────────────────────────────────────────────
+async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    import json as json_lib
+    try:
+        data = json_lib.loads(update.effective_message.web_app_data.data)
+        action = data.get('action')
+        tipo = data.get('type', 'reel')
+        
+        if action == 'share':
+            tipo_label = 'reel de Instagram' if tipo == 'reel' else 'historia de Instagram'
+            pts = PTS['share_reel'] if tipo == 'reel' else PTS['share_story']
+            await update.message.reply_text(
+                f"📸 *Enviá tu captura de {tipo_label}*\n\n"
+                f"1️⃣ Compartí el {tipo_label} de Panther\n"
+                f"2️⃣ Tomá una captura de pantalla\n"
+                f"3️⃣ Enviála *acá en este chat* como foto 👇\n\n"
+                f"Si se aprueba recibís *+{pts} pts* 🎉",
+                parse_mode="Markdown"
+            )
+    except Exception as e:
+        logger.error(f"Error handling web_app_data: {e}")
 
 # ── Manejo de fotos (capturas de misiones) ────────────────────────────────────
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -763,6 +800,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "puntos":   cmd_puntos,
         "ranking":  cmd_ranking,
         "ruleta":   cmd_ruleta,
+        "compartir": cmd_compartir,
         "misiones": cmd_misiones,
         "referido": cmd_referido,
         "niveles":  cmd_niveles,
@@ -1182,6 +1220,7 @@ def main():
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
 
     port = int(os.environ.get("PORT", 8080))
 

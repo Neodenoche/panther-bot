@@ -231,7 +231,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level = get_level(data["points"])
     next_lv, pts_needed = get_next_level(data["points"])
 
-    app_url = f"https://panther-bot-production-fd1f.up.railway.app/app?id={uid}"
+    app_url = f"https://go.mypanther.io/app?id={uid}"
 
     text = (
         f"{'🐆 *¡Bienvenido a la Manada Panther!*' if is_new else f'🐾 *¡Hola, {user.first_name}!*'}\n\n"

@@ -383,11 +383,21 @@ if (!USER_ID) {
 // Load user data from API
 async function loadUserData() {
   if (!USER_ID) {
-    // Show message to use /start button
-    const ptsEl = document.querySelector('.pts-big');
-    if(ptsEl) ptsEl.innerHTML = '? <span>pts</span>';
-    const sub = document.querySelector('.pts-sub');
-    if(sub) sub.textContent = 'Abrí desde el bot con /start';
+    // Show identify button
+    const hero = document.querySelector('.hero');
+    if(hero) {
+      hero.innerHTML = `
+        <div style="text-align:center;padding:20px 10px;width:100%">
+          <div style="font-size:48px;margin-bottom:12px">🐆</div>
+          <div style="font-size:16px;font-weight:700;color:#fff;margin-bottom:8px">¡Bienvenido a la Manada!</div>
+          <div style="font-size:13px;color:#888;margin-bottom:20px">Para ver tus puntos, identificate primero</div>
+          <button onclick="window.Telegram.WebApp.openTelegramLink('https://t.me/ManadaPantherBot?start=identify')" 
+            style="background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:1px;width:100%;max-width:280px">
+            🔗 IDENTIFICARME
+          </button>
+          <div style="font-size:11px;color:#555;margin-top:12px">Te abrirá el chat del bot</div>
+        </div>`;
+    }
     return;
   }
   try {

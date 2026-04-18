@@ -571,15 +571,19 @@ async function doCheckin() {
 }
 
 function openBotForShare(type) {
-  const tg = window.Telegram && window.Telegram.WebApp;
   const url = type === 'reel' 
     ? 'https://t.me/ManadaPantherBot?start=compartir_reel'
     : 'https://t.me/ManadaPantherBot?start=compartir_historia';
   
-  if (tg) {
-    tg.openTelegramLink(url);
-  } else {
-    window.open(url, '_blank');
+  try {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.openTelegramLink) {
+      window.Telegram.WebApp.close();
+      setTimeout(() => window.Telegram.WebApp.openTelegramLink(url), 300);
+    } else {
+      window.location.href = url;
+    }
+  } catch(e) {
+    window.location.href = url;
   }
 }
 

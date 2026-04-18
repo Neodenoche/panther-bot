@@ -752,7 +752,7 @@ function doSpin(){
         });
         const data = await res.json();
 
-        if (data.already_done) {
+        if (data.already_done || data.status === 'already_done') {
           resultText = '🎰 Ya giraste hoy · volvé mañana';
           resultColor = '#888';
         } else if (data.prize_type === 'USDT') {
@@ -762,7 +762,7 @@ function doSpin(){
           resultText = `🐾 ¡Ganaste ${data.prize_amount}! Se acreditarán en tu wallet.`;
           resultColor = '#cc88ff';
         } else {
-          resultText = `✅ +${data.pts_gained} pts ganados!`;
+          resultText = `✅ +${data.pts_gained || '?'} pts ganados!`;
           resultColor = '#ff8c42';
         }
 

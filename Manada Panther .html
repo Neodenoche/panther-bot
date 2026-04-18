@@ -1,150 +1,65 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Panther Wallet</title>
+<!-- TODO TU HTML IGUAL ARRIBA (NO CAMBIA NADA) -->
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+// ── API CONFIG ──
+const API_BASE = 'https://go.mypanther.io';
+let USER_ID = null;
+let userData = null;
 
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial, sans-serif;
-      background: #0f0f0f;
-      color: #fff;
-    }
+// 🔥 FIX REAL PARA BOTÓN AZUL
+if (window.Telegram && window.Telegram.WebApp) {
+  const tg = window.Telegram.WebApp;
 
-    .container {
-      padding: 16px;
-    }
+  tg.ready();
+  tg.expand();
 
-    .card {
-      background: #1c1c1c;
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
+  const initData = tg.initData;
 
-    .title {
-      font-size: 18px;
-      margin-bottom: 8px;
-    }
+  if (initData) {
+    const params = new URLSearchParams(initData);
+    const userStr = params.get('user');
 
-    .points {
-      font-size: 28px;
-      font-weight: bold;
-    }
-
-    .muted {
-      opacity: 0.6;
-      font-size: 14px;
-    }
-
-    .btn {
-      background: #00c853;
-      border: none;
-      padding: 12px;
-      border-radius: 8px;
-      width: 100%;
-      color: #000;
-      font-weight: bold;
-      margin-top: 10px;
-      cursor: pointer;
-    }
-
-    .error {
-      color: #ff5252;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-  </style>
-</head>
-
-<body>
-  <div class="container">
-    
-    <div class="card">
-      <div class="title">Tu progreso</div>
-      <div id="points" class="points">--</div>
-      <div id="level" class="muted"></div>
-    </div>
-
-    <div class="card">
-      <div class="title">Acciones</div>
-      <button class="btn" onclick="checkin()">Check-in diario</button>
-    </div>
-
-    <div id="error" class="error"></div>
-
-  </div>
-
-  <script>
-    // 🔥 USANDO DOMINIO PROPIO
-    const API = "https://go.mypanther.io";
-
-    const tg = window.Telegram?.WebApp;
-    let userId = null;
-
-    // 🚀 INIT TELEGRAM
-    if (tg) {
-      tg.ready();
-      tg.expand();
-
-      const initData = tg.initData;
-
-      if (initData) {
-        const params = new URLSearchParams(initData);
-        const userRaw = params.get("user");
-
-        if (userRaw) {
-          try {
-            const user = JSON.parse(userRaw);
-            userId = user.id;
-          } catch (e) {
-            console.error("Error parsing user", e);
-          }
+    if (userStr) {
+      try {
+        const userObj = JSON.parse(userStr); // 🔥 sin decodeURIComponent
+        if (userObj.id) {
+          USER_ID = String(userObj.id);
         }
+      } catch (e) {
+        console.error('Error parsing Telegram user:', e);
       }
     }
+  }
+}
 
-    // 🔁 FALLBACK URL (para botón /start)
-    if (!userId) {
-      const urlParams = new URLSearchParams(window.location.search);
-      userId = urlParams.get("id");
-    }
+// fallback (no lo tocamos)
+if (!USER_ID) {
+  const urlParams = new URLSearchParams(window.location.search);
+  const testId = urlParams.get('id');
+  if (testId) USER_ID = testId;
+}
 
-    // ❌ SI NO HAY ID
-    if (!userId) {
-      document.getElementById("error").innerText =
-        "No se pudo identificar el usuario. Abrí desde el bot con /start.";
-    } else {
-      loadUser();
-    }
 
-    // 📥 CARGAR USUARIO
-    async function loadUser() {
-      try {
-        const res = await fetch(`${API}/user?id=${userId}`);
-        const data = await res.json();
+// ── TODO LO DEMÁS IGUAL ──
 
-        document.getElementById("points").innerText = data.points + " pts";
-        document.getElementById("level").innerText = data.level;
+// Load user data from API
+async function loadUserData() {
+  if (!USER_ID) {
+    const ptsEl = document.querySelector('.pts-big');
+    if(ptsEl) ptsEl.innerHTML = '? <span>pts</span>';
+    const sub = document.querySelector('.pts-sub');
+    if(sub) sub.textContent = 'Abrí desde el bot con /start';
+    return;
+  }
+  try {
+    const res = await fetch(`${API_BASE}/user?id=${USER_ID}`);
+    if (!res.ok) return;
+    userData = await res.json();
+    updateUI();
+  } catch(e) {
+    console.error('API error:', e);
+  }
+}
 
-      } catch (err) {
-        document.getElementById("error").innerText = "Error cargando datos";
-      }
-    }
-
-    // 🎯 CHECK-IN
-    async function checkin() {
-      try {
-        await fetch(`${API}/checkin?id=${userId}`);
-        loadUser();
-      } catch (err) {
-        document.getElementById("error").innerText = "Error en check-in";
-      }
-    }
-  </script>
-</body>
-</html>
+// resto de tu código SIN CAMBIOS...
+</script>

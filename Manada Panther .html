@@ -260,17 +260,15 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="level-pill" style="justify-content:center">🐾 Cachorro · Lv.1</div>
   </div>
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label">Racha actual</div><div class="stat-val">3 días</div></div>
-    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Referidos activos</div><div class="stat-val">2</div></div>
-    <div class="stat-card"><div class="stat-icon">🎰</div><div class="stat-label">Giros usados</div><div class="stat-val">12</div></div>
-    <div class="stat-card"><div class="stat-icon">📢</div><div class="stat-label">Contenido compartido</div><div class="stat-val">5</div></div>
+    <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label">Racha actual</div><div class="stat-val" id="stat-streak">0 días</div></div>
+    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Referidos activos</div><div class="stat-val" id="stat-refs">0</div></div>
+    <div class="stat-card"><div class="stat-icon">🎰</div><div class="stat-label">Giros usados</div><div class="stat-val" id="stat-spins">0</div></div>
+    <div class="stat-card"><div class="stat-icon">📢</div><div class="stat-label">Nivel actual</div><div class="stat-val" id="stat-level" style="font-size:14px">-</div></div>
   </div>
   <div class="hist-title">Historial reciente</div>
-  <div class="hist-row"><div class="hist-ic">🔥</div><div class="hist-body"><div class="hist-desc">Check-in diario</div><div class="hist-time">Hoy · 09:14</div></div><div class="hist-pts">+10</div></div>
-  <div class="hist-row"><div class="hist-ic">👥</div><div class="hist-body"><div class="hist-desc">Referido activó wallet</div><div class="hist-time">Ayer · 18:32</div></div><div class="hist-pts">+150</div></div>
-  <div class="hist-row"><div class="hist-ic">🎰</div><div class="hist-body"><div class="hist-desc">Ruleta diaria</div><div class="hist-time">Ayer · 10:05</div></div><div class="hist-pts">+8</div></div>
-  <div class="hist-row"><div class="hist-ic">📹</div><div class="hist-body"><div class="hist-desc">Compartir reel</div><div class="hist-time">Hace 2 días</div></div><div class="hist-pts">+30</div></div>
-  <div class="hist-row"><div class="hist-ic">📸</div><div class="hist-body"><div class="hist-desc">Compartir historia</div><div class="hist-time">Hace 3 días</div></div><div class="hist-pts">+20</div></div>
+  <div id="hist-container">
+    <div class="hist-row"><div class="hist-ic">🔥</div><div class="hist-body"><div class="hist-desc">Check-in diario</div><div class="hist-time">Hoy</div></div><div class="hist-pts">+5</div></div>
+  </div>
 </div>
 
 <!-- RANKING -->
@@ -464,16 +462,32 @@ function updateUI() {
   }
 
   // Mis puntos screen
+  USER_PTS = pts;
   const ptsCounter = document.getElementById('pts-counter');
-  if (ptsCounter) {
-    USER_PTS = pts;
+  if(ptsCounter && document.getElementById('s-puntos').classList.contains('active')) {
+    ptsCounter.textContent = pts;
   }
 
-  // Stats
-  const statCards = document.querySelectorAll('.stat-val');
-  if (statCards.length >= 4) {
-    statCards[0].textContent = `${streak} días`;
-    statCards[1].textContent = refs;
+  // Stats - Mis Puntos screen
+  const statStreak = document.getElementById('stat-streak');
+  const statRefs = document.getElementById('stat-refs');
+  const statLevel = document.getElementById('stat-level');
+  if(statStreak) statStreak.textContent = streak + ' días';
+  if(statRefs) statRefs.textContent = refs;
+  if(statLevel) statLevel.textContent = level;
+
+  // History
+  const histContainer = document.getElementById('hist-container');
+  if(histContainer && userData.history && userData.history.length > 0) {
+    const typeMap = {checkin:'🔥 Check-in diario', ruleta:'🎰 Ruleta', reel:'📹 Reel compartido', story:'📸 Historia compartida', referral:'👥 Referido'};
+    histContainer.innerHTML = userData.history.slice().reverse().map(h => `
+      <div class="hist-row">
+        <div class="hist-ic">${h.type==='checkin'?'🔥':h.type==='ruleta'?'🎰':h.type==='reel'?'📹':h.type==='story'?'📸':'👥'}</div>
+        <div class="hist-body"><div class="hist-desc">${typeMap[h.type]||h.type}</div><div class="hist-time">${h.date||''} ${h.time||''}</div></div>
+        <div class="hist-pts">+${h.pts}</div>
+      </div>`).join('');
+  } else if(histContainer) {
+    histContainer.innerHTML = '<div class="hist-row"><div class="hist-ic">🐾</div><div class="hist-body"><div class="hist-desc">Sin actividad reciente</div><div class="hist-time">Completá misiones para ver tu historial</div></div></div>';
   }
 
   // Referido screen
@@ -757,7 +771,7 @@ function shareLink(){
 })();
 
 // CONTADOR PUNTOS
-const USER_PTS=28;
+let USER_PTS=0;
 function animateCounter(el,target,dur){
   const t0=performance.now();
   const f=(now)=>{
@@ -771,7 +785,11 @@ function animateCounter(el,target,dur){
 const ps=document.getElementById('s-puntos');
 let cp=false;
 new MutationObserver(()=>{
-  if(ps.classList.contains('active')&&!cp){cp=true;setTimeout(()=>animateCounter(document.getElementById('pts-counter'),USER_PTS,900),200);}
+  if(ps.classList.contains('active')&&!cp){
+    cp=true;
+    const pts = userData ? userData.points : USER_PTS;
+    setTimeout(()=>animateCounter(document.getElementById('pts-counter'),pts,900),200);
+  }
   if(!ps.classList.contains('active')){cp=false;document.getElementById('pts-counter').textContent='0';}
 }).observe(ps,{attributes:true,attributeFilter:['class']});
 

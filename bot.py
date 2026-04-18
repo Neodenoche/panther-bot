@@ -33,7 +33,10 @@ def save_db(db):
 # ───────────────
 @app.route("/")
 def serve_app():
-    return send_file("index.html")
+    try:
+        return send_file("index.html")
+    except Exception as e:
+        return f"Error cargando index.html: {str(e)}"
 
 
 # ───────────────
@@ -121,16 +124,8 @@ def health():
 
 
 # ───────────────
-# RUN (FIX RAILWAY)
+# RUN (FIX REAL)
 # ───────────────
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-    import os
-
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))
-import os
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)

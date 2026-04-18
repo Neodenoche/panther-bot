@@ -273,7 +273,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
 <!-- RANKING -->
 <div class="screen" id="s-ranking">
-  <div class="rank-hero"><div class="rank-title">🏆 Ranking Manada</div><div class="rank-sub">Top jugadores · actualización diaria</div><div class="rank-mypos">Tu posición: <strong>#47</strong> · 28 pts</div></div>
+  <div class="rank-hero"><div class="rank-title">🏆 Ranking Manada</div><div class="rank-sub">Top jugadores · actualización diaria</div><div class="rank-mypos" id="rank-mypos">Cargando...</div></div>
   <div class="rank-list" id="rank-list">
     <div style="text-align:center;padding:20px;color:var(--t3)">Cargando ranking...</div>
   </div>
@@ -382,7 +382,14 @@ if (!USER_ID) {
 
 // Load user data from API
 async function loadUserData() {
-  if (!USER_ID) return;
+  if (!USER_ID) {
+    // Show message to use /start button
+    const ptsEl = document.querySelector('.pts-big');
+    if(ptsEl) ptsEl.innerHTML = '? <span>pts</span>';
+    const sub = document.querySelector('.pts-sub');
+    if(sub) sub.textContent = 'Abrí desde el bot con /start';
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/user?id=${USER_ID}`);
     if (!res.ok) return;

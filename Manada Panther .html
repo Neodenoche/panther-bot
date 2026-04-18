@@ -222,9 +222,6 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <span class="badge">🐾 Lv.1</span>
 </div>
 
-<!-- DEBUG -->
-<div id="debug-info" style="background:#1a0a00;color:#ff6b1a;font-size:10px;padding:4px 18px;text-align:center;letter-spacing:1px;"></div>
-
 <!-- MISIONES -->
 <div class="screen active" id="s-misiones">
   <div class="hero">
@@ -405,23 +402,14 @@ setTimeout(() => {
 
 // Load user data from API
 async function loadUserData() {
-  // Show debug info
-  const debugEl = document.getElementById('debug-info');
-  if(debugEl) debugEl.textContent = `ID: ${USER_ID || 'NO ID'}`;
-  
-  if (!USER_ID) {
-    if(debugEl) debugEl.textContent = 'Sin ID de Telegram';
-    return;
-  }
+  if (!USER_ID) return;
   try {
     const res = await fetch(`${API_BASE}/user?id=${USER_ID}`);
-    if(debugEl) debugEl.textContent = `ID: ${USER_ID} | Status: ${res.status}`;
     if (!res.ok) return;
     userData = await res.json();
-    if(debugEl) debugEl.textContent = `✅ ${userData.first_name}: ${userData.points} pts`;
     updateUI();
   } catch(e) {
-    if(debugEl) debugEl.textContent = `Error: ${e.message}`;
+    console.error('API error:', e);
   }
 }
 

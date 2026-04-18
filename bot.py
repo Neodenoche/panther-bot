@@ -206,6 +206,21 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_new = uid not in db
     data = get_user(db, uid, user)
 
+    # Handle compartir deep links
+    if context.args and context.args[0] in ('compartir_reel', 'compartir_historia'):
+        tipo = context.args[0]
+        tipo_label = 'reel de Instagram' if tipo == 'compartir_reel' else 'historia de Instagram'
+        pts = PTS['share_reel'] if tipo == 'compartir_reel' else PTS['share_story']
+        await update.message.reply_text(
+            f"📸 *Enviá tu captura de {tipo_label}*\n\n"
+            f"1️⃣ Compartí el {tipo_label} de Panther\n"
+            f"2️⃣ Tomá una captura de pantalla\n"
+            f"3️⃣ Enviála *acá en este chat* como foto 👇\n\n"
+            f"Si se aprueba recibís *+{pts} pts* 🎉",
+            parse_mode="Markdown"
+        )
+        return
+
     if context.args and is_new:
         ref_code = context.args[0]
         for rid, rdata in db.items():

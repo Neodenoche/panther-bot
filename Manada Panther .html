@@ -56,6 +56,7 @@
     .error {
       color: #ff5252;
       font-size: 14px;
+      margin-top: 10px;
     }
   </style>
 </head>
@@ -79,7 +80,8 @@
   </div>
 
   <script>
-    const API = "https://panther-bot-production-fd1f.up.railway.app";
+    // 🔥 USANDO DOMINIO PROPIO
+    const API = "https://go.mypanther.io";
 
     const tg = window.Telegram?.WebApp;
     let userId = null;
@@ -106,13 +108,13 @@
       }
     }
 
-    // 🔁 FALLBACK URL
+    // 🔁 FALLBACK URL (para botón /start)
     if (!userId) {
       const urlParams = new URLSearchParams(window.location.search);
       userId = urlParams.get("id");
     }
 
-    // ❌ SIN ID
+    // ❌ SI NO HAY ID
     if (!userId) {
       document.getElementById("error").innerText =
         "No se pudo identificar el usuario. Abrí desde el bot con /start.";
@@ -137,11 +139,8 @@
     // 🎯 CHECK-IN
     async function checkin() {
       try {
-        const res = await fetch(`${API}/checkin?id=${userId}`);
-        const data = await res.json();
-
+        await fetch(`${API}/checkin?id=${userId}`);
         loadUser();
-
       } catch (err) {
         document.getElementById("error").innerText = "Error en check-in";
       }

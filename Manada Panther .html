@@ -458,8 +458,33 @@ function updateUI() {
       mcCheckin.classList.add('done');
       const arr = mcCheckin.querySelector('.marr');
       if (arr) { arr.classList.add('ok'); arr.textContent = '✓'; }
+      // Show countdown
+      const sub = mcCheckin.querySelector('.ms');
+      if (sub) {
+        const now = new Date();
+        const midnight = new Date();
+        midnight.setUTCHours(24, 0, 0, 0);
+        const diff = midnight - now;
+        const hours = Math.floor(diff / 3600000);
+        const mins = Math.floor((diff % 3600000) / 60000);
+        sub.textContent = `✅ Completado · próximo en ${hours}h ${mins}m`;
+        // Update every minute
+        if (!mcCheckin._timer) {
+          mcCheckin._timer = setInterval(() => {
+            const d = new Date(midnight - new Date());
+            const h = Math.floor(d / 3600000);
+            const m = Math.floor((d % 3600000) / 60000);
+            sub.textContent = `✅ Completado · próximo en ${h}h ${m}m`;
+          }, 60000);
+        }
+      }
+      mcCheckin.onclick = null;
     } else {
       mcCheckin.classList.remove('done');
+      const sub = mcCheckin.querySelector('.ms');
+      if (sub) sub.textContent = '+5 a +10 pts · bonus por racha';
+      if (mcCheckin._timer) { clearInterval(mcCheckin._timer); mcCheckin._timer = null; }
+      mcCheckin.onclick = doCheckin;
     }
   }
 
@@ -524,6 +549,26 @@ const originalGoTo = function(n) {
   // Reload data on screen change
   loadUserData();
 };
+
+async function doCheckin() {
+  if (!USER_ID) return;
+  const mcCheckin = document.getElementById('mc-checkin');
+  if (mcCheckin) mcCheckin.style.opacity = '0.5';
+  try {
+    const res = await fetch(`${API_BASE}/checkin`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id: USER_ID})
+    });
+    const data = await res.json();
+    if (data.status === 'ok' || data.status === 'already_checked') {
+      await loadUserData();
+    }
+  } catch(e) {
+    console.error('Checkin error:', e);
+  }
+  if (mcCheckin) mcCheckin.style.opacity = '1';
+}
 
 function goTo(n){
   originalGoTo(n);

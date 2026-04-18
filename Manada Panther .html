@@ -387,18 +387,6 @@ if (!USER_ID) {
   if (testId) USER_ID = testId;
 }
 
-// Debug: show USER_ID in topbar temporarily
-setTimeout(() => {
-  const badge = document.querySelector('.badge');
-  if (badge) badge.title = 'ID: ' + (USER_ID || 'null');
-  // Show debug bar
-  const dbg = document.createElement('div');
-  dbg.id = 'debug-bar';
-  dbg.style.cssText = 'background:#1a0d00;color:#ff6b1a;font-size:10px;padding:4px 18px;letter-spacing:1px;';
-  dbg.textContent = 'ID: ' + (USER_ID || 'NO ID') + ' | API: ' + API_BASE;
-  const topbar = document.querySelector('.topbar');
-  if (topbar) topbar.after(dbg);
-}, 500);
 
 // Load user data from API
 async function loadUserData() {

@@ -248,8 +248,8 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
   <div class="sec">
     <div class="stitle">Sociales</div>
-    <div class="mc"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Mandá la captura al bot</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
-    <div class="mc"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Mandá la captura al bot</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" onclick="openBotForShare('reel')"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Tocá para enviar captura al bot</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" onclick="openBotForShare('story')"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Tocá para enviar captura al bot</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
     <div class="mc" onclick="goTo('referido')"><div class="mic i5">👥</div><div class="mb"><div class="mn">Referir un amigo</div><div class="ms">+25 al unirse · +150 si activa wallet</div></div><div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
   </div>
 </div>
@@ -568,6 +568,19 @@ async function doCheckin() {
     console.error('Checkin error:', e);
   }
   if (mcCheckin) mcCheckin.style.opacity = '1';
+}
+
+function openBotForShare(type) {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const url = type === 'reel' 
+    ? 'https://t.me/ManadaPantherBot?start=compartir_reel'
+    : 'https://t.me/ManadaPantherBot?start=compartir_historia';
+  
+  if (tg) {
+    tg.openTelegramLink(url);
+  } else {
+    window.open(url, '_blank');
+  }
 }
 
 function goTo(n){

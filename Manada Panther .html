@@ -738,31 +738,40 @@ function doSpin(){
   totalDeg = totalDeg + 6*360 + targetAngle;
   document.getElementById('wheel').style.transform=`rotate(${totalDeg}deg)`;
 
-  setTimeout(() => {
-    let resultText = '';
+  setTimeout(async () => {
+    // Call backend
+    let resultText = chosen.label;
     let resultColor = '#ff8c42';
 
-    if(chosen.type==='usdt') {
-      const prize = getUSDTPrize();
-      if(prize) {
-        prize.won++;
-        markUSDTWon();
-        resultText = `🎉 ¡Ganaste ${prize.amount} USDT! El equipo Panther te contactará.`;
-        resultColor = '#4ade80';
-      } else {
-        resultText = '+5 pts 🔥';
+    if (USER_ID) {
+      try {
+        const res = await fetch(`${API_BASE}/ruleta`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({id: USER_ID})
+        });
+        const data = await res.json();
+
+        if (data.already_done) {
+          resultText = '🎰 Ya giraste hoy · volvé mañana';
+          resultColor = '#888';
+        } else if (data.prize_type === 'USDT') {
+          resultText = `🎉 ¡Ganaste ${data.prize_amount}! El equipo Panther te contactará.`;
+          resultColor = '#4ade80';
+        } else if (data.prize_type === 'PNT') {
+          resultText = `🐾 ¡Ganaste ${data.prize_amount}! Se acreditarán en tu wallet.`;
+          resultColor = '#cc88ff';
+        } else {
+          resultText = `✅ +${data.pts_gained} pts ganados!`;
+          resultColor = '#ff8c42';
+        }
+
+        // Refresh user data
+        await loadUserData();
+      } catch(e) {
+        resultText = chosen.label;
+        console.error('Ruleta API error:', e);
       }
-    } else if(chosen.type==='pnt') {
-      const prize = getPNTPrize();
-      if(prize) {
-        prize.won++;
-        resultText = `🐾 ¡Ganaste ${prize.amount} PNT! Se acreditarán en tu wallet.`;
-        resultColor = '#cc88ff';
-      } else {
-        resultText = '+8 pts 🔥';
-      }
-    } else {
-      resultText = chosen.label;
     }
 
     document.getElementById('spin-result').textContent = resultText;

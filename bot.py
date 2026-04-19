@@ -182,6 +182,29 @@ def mark_won_month(data, prize_type):
     """Marca que el usuario ganó este mes"""
     data[f"{prize_type}_won_month"] = date.today().strftime("%Y-%m")
 
+def is_ruleta_active():
+    return date.today().day in [15, 30]
+
+def can_access_ruleta(data):
+    return (
+        data.get("reel_verified", False) and
+        data.get("story_verified", False) and
+        data.get("referrals_active", 0) >= 1
+    )
+
+def get_available_spins(data):
+    base = 1
+    bonus = 0
+    if data.get("has_virtual_card"): bonus += 2
+    if data.get("has_physical_card"): bonus += 3
+    if data.get("big_transaction"): bonus += 4
+    return min(base + bonus, 3)
+
+def get_monthly_pnt_pool():
+    BUDGET_USD = 1050
+    PNT_PRICE = 0.20
+    return int(BUDGET_USD / PNT_PRICE)
+
 # ── Teclado principal ─────────────────────────────────────────────────────────
 def main_keyboard():
     return InlineKeyboardMarkup([
@@ -931,6 +954,12 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "referral_code":  data.get("referral_code", ""),
                 "checkin_today":  data.get("last_checkin") == today,
                 "ruleta_today":   data.get("last_ruleta") == today,
+                "ruleta_active":  is_ruleta_active(),
+                "ruleta_access":  can_access_ruleta(data),
+                "spins_available": get_available_spins(data),
+                "spins_used":     data.get("spins_used_this_event", 0),
+                "reel_verified":  data.get("reel_verified", False),
+                "story_verified": data.get("story_verified", False),
                 "usdt_won_month": has_won_this_month(data, "usdt"),
                 "pnt_won_month":  has_won_this_month(data, "pnt"),
                 "history":        history,
@@ -962,11 +991,38 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             data = get_user(db, uid)
             today = date.today().isoformat()
 
-            if data.get("last_ruleta") == today:
+            # Check ruleta availability (only days 15 and 30)
+            if not is_ruleta_active():
+                next_day = 15 if date.today().day < 15 else 30
+                return self.send_json({
+                    "available": False,
+                    "reason": "dates",
+                    "message": "La ruleta se habilita el dia 15 o 30 del mes",
+                    "next_day": next_day
+                })
+
+            # Check access conditions
+            if not can_access_ruleta(data):
+                missing = []
+                if not data.get("reel_verified"): missing.append("reel verificado")
+                if not data.get("story_verified"): missing.append("historia verificada")
+                if data.get("referrals_active", 0) < 1: missing.append("1 referido activo")
+                return self.send_json({
+                    "available": False,
+                    "reason": "missions",
+                    "message": "Completa todas las misiones para desbloquear la ruleta",
+                    "missing": missing
+                })
+
+            # Check spins available
+            spins_used = data.get("spins_used_this_event", 0)
+            spins_available = get_available_spins(data)
+            if spins_used >= spins_available:
                 return self.send_json({"already_done": True, "points": data["points"]})
 
             result_label, pts_gain, special, _ = spin_ruleta()
             data["last_ruleta"] = today
+            data["spins_used_this_event"] = spins_used + 1
 
             prize_type = None
             prize_amount = None

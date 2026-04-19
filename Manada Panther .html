@@ -491,6 +491,26 @@ function updateUI() {
     }
   }
 
+  // Update ruleta screen status
+  const ruletaStatus = document.getElementById('ruleta-status');
+  if(ruletaStatus && userData) {
+    if(!userData.ruleta_active) {
+      ruletaStatus.textContent = '🎰 Próxima ruleta: día 15 o 30';
+      ruletaStatus.style.color = '#888';
+      const spinBtn = document.getElementById('spin-btn');
+      if(spinBtn) spinBtn.disabled = true;
+    } else if(!userData.ruleta_access) {
+      ruletaStatus.textContent = '⚠️ Completá misiones para acceder';
+      ruletaStatus.style.color = '#ff6b1a';
+      const spinBtn = document.getElementById('spin-btn');
+      if(spinBtn) spinBtn.disabled = true;
+    } else {
+      const spinsLeft = (userData.spins_available || 1) - (userData.spins_used || 0);
+      ruletaStatus.textContent = `🎰 Ruleta activa · ${spinsLeft} giro${spinsLeft !== 1 ? 's' : ''} disponible${spinsLeft !== 1 ? 's' : ''}`;
+      ruletaStatus.style.color = '#4ade80';
+    }
+  }
+
   // Mis puntos screen
   USER_PTS = pts;
   const ptsCounter = document.getElementById('pts-counter');
@@ -708,6 +728,24 @@ const SEGMENTS = [
 
 function doSpin(){
   if(spinning)return;
+  
+  // Check ruleta availability from userData
+  if(userData) {
+    if(!userData.ruleta_active) {
+      const next = userData.next_ruleta_day || '15 o 30';
+      alert('🎰 La ruleta se habilita el día ' + next + ' del mes');
+      return;
+    }
+    if(!userData.ruleta_access) {
+      alert('⚠️ Completá todas las misiones verificadas para acceder a la ruleta:\n\n✅ Reel verificado\n✅ Historia verificada\n✅ 1 referido activo');
+      return;
+    }
+    if((userData.spins_used || 0) >= (userData.spins_available || 1)) {
+      alert('🎰 Ya usaste todos tus giros disponibles');
+      return;
+    }
+  }
+  
   spinning=true;
   const btn=document.getElementById('spin-btn');
   btn.disabled=true;

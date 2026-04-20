@@ -591,19 +591,43 @@ async function doCheckin() {
 }
 
 function openBotForShare(type) {
-  const tg = window.Telegram && window.Telegram.WebApp;
-  const cmd = type === 'reel' ? '/compartir reel' : '/compartir historia';
-  const url = 'tg://resolve?domain=ManadaPantherBot&text=' + encodeURIComponent(cmd);
+  const isReel = type === 'reel';
+  const pts = isReel ? 30 : 20;
+  const label = isReel ? 'reel de Instagram' : 'historia de Instagram';
   
-  try {
-    if (tg && tg.openTelegramLink) {
-      tg.openTelegramLink(url);
-    } else {
-      window.location.href = url;
-    }
-  } catch(e) {
-    window.location.href = url;
+  // Show instructions modal inside Mini App
+  let modal = document.getElementById('share-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'share-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
   }
+  
+  modal.innerHTML = `
+    <div style="background:#1a1a1a;border:1px solid #ff6b1a44;border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center">
+      <div style="font-size:40px;margin-bottom:12px">${isReel ? '📹' : '📸'}</div>
+      <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">Compartir ${label}</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.6">
+        1️⃣ Compartí el ${label} de Panther<br>
+        2️⃣ Tomá una captura de pantalla<br>
+        3️⃣ Abrí el bot y enviá la foto<br>
+        4️⃣ Ganás <span style="color:#ff6b1a;font-weight:700">+${pts} pts</span> si se aprueba
+      </div>
+      <button onclick="
+        document.getElementById('share-modal').remove();
+        const tg = window.Telegram && window.Telegram.WebApp;
+        if(tg) tg.close();
+      " style="background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+        🐆 IR AL BOT
+      </button>
+      <button onclick="document.getElementById('share-modal').remove()" 
+        style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:10px 0;width:100%;font-size:13px;cursor:pointer">
+        Cancelar
+      </button>
+    </div>`;
+  
+  modal.style.display = 'flex';
 }
 
 function goTo(n){

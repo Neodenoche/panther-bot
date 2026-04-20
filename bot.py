@@ -183,6 +183,14 @@ def mark_won_month(data, prize_type):
     data[f"{prize_type}_won_month"] = date.today().strftime("%Y-%m")
 
 def is_ruleta_active():
+    # Check manual override in DB
+    db = load_db()
+    override = db.get("_global", {}).get("ruleta_override")
+    if override == "on":
+        return True
+    if override == "off":
+        return False
+    # Default: auto based on day 15 or 30
     return date.today().day in [15, 30]
 
 def can_access_ruleta(data):
@@ -246,22 +254,40 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if context.args and is_new:
         ref_code = context.args[0]
+        # Match both numeric code and full PANTH-XXXXXX format
         for rid, rdata in db.items():
-            if rdata.get("referral_code") == ref_code and rid != uid:
+            r_code = rdata.get("referral_code", "")
+            if (r_code == ref_code or r_code == f"PANTH-{ref_code}") and rid != uid:
                 data["referred_by"] = rid
                 if uid not in rdata["referrals"]:
                     rdata["referrals"].append(uid)
                     earned = add_points(rdata, PTS["referral_join"])
+                    db[rid] = rdata
+
+                    # Notify referrer
                     try:
                         await context.bot.send_message(
                             chat_id=int(rid),
-                            text=f"🎉 *¡Nuevo referido!*\n\n"
-                                 f"{user.first_name} se unió con tu código.\n"
-                                 f"*+{earned} puntos* para vos 🐾",
+                            text=f"🎉 *¡Nuevo miembro en la Manada!*\n\n"
+                                 f"*{user.first_name}* se unió con tu código 🐆\n"
+                                 f"*+{earned} puntos* acreditados 🐾",
                             parse_mode="Markdown"
                         )
                     except Exception:
                         pass
+
+                    # Notify community group if configured
+                    if COMMUNITY_CHAT_ID:
+                        try:
+                            await context.bot.send_message(
+                                chat_id=int(COMMUNITY_CHAT_ID),
+                                text=f"🐆 *¡Bienvenido a la Manada, {user.first_name}!*\n\n"
+                                     f"Un nuevo miembro se ha unido gracias a un referido.\n"
+                                     f"¡La manada sigue creciendo! 🔥",
+                                parse_mode="Markdown"
+                            )
+                        except Exception:
+                            pass
                 break
 
     save_db(db)
@@ -469,6 +495,40 @@ async def cmd_referido(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_keyboard()
     )
 
+# ── /ruleta_on / /ruleta_off (moderadores) ────────────────────────────────────
+async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        return
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"]["ruleta_override"] = "on"
+    save_db(db)
+    await update.message.reply_text("✅ Ruleta ACTIVADA manualmente")
+
+async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        return
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"]["ruleta_override"] = "off"
+    save_db(db)
+    await update.message.reply_text("🔴 Ruleta DESACTIVADA manualmente")
+
+async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        return
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"]["ruleta_override"] = None
+    save_db(db)
+    await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
+
 # ── /compartir ────────────────────────────────────────────────────────────────
 async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args or []
@@ -621,6 +681,40 @@ async def cmd_misiones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown",
         reply_markup=main_keyboard()
     )
+
+# ── /ruleta_on / /ruleta_off (moderadores) ────────────────────────────────────
+async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        return
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"]["ruleta_override"] = "on"
+    save_db(db)
+    await update.message.reply_text("✅ Ruleta ACTIVADA manualmente")
+
+async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        return
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"]["ruleta_override"] = "off"
+    save_db(db)
+    await update.message.reply_text("🔴 Ruleta DESACTIVADA manualmente")
+
+async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        return
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"]["ruleta_override"] = None
+    save_db(db)
+    await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
 
 # ── /compartir ────────────────────────────────────────────────────────────────
 async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -824,6 +918,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ranking":  cmd_ranking,
         "ruleta":   cmd_ruleta,
         "compartir": cmd_compartir,
+        "ruleta_on":  cmd_ruleta_on,
+        "ruleta_off": cmd_ruleta_off,
+        "ruleta_auto": cmd_ruleta_auto,
         "misiones": cmd_misiones,
         "referido": cmd_referido,
         "niveles":  cmd_niveles,

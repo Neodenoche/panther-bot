@@ -592,9 +592,17 @@ async function doCheckin() {
 
 function openBotForShare(type) {
   const tg = window.Telegram && window.Telegram.WebApp;
-  if (tg) {
-    // sendData closes the Mini App and sends data to the bot
-    tg.sendData(JSON.stringify({action: 'share', type: type}));
+  const cmd = type === 'reel' ? '/compartir reel' : '/compartir historia';
+  const url = 'tg://resolve?domain=ManadaPantherBot&text=' + encodeURIComponent(cmd);
+  
+  try {
+    if (tg && tg.openTelegramLink) {
+      tg.openTelegramLink(url);
+    } else {
+      window.location.href = url;
+    }
+  } catch(e) {
+    window.location.href = url;
   }
 }
 

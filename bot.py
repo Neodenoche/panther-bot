@@ -756,9 +756,54 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db   = load_db()
     uid  = str(user.id)
     data = get_user(db, uid, user)
-    save_db(db)
 
     name = f"@{user.username}" if user.username else user.first_name
+
+    # Check if this is a wallet activation proof
+    if data.get("pending_wallet_proof"):
+        data["pending_wallet_proof"] = False
+        save_db(db)
+
+        await update.message.reply_text(
+            f"✅ *¡Captura recibida!* Gracias {name}.\n\n"
+            f"Un moderador verificará tu activación de wallet en las próximas 24h.\n\n"
+            f"_Cuando se apruebe, tu referidor recibirá sus puntos_ 🐆",
+            parse_mode="Markdown"
+        )
+
+        # Notify mods with wallet proof buttons
+        referred_by = data.get("referred_by")
+        for mod_id in MOD_IDS:
+            try:
+                await context.bot.forward_message(
+                    chat_id=mod_id,
+                    from_chat_id=update.effective_chat.id,
+                    message_id=update.message.message_id
+                )
+                keyboard = InlineKeyboardMarkup([
+                    [InlineKeyboardButton(
+                        f"✅ Aprobar wallet (+150 pts al referidor)",
+                        callback_data=f"wallet_{uid}_{referred_by}"
+                    )],
+                    [InlineKeyboardButton(
+                        "❌ Rechazar",
+                        callback_data=f"reject_{uid}"
+                    )]
+                ])
+                await context.bot.send_message(
+                    chat_id=mod_id,
+                    text=f"🔐 *Prueba de wallet*\n\n"
+                         f"Usuario: {name} (ID: {uid})\n"
+                         f"Referido por: {referred_by or 'N/A'}\n\n"
+                         f"¿Aprobar activación de wallet?",
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                logger.error(f"Error notifying mod: {e}")
+        return
+
+    save_db(db)
 
     await update.message.reply_text(
         f"📸 ¡Captura recibida! Gracias {name}.\n\n"
@@ -854,6 +899,48 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     data_str = query.data
+
+    # ── Aprobar wallet (moderadores) ──
+    if cb.startswith("wallet_"):
+        parts = cb.split("_")
+        target_uid = parts[1]
+        referrer_uid = parts[2] if len(parts) > 2 else None
+
+        db = load_db()
+
+        # Mark wallet activated for referred user
+        if target_uid in db:
+            db[target_uid]["wallet_activated"] = True
+
+        # Give +150 pts to referrer
+        if referrer_uid and referrer_uid in db:
+            earned = add_points(db[referrer_uid], PTS["referral_wallet"])
+            db[referrer_uid]["referrals_active"] = db[referrer_uid].get("referrals_active", 0) + 1
+            save_db(db)
+            try:
+                await context.bot.send_message(
+                    chat_id=int(referrer_uid),
+                    text=f"🎉 *¡Tu referido activó su wallet!*\n\n"
+                         f"*+{earned} puntos* acreditados en tu cuenta 🐆\n\n"
+                         f"_Seguí invitando amigos para ganar más recompensas_",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+            try:
+                await context.bot.send_message(
+                    chat_id=int(target_uid),
+                    text=f"✅ *¡Tu wallet fue verificada!*\n\n"
+                         f"Tu activación fue aprobada. Ya podés acceder a todas las misiones 🐆",
+                    parse_mode="Markdown"
+                )
+            except Exception:
+                pass
+        else:
+            save_db(db)
+
+        await query.edit_message_text(f"✅ Wallet aprobada. +150 pts enviados al referidor.")
+        return
 
     # ── Aprobar/rechazar captura (moderadores) ──
     if data_str.startswith("approve_") or data_str.startswith("reject_"):

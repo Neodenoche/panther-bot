@@ -321,9 +321,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <button class="ref-copy-btn" id="ref-share-btn" onclick="shareLink()" style="width:100%;margin-top:8px;padding:12px;font-size:13px;background:#ff6b1a;color:#fff;border-color:#ff6b1a;">🚀 COMPARTIR ENLACE</button>
   </div>
   <div class="ref-stats">
-    <div class="ref-stat"><div class="ref-stat-n">2</div><div class="ref-stat-l">Invitados</div></div>
-    <div class="ref-stat"><div class="ref-stat-n">1</div><div class="ref-stat-l">Con wallet</div></div>
-    <div class="ref-stat"><div class="ref-stat-n">175</div><div class="ref-stat-l">Pts ganados</div></div>
+    <div class="ref-stat"><div class="ref-stat-n" id="ref-invitados">0</div><div class="ref-stat-l">Invitados</div></div>
+    <div class="ref-stat"><div class="ref-stat-n" id="ref-wallet">0</div><div class="ref-stat-l">Con wallet</div></div>
+    <div class="ref-stat"><div class="ref-stat-n" id="ref-pts">0</div><div class="ref-stat-l">Pts ganados</div></div>
   </div>
   <div class="ref-how">
     <div class="ref-how-t">¿Cómo funciona?</div>
@@ -628,6 +628,33 @@ function openBotForShare(type) {
     </div>`;
   
   modal.style.display = 'flex';
+}
+
+let soundEnabled = true;
+
+function toggleSound() {
+  const music = document.getElementById('bg-music');
+  const btn = document.getElementById('sound-btn');
+  soundEnabled = !soundEnabled;
+  if (soundEnabled) {
+    music.play().catch(()=>{});
+    btn.textContent = '🔊';
+  } else {
+    music.pause();
+    btn.textContent = '🔇';
+  }
+}
+
+function startMusic() {
+  const music = document.getElementById('bg-music');
+  music.volume = 0.4;
+  music.play().catch(()=>{
+    // Autoplay blocked - wait for user interaction
+    document.addEventListener('click', function startOnClick() {
+      if (soundEnabled) music.play().catch(()=>{});
+      document.removeEventListener('click', startOnClick);
+    }, { once: true });
+  });
 }
 
 function goTo(n){

@@ -1301,6 +1301,19 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 self.wfile.write(html.encode())
             except Exception as e:
                 self.send_json({"error": f"App not found: {str(e)}"}, 404)
+
+        elif path == "/music":
+            try:
+                with open("music.mp3", "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/mpeg")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                self.send_json({"error": f"Music not found: {str(e)}"}, 404)
         elif path == "/debug":
             import os
             db_exists = os.path.exists(DB_FILE)

@@ -13,7 +13,7 @@
 body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-width:430px;margin:0 auto;overflow-x:hidden;min-height:100vh}
 
 /* ── SPLASH ── */
-#splash{position:fixed;inset:0;background:#0a0a0a;z-index:9999;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+#splash{position:fixed;inset:0;background:#0a0a0a;z-index:99999;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
 
 /* Energy rays — Super Saiyan God style */
 .sp-ray{position:absolute;top:42%;left:50%;transform-origin:0 0;pointer-events:none;z-index:1;opacity:0;animation:rayFlash var(--rd) ease-in-out var(--rdelay) infinite}
@@ -231,7 +231,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
       TOCÁ PARA ENTRAR
     </div>
     <div id="splash-quote" style="font-size:12px;color:#666;font-style:italic;line-height:1.5;padding:0 10px"></div>
-  <div style="display:none">
+  </div>
   </div>
 </div>
 
@@ -1081,11 +1081,18 @@ function enterApp() {
     music.volume = 0.4;
     music.play().then(() => { musicStarted = true; }).catch(()=>{});
   }
-  // Close splash
+  // Close splash and show misiones
   const sp = document.getElementById('splash');
   sp.style.transition = 'opacity .5s ease';
   sp.style.opacity = '0';
-  setTimeout(() => sp.remove(), 520);
+  setTimeout(() => {
+    sp.style.display = 'none';
+    // Make sure misiones screen is visible
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    const misiones = document.getElementById('s-misiones');
+    if (misiones) misiones.classList.add('active');
+    loadUserData();
+  }, 520);
 }
 
 // Show random quote on splash

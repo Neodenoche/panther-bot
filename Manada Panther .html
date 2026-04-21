@@ -378,6 +378,178 @@ const API_BASE = 'https://go.mypanther.io';
 let USER_ID = null;
 let userData = null;
 
+// ── TRANSLATIONS ──
+const T = {
+  es: {
+    misionesTitle: 'MISIONES',
+    misPtsTitle: 'MIS PTS',
+    rankingTitle: 'RANKING',
+    ruletaTitle: 'RULETA',
+    referidoTitle: 'REFERIDO',
+    checkinName: 'Check-in diario',
+    checkinSub: '+5 a +10 pts · bonus por racha',
+    ruletaName: 'Ruleta diaria',
+    ruletaSub: 'Pts, ×2 o premios en USDT',
+    reelName: 'Compartir reel de Panther',
+    reelSub: 'Toca aquí para enviar la captura al Bot',
+    storyName: 'Compartir historia de Panther',
+    storySub: 'Toca aquí para enviar la captura al Bot',
+    referName: 'Referir a un amigo',
+    referSub: '+25 al unirse · +150 si activa la wallet',
+    misionesHoy: 'Misiones completadas hoy',
+    tuPosicion: 'Tu posición',
+    cargando: 'Cargando...',
+    rankingTitle2: '🏆 Ranking Manada',
+    rankingSub: 'Top jugadores · actualización diaria',
+    reelModalTitle: 'Compartir reel de Instagram',
+    storyModalTitle: 'Compartir historia de Instagram',
+    modalStep1: 'Comparte el reel de Instagram de Panther',
+    modalStep1s: 'Comparte la historia de Instagram de Panther',
+    modalStep2: 'Toma una captura de pantalla',
+    modalStep3: 'Abre el Bot y envía la foto',
+    modalStep4: 'Si se aprueba ganas',
+    modalBtn: '🐆 IR AL BOT',
+    modalCancel: 'Cancelar',
+    miCodigoTitle: 'Mi código referido',
+    miCodigoSub: 'Invita a tus amigos y gana puntos juntos',
+    codigoUnico: 'TU CÓDIGO ÚNICO',
+    copiarCodigo: '📋 Copiar código',
+    compartirEnlace: '🚀 COMPARTIR ENLACE',
+    invitados: 'Invitados',
+    conWallet: 'Con wallet',
+    ptsGanados: 'Pts ganados',
+    comoFunciona: '¿Cómo funciona?',
+    step1: 'Comparte tu código con un amigo',
+    step2: 'Tu amigo se une → ganas <b>+25 pts</b>',
+    step3: 'Si activa Panther Wallet → ganas <b>+150 pts</b> adicionales',
+    puntosTotal: 'Puntos totales',
+    rachaActual: 'Racha actual',
+    referidosActivos: 'Referidos activos',
+    nivelActual: 'Nivel actual',
+    historialReciente: 'Historial reciente',
+    sinActividad: 'Sin actividad reciente',
+    spinBtn: 'GIRAR',
+    ruletaDiaria: 'Ruleta diaria · 1 giro disponible',
+    posiblesPremios: 'POSIBLES PREMIOS',
+    puntos: 'PUNTOS',
+    tocaEntrar: 'TOCA PARA ENTRAR',
+    manadaActiva: 'Manada activa',
+  },
+  en: {
+    misionesTitle: 'MISSIONS',
+    misPtsTitle: 'MY PTS',
+    rankingTitle: 'RANKING',
+    ruletaTitle: 'WHEEL',
+    referidoTitle: 'REFERRAL',
+    checkinName: 'Daily Check-in',
+    checkinSub: '+5 to +10 pts · streak bonus',
+    ruletaName: 'Daily Wheel',
+    ruletaSub: 'Pts, ×2 or USDT prizes',
+    reelName: 'Share Panther Reel',
+    reelSub: 'Tap here to send the screenshot to the Bot',
+    storyName: 'Share Panther Story',
+    storySub: 'Tap here to send the screenshot to the Bot',
+    referName: 'Refer a friend',
+    referSub: '+25 on joining · +150 if activates wallet',
+    misionesHoy: 'Missions completed today',
+    tuPosicion: 'Your position',
+    cargando: 'Loading...',
+    rankingTitle2: '🏆 Pack Ranking',
+    rankingSub: 'Top players · daily update',
+    reelModalTitle: 'Share Instagram Reel',
+    storyModalTitle: 'Share Instagram Story',
+    modalStep1: 'Share the Panther Instagram reel',
+    modalStep1s: 'Share the Panther Instagram story',
+    modalStep2: 'Take a screenshot',
+    modalStep3: 'Open the Bot and send the photo',
+    modalStep4: 'If approved you earn',
+    modalBtn: '🐆 GO TO BOT',
+    modalCancel: 'Cancel',
+    miCodigoTitle: 'My referral code',
+    miCodigoSub: 'Invite your friends and earn points together',
+    codigoUnico: 'YOUR UNIQUE CODE',
+    copiarCodigo: '📋 Copy code',
+    compartirEnlace: '🚀 SHARE LINK',
+    invitados: 'Invited',
+    conWallet: 'With wallet',
+    ptsGanados: 'Pts earned',
+    comoFunciona: 'How does it work?',
+    step1: 'Share your code with a friend',
+    step2: 'Your friend joins → you earn <b>+25 pts</b>',
+    step3: 'If they activate Panther Wallet → you earn <b>+150 pts</b> extra',
+    puntosTotal: 'Total points',
+    rachaActual: 'Current streak',
+    referidosActivos: 'Active referrals',
+    nivelActual: 'Current level',
+    historialReciente: 'Recent history',
+    sinActividad: 'No recent activity',
+    spinBtn: 'SPIN',
+    ruletaDiaria: 'Daily wheel · 1 spin available',
+    posiblesPremios: 'POSSIBLE PRIZES',
+    puntos: 'POINTS',
+    tocaEntrar: 'TAP TO ENTER',
+    manadaActiva: 'Pack active',
+  }
+};
+
+let LANG = 'es';
+
+function detectLanguage() {
+  try {
+    if (window.Telegram && window.Telegram.WebApp) {
+      const code = window.Telegram.WebApp.initDataUnsafe?.user?.language_code || '';
+      LANG = code.startsWith('en') ? 'en' : 'es';
+    }
+  } catch(e) {}
+}
+
+function t(key) {
+  return T[LANG][key] || T['es'][key] || key;
+}
+
+function applyTranslations() {
+  // Nav
+  const navItems = document.querySelectorAll('.ni-lb');
+  const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','ruletaTitle','referidoTitle'];
+  navItems.forEach((el, i) => { if(navKeys[i]) el.textContent = t(navKeys[i]); });
+
+  // Mission cards
+  const mn = document.querySelectorAll('.mn');
+  const ms = document.querySelectorAll('.ms');
+  const missionNames = ['checkinName','ruletaName','reelName','storyName','referName'];
+  const missionSubs = ['checkinSub','ruletaSub','reelSub','storySub','referSub'];
+  mn.forEach((el, i) => { if(missionNames[i]) el.textContent = t(missionNames[i]); });
+  ms.forEach((el, i) => { if(missionSubs[i]) el.textContent = t(missionSubs[i]); });
+
+  // Strip
+  const strip = document.querySelector('.strip-t');
+  if(strip) strip.textContent = t('misionesHoy');
+
+  // Ranking
+  const rankTitle = document.querySelector('.rank-title');
+  if(rankTitle) rankTitle.textContent = t('rankingTitle2');
+  const rankSub = document.querySelector('.rank-sub');
+  if(rankSub) rankSub.textContent = t('rankingSub');
+
+  // Spin button
+  const spinBtn = document.getElementById('spin-btn');
+  if(spinBtn) spinBtn.textContent = t('spinBtn');
+
+  // Referral screen
+  const refTitle = document.querySelector('.ref-title');
+  if(refTitle) refTitle.textContent = t('miCodigoTitle');
+  const refSub = document.querySelector('.ref-sub');
+  if(refSub) refSub.textContent = t('miCodigoSub');
+
+  // Live wrap
+  const liveWrap = document.querySelector('.live-wrap span:last-child');
+  if(liveWrap) liveWrap.textContent = t('manadaActiva');
+
+  // Tap to enter
+  const tapBtn = document.querySelector('#splash-tap-btn > div');
+  if(tapBtn && tapBtn.onclick === null) tapBtn.textContent = t('tocaEntrar');
+}
+
 // Get Telegram user ID using official SDK
 if (window.Telegram && window.Telegram.WebApp) {
   const tg = window.Telegram.WebApp;
@@ -1105,6 +1277,10 @@ const QUOTES = [
 ];
 
 function enterApp() {
+  // Detect language
+  detectLanguage();
+  applyTranslations();
+  
   // Start music on user interaction
   const music = document.getElementById('bg-music');
   if (music && soundEnabled) {
@@ -1127,6 +1303,7 @@ function enterApp() {
 
 // Show random quote on splash
 window.addEventListener('DOMContentLoaded', () => {
+  detectLanguage();
   const q = document.getElementById('splash-quote');
   if (q) q.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
 });

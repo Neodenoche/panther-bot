@@ -214,6 +214,25 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     </div>
     <div id="sp-txt" style="font-size:10px;color:#555;letter-spacing:2px;margin-top:8px;opacity:0;animation:spTitle .4s ease .8s forwards;">CARGANDO...</div>
   </div>
+
+  <!-- TAP TO ENTER -->
+  <div id="splash-tap-btn" onclick="enterApp()" style="
+    position:absolute;bottom:60px;left:50%;transform:translate(-50%,20px);
+    text-align:center;cursor:pointer;opacity:0;
+    transition:opacity .6s ease,transform .6s ease;width:85%;max-width:320px">
+    <div style="
+      background:linear-gradient(135deg,#ff6b1a,#ff8c42);
+      color:#fff;font-family:'Rajdhani',sans-serif;
+      font-size:18px;font-weight:700;letter-spacing:3px;
+      padding:14px 32px;border-radius:50px;
+      box-shadow:0 4px 24px #ff6b1a55;
+      animation:pulse 2s ease-in-out infinite;
+      margin-bottom:16px">
+      TOCÁ PARA ENTRAR
+    </div>
+    <div id="splash-quote" style="font-size:12px;color:#666;font-style:italic;line-height:1.5;padding:0 10px"></div>
+  <div style="display:none">
+  </div>
 </div>
 
 <!-- AUDIO -->
@@ -1028,15 +1047,52 @@ function shareLink(){
     if(prog>90&&mi===2){mi=3;txt.textContent=msgs[3];}
     if(prog>=100){
       clearInterval(iv);
+      // Show tap to enter button instead of auto-closing
       setTimeout(()=>{
-        const sp=document.getElementById('splash');
-        sp.style.transition='opacity .6s ease';
-        sp.style.opacity='0';
-        setTimeout(()=>sp.remove(),620);
-      },600);
+        if(txt) txt.textContent='';
+        const tapBtn = document.getElementById('splash-tap-btn');
+        if(tapBtn) {
+          tapBtn.style.opacity='1';
+          tapBtn.style.transform='translateY(0)';
+        }
+      },400);
     }
   },55); // ~6 segundos total
 })();
+
+// QUOTES
+const QUOTES = [
+  '"El éxito es la suma de pequeños esfuerzos repetidos día tras día." — R. Collier',
+  '"No cuentes los días, haz que los días cuenten." — Muhammad Ali',
+  '"La única forma de hacer un gran trabajo es amar lo que haces." — Steve Jobs',
+  '"El futuro pertenece a quienes creen en la belleza de sus sueños." — Eleanor Roosevelt',
+  '"No esperes. El momento nunca será el adecuado." — Napoleon Hill',
+  '"Tu tiempo es limitado, no lo malgastes viviendo la vida de otro." — Steve Jobs',
+  '"Cae siete veces, levántate ocho." — Proverbio japonés',
+  '"Los ganadores no son personas que nunca fallan, sino personas que nunca se rinden." — Edwin Louis Cole',
+  '"Cada día es una nueva oportunidad para cambiar tu vida." — Anónimo',
+  '"El único modo de hacer un gran trabajo es amar lo que haces." — Steve Jobs',
+];
+
+function enterApp() {
+  // Start music on user interaction
+  const music = document.getElementById('bg-music');
+  if (music && soundEnabled) {
+    music.volume = 0.4;
+    music.play().then(() => { musicStarted = true; }).catch(()=>{});
+  }
+  // Close splash
+  const sp = document.getElementById('splash');
+  sp.style.transition = 'opacity .5s ease';
+  sp.style.opacity = '0';
+  setTimeout(() => sp.remove(), 520);
+}
+
+// Show random quote on splash
+window.addEventListener('DOMContentLoaded', () => {
+  const q = document.getElementById('splash-quote');
+  if (q) q.textContent = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+});
 
 // CONTADOR PUNTOS
 let USER_PTS=0;

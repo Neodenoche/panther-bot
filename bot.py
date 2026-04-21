@@ -291,14 +291,24 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     app_url = f"https://go.mypanther.io/app?id={uid}"
 
-    text = (
-        f"{'🐆 *¡Bienvenido a la Manada Panther!*' if is_new else f'🐾 *¡Hola, {user.first_name}!*'}\n\n"
-        f"🏅 Nivel: *{level}*\n"
-        f"⭐ Puntos: *{data['points']}*\n"
-        f"🔥 Racha: *{data['streak']} días*\n"
-        f"{'📈 Próximo: *' + next_lv + '* — ' + str(pts_needed) + ' pts' if next_lv else '👑 Nivel máximo'}\n\n"
-        f"_Hacé check-in cada día, referí amigos y subí en el ranking para ganar recompensas en PNT y USDT 💰_"
-    )
+    if is_new:
+        text = (
+            f"🐆 *¡Bienvenido a la Manada Panther, {user.first_name}!*\n\n"
+            f"🏅 Nivel: *{level}*\n"
+            f"⭐ Puntos: *{data['points']}*\n\n"
+            f"📢 Canal oficial: t.me/pantherwallet\n"
+            f"💬 Chat comunidad: t.me/manadapanther\n\n"
+            f"_Completá misiones, referí amigos y ganá premios en PNT y USDT 💰_"
+        )
+    else:
+        text = (
+            f"🐾 *¡Hola, {user.first_name}!*\n\n"
+            f"🏅 Nivel: *{level}*\n"
+            f"⭐ Puntos: *{data['points']}*\n"
+            f"🔥 Racha: *{data['streak']} días*\n"
+            f"{'📈 Próximo: *' + next_lv + '* — ' + str(pts_needed) + ' pts' if next_lv else '👑 Nivel máximo'}\n\n"
+            f"_Hacé check-in cada día, referí amigos y subí en el ranking para ganar recompensas en PNT y USDT 💰_"
+        )
 
     from telegram import WebAppInfo
     keyboard = InlineKeyboardMarkup([

@@ -278,9 +278,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
   <div class="sec">
     <div class="stitle">Sociales</div>
-    <div class="mc" onclick="openBotForShare('reel')"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Tocá para enviar captura al bot</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
-    <div class="mc" onclick="openBotForShare('story')"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Tocá para enviar captura al bot</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
-    <div class="mc" onclick="goTo('referido')"><div class="mic i5">👥</div><div class="mb"><div class="mn">Referir un amigo</div><div class="ms">+25 al unirse · +150 si activa wallet</div></div><div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" onclick="openBotForShare('reel')"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Toca aquí para enviar la captura al Bot</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" onclick="openBotForShare('story')"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Toca aquí para enviar la captura al Bot</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" onclick="goTo('referido')"><div class="mic i5">👥</div><div class="mb"><div class="mn">Referir a un amigo</div><div class="ms">+25 al unirse · +150 si activa la wallet</div></div><div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
   </div>
 </div>
 
@@ -346,7 +346,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
 <!-- REFERIDO -->
 <div class="screen" id="s-referido">
-  <div class="ref-hero"><div style="font-size:40px;margin-bottom:10px">🔗</div><div class="ref-title">Mi código referido</div><div class="ref-sub">Invita amigos y gana puntos juntos</div></div>
+  <div class="ref-hero"><div style="font-size:40px;margin-bottom:10px">🔗</div><div class="ref-title">Mi código referido</div><div class="ref-sub">Invita a tus amigos y gana puntos juntos</div></div>
   <div class="ref-code-box"><div class="ref-code-lbl">Tu código único</div><div class="ref-code" id="ref-code-display">PANTH-X7K2</div><button class="ref-copy-btn" id="copy-btn" onclick="copyCode()">📋 Copiar código</button>
   <button class="ref-copy-btn" id="ref-share-btn" onclick="shareLink()" style="width:100%;margin-top:8px;padding:12px;font-size:13px;background:#ff6b1a;color:#fff;border-color:#ff6b1a;">🚀 COMPARTIR ENLACE</button>
   </div>
@@ -667,9 +667,9 @@ function openBotForShare(type) {
       <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">Compartir ${label}</div>
       <div style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.6">
         1️⃣ Compartí el ${label} de Panther<br>
-        2️⃣ Tomá una captura de pantalla<br>
-        3️⃣ Abrí el bot y enviá la foto<br>
-        4️⃣ Ganás <span style="color:#ff6b1a;font-weight:700">+${pts} pts</span> si se aprueba
+        2️⃣ Toma una captura de pantalla<br>
+        3️⃣ Abre el Bot y envía la foto<br>
+        4️⃣ Si se aprueba ganas <span style="color:#ff6b1a;font-weight:700">+${pts} pts</span>
       </div>
       <button onclick="
         document.getElementById('share-modal').remove();

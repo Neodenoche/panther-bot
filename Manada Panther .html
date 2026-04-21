@@ -645,7 +645,8 @@ function toggleSound() {
   const btn = document.getElementById('sound-btn');
   soundEnabled = !soundEnabled;
   if (soundEnabled) {
-    music.play().catch(()=>{});
+    musicStarted = false;
+    music.play().then(() => { musicStarted = true; }).catch(()=>{});
     btn.textContent = '🔊';
   } else {
     music.pause();
@@ -653,26 +654,31 @@ function toggleSound() {
   }
 }
 
+let musicStarted = false;
+
 function startMusic() {
   const music = document.getElementById('bg-music');
   music.volume = 0.4;
   
-  // Try immediate play
-  const playPromise = music.play();
-  if (playPromise !== undefined) {
-    playPromise.catch(() => {
-      // Autoplay blocked - start on first touch anywhere
-      const startOnTouch = () => {
-        if (soundEnabled) {
-          music.play().catch(()=>{});
-        }
-        document.removeEventListener('touchstart', startOnTouch);
-        document.removeEventListener('click', startOnTouch);
-      };
-      document.addEventListener('touchstart', startOnTouch, { once: true });
-      document.addEventListener('click', startOnTouch, { once: true });
+  const tryPlay = () => {
+    if (musicStarted || !soundEnabled) return;
+    music.play().then(() => {
+      musicStarted = true;
+    }).catch(() => {});
+  };
+
+  // Listen for any user interaction
+  ['touchstart', 'touchend', 'click', 'keydown'].forEach(evt => {
+    document.addEventListener(evt, function handler() {
+      tryPlay();
+      if (musicStarted) {
+        document.removeEventListener(evt, handler);
+      }
     });
-  }
+  });
+  
+  // Try immediately too
+  tryPlay();
 }
 
 function goTo(n){

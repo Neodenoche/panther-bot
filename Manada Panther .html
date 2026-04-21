@@ -759,7 +759,7 @@ async function loadRanking() {
         <div class="rank-pos">${pos}</div>
         <div class="rank-avatar">${avatar}</div>
         <div class="rank-info">
-          <div class="rank-name">${isMe ? 'Tú' : (u.username || 'Anónimo')}</div>
+          <div class="rank-name">${isMe ? 'Tú' : (u.username || u.first_name || 'Usuario')}</div>
           <div class="rank-lv">${u.level}</div>
         </div>
         <div class="rank-pts">${u.points.toLocaleString()}</div>

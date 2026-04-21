@@ -216,11 +216,19 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
 </div>
 
+<!-- AUDIO -->
+<audio id="bg-music" loop preload="auto">
+  <source src="https://res.cloudinary.com/dkkeqm0tq/video/upload/v1776790604/music.mp3_fuw6fe.mp3" type="audio/mpeg">
+</audio>
+
 <!-- TOPBAR -->
 <div class="topbar">
   <span class="brand">PANTHER</span>
   <div class="live-wrap"><span class="dot"></span><span>Manada activa</span></div>
-  <span class="badge">🐾 Lv.1</span>
+  <div style="display:flex;align-items:center;gap:8px">
+    <button id="sound-btn" onclick="toggleSound()" style="background:transparent;border:none;cursor:pointer;font-size:18px;padding:2px;line-height:1;color:#ff6b1a">🔊</button>
+    <span class="badge" id="level-badge">🐾 Lv.1</span>
+  </div>
 </div>
 
 <!-- MISIONES -->
@@ -648,13 +656,23 @@ function toggleSound() {
 function startMusic() {
   const music = document.getElementById('bg-music');
   music.volume = 0.4;
-  music.play().catch(()=>{
-    // Autoplay blocked - wait for user interaction
-    document.addEventListener('click', function startOnClick() {
-      if (soundEnabled) music.play().catch(()=>{});
-      document.removeEventListener('click', startOnClick);
-    }, { once: true });
-  });
+  
+  // Try immediate play
+  const playPromise = music.play();
+  if (playPromise !== undefined) {
+    playPromise.catch(() => {
+      // Autoplay blocked - start on first touch anywhere
+      const startOnTouch = () => {
+        if (soundEnabled) {
+          music.play().catch(()=>{});
+        }
+        document.removeEventListener('touchstart', startOnTouch);
+        document.removeEventListener('click', startOnTouch);
+      };
+      document.addEventListener('touchstart', startOnTouch, { once: true });
+      document.addEventListener('click', startOnTouch, { once: true });
+    });
+  }
 }
 
 function goTo(n){

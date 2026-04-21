@@ -279,18 +279,9 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     except Exception:
                         pass
 
-                    # Notify community group if configured
-                    if COMMUNITY_CHAT_ID:
-                        try:
-                            await context.bot.send_message(
-                                chat_id=int(COMMUNITY_CHAT_ID),
-                                text=f"🐆 *¡Bienvenido a la Manada, {user.first_name}!*\n\n"
-                                     f"Un nuevo miembro se ha unido gracias a un referido.\n"
-                                     f"¡La manada sigue creciendo! 🔥",
-                                parse_mode="Markdown"
-                            )
-                        except Exception:
-                            pass
+                    # Check milestone and notify group
+                    total = len([u for u in db.values() if isinstance(u, dict) and "points" in u])
+                    await check_member_milestone(context.bot, total)
                 break
 
     save_db(db)

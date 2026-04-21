@@ -533,6 +533,45 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db(db)
     await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
 
+# ── /broadcast (moderadores) ──────────────────────────────────────────────────
+async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        await update.message.reply_text("❌ No tenés permisos.")
+        return
+    
+    if not context.args:
+        await update.message.reply_text(
+            "Uso: /broadcast Tu mensaje aquí\n\n"
+            "Ejemplo: /broadcast ¡Bienvenidos al canal oficial! t.me/pantherwallet"
+        )
+        return
+    
+    msg = " ".join(context.args)
+    db = load_db()
+    users = [u for u in db.keys() if not u.startswith("_")]
+    
+    await update.message.reply_text(f"📤 Enviando a {len(users)} usuarios...")
+    
+    sent = 0
+    failed = 0
+    for user_id in users:
+        try:
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"📢 *Mensaje de Panther Wallet*\n\n{msg}",
+                parse_mode="Markdown"
+            )
+            sent += 1
+        except Exception:
+            failed += 1
+    
+    await update.message.reply_text(
+        f"✅ Broadcast completado\n\n"
+        f"📤 Enviados: {sent}\n"
+        f"❌ Fallidos: {failed}"
+    )
+
 # ── /compartir ────────────────────────────────────────────────────────────────
 async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args or []
@@ -719,6 +758,45 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db["_global"]["ruleta_override"] = None
     save_db(db)
     await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
+
+# ── /broadcast (moderadores) ──────────────────────────────────────────────────
+async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid not in MOD_IDS:
+        await update.message.reply_text("❌ No tenés permisos.")
+        return
+    
+    if not context.args:
+        await update.message.reply_text(
+            "Uso: /broadcast Tu mensaje aquí\n\n"
+            "Ejemplo: /broadcast ¡Bienvenidos al canal oficial! t.me/pantherwallet"
+        )
+        return
+    
+    msg = " ".join(context.args)
+    db = load_db()
+    users = [u for u in db.keys() if not u.startswith("_")]
+    
+    await update.message.reply_text(f"📤 Enviando a {len(users)} usuarios...")
+    
+    sent = 0
+    failed = 0
+    for user_id in users:
+        try:
+            await context.bot.send_message(
+                chat_id=int(user_id),
+                text=f"📢 *Mensaje de Panther Wallet*\n\n{msg}",
+                parse_mode="Markdown"
+            )
+            sent += 1
+        except Exception:
+            failed += 1
+    
+    await update.message.reply_text(
+        f"✅ Broadcast completado\n\n"
+        f"📤 Enviados: {sent}\n"
+        f"❌ Fallidos: {failed}"
+    )
 
 # ── /compartir ────────────────────────────────────────────────────────────────
 async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1009,6 +1087,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "ranking":  cmd_ranking,
         "ruleta":   cmd_ruleta,
         "compartir": cmd_compartir,
+        "broadcast":  cmd_broadcast,
         "ruleta_on":  cmd_ruleta_on,
         "ruleta_off": cmd_ruleta_off,
         "ruleta_auto": cmd_ruleta_auto,

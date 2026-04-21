@@ -216,21 +216,24 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
 
   <!-- TAP TO ENTER -->
-  <div id="splash-tap-btn" onclick="enterApp()" style="
-    position:absolute;bottom:60px;left:50%;transform:translate(-50%,20px);
-    text-align:center;cursor:pointer;opacity:0;
-    transition:opacity .6s ease,transform .6s ease;width:85%;max-width:320px">
-    <div style="
+  <div id="splash-tap-btn" style="
+    position:absolute;top:12%;left:0;right:0;
+    text-align:center;opacity:0;
+    transition:opacity .6s ease;
+    z-index:100000;pointer-events:none;">
+    <div onclick="enterApp()" style="
+      display:inline-block;
       background:linear-gradient(135deg,#ff6b1a,#ff8c42);
       color:#fff;font-family:'Rajdhani',sans-serif;
       font-size:18px;font-weight:700;letter-spacing:3px;
-      padding:14px 32px;border-radius:50px;
+      padding:14px 40px;border-radius:50px;
       box-shadow:0 4px 24px #ff6b1a55;
       animation:pulse 2s ease-in-out infinite;
-      margin-bottom:16px">
+      margin-bottom:12px;cursor:pointer;
+      pointer-events:all;">
       TOCÁ PARA ENTRAR
     </div>
-    <div id="splash-quote" style="font-size:12px;color:#666;font-style:italic;line-height:1.5;padding:0 10px"></div>
+    <div id="splash-quote" style="font-size:12px;color:#888;font-style:italic;line-height:1.5;padding:0 20px;max-width:320px;margin:0 auto"></div>
   </div>
   </div>
 </div>
@@ -1053,7 +1056,7 @@ function shareLink(){
         const tapBtn = document.getElementById('splash-tap-btn');
         if(tapBtn) {
           tapBtn.style.opacity='1';
-          tapBtn.style.transform='translateY(0)';
+          tapBtn.style.pointerEvents='all';
         }
       },400);
     }

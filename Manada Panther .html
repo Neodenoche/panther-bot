@@ -217,23 +217,23 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
   <!-- TAP TO ENTER -->
   <div id="splash-tap-btn" style="
-    position:absolute;top:12%;left:0;right:0;
+    position:absolute;top:4%;left:0;right:0;
     text-align:center;opacity:0;
     transition:opacity .6s ease;
-    z-index:100000;pointer-events:none;">
+    z-index:100000;pointer-events:none;
+    padding:0 20px;">
+    <div id="splash-quote" style="font-size:11px;color:#ddd;font-style:italic;line-height:1.5;max-width:300px;margin:0 auto 10px;"></div>
     <div onclick="enterApp()" style="
       display:inline-block;
       background:linear-gradient(135deg,#ff6b1a,#ff8c42);
       color:#fff;font-family:'Rajdhani',sans-serif;
-      font-size:18px;font-weight:700;letter-spacing:3px;
-      padding:14px 40px;border-radius:50px;
+      font-size:17px;font-weight:700;letter-spacing:3px;
+      padding:12px 36px;border-radius:50px;
       box-shadow:0 4px 24px #ff6b1a55;
       animation:pulse 2s ease-in-out infinite;
-      margin-bottom:12px;cursor:pointer;
-      pointer-events:all;">
+      cursor:pointer;pointer-events:all;">
       TOCÁ PARA ENTRAR
     </div>
-    <div id="splash-quote" style="font-size:12px;color:#888;font-style:italic;line-height:1.5;padding:0 20px;max-width:320px;margin:0 auto"></div>
   </div>
   </div>
 </div>

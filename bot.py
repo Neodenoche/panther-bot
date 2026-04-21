@@ -140,6 +140,9 @@ def get_user(db, uid: str, user=None):
         db[uid]["usdt_won_month"] = None
     if "pnt_won_month" not in db[uid]:
         db[uid]["pnt_won_month"] = None
+    # Fix referrals if stored as int instead of list
+    if not isinstance(db[uid].get("referrals"), list):
+        db[uid]["referrals"] = []
     return db[uid]
 
 def get_level(pts: int):

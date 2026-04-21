@@ -611,13 +611,40 @@ async function doCheckin() {
       body: JSON.stringify({id: USER_ID})
     });
     const data = await res.json();
-    if (data.status === 'ok' || data.status === 'already_checked') {
+    if (data.success || data.status === 'ok') {
+      // Show success feedback immediately
+      if (mcCheckin) {
+        mcCheckin.style.opacity = '1';
+        mcCheckin.classList.add('done');
+        const arrEl = document.getElementById('checkin-arr');
+        const subEl = document.getElementById('checkin-sub');
+        if (arrEl) { arrEl.classList.add('ok'); arrEl.textContent = '✓'; }
+        if (subEl) subEl.innerHTML = '🎉 <span style="color:#4ade80;font-weight:700">¡Check-in realizado! +' + (data.points_earned || 5) + ' pts</span>';
+        // After 2 seconds show countdown
+        setTimeout(() => {
+          if (subEl) {
+            const midnight = new Date();
+            midnight.setUTCHours(24, 0, 0, 0);
+            const diff = midnight - new Date();
+            const h = Math.floor(diff / 3600000);
+            const m = Math.floor((diff % 3600000) / 60000);
+            const s = Math.floor((diff % 60000) / 1000);
+            subEl.innerHTML = '✅ Próximo en <span style="color:#ff6b1a;font-weight:700">' + 
+              String(h).padStart(2,'0') + 'h ' + 
+              String(m).padStart(2,'0') + 'm ' + 
+              String(s).padStart(2,'0') + 's</span>';
+          }
+        }, 2000);
+      }
+      await loadUserData();
+    } else if (data.status === 'already_checked') {
+      if (mcCheckin) mcCheckin.style.opacity = '1';
       await loadUserData();
     }
   } catch(e) {
     console.error('Checkin error:', e);
+    if (mcCheckin) mcCheckin.style.opacity = '1';
   }
-  if (mcCheckin) mcCheckin.style.opacity = '1';
 }
 
 function openBotForShare(type) {

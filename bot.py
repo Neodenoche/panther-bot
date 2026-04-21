@@ -1154,13 +1154,17 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             db      = load_db()
             sorted_ = sorted(db.values(), key=lambda x: x["points"], reverse=True)
             top20   = sorted_[:20]
+            # Filter out _global key
+            valid = [u for u in sorted_ if isinstance(u, dict) and "points" in u]
+            top20 = valid[:20]
             return self.send_json([
                 {
-                    "pos":       i + 1,
-                    "id":        u["id"],
-                    "username":  u.get("username") or u.get("first_name", "Anónimo"),
-                    "points":    u["points"],
-                    "level":     get_level(u["points"]),
+                    "pos":        i + 1,
+                    "id":         u.get("id", ""),
+                    "username":   u.get("username", ""),
+                    "first_name": u.get("first_name", ""),
+                    "points":     u.get("points", 0),
+                    "level":      get_level(u.get("points", 0)),
                 }
                 for i, u in enumerate(top20)
             ])

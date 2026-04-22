@@ -1613,6 +1613,51 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "bonus":      bonus,
             })
 
+        # ── POST /follow ──
+        elif path == "/follow":
+            uid = body.get("id")
+            red = body.get("red")
+            if not uid or red not in ["ig", "x", "tiktok", "facebook", "youtube"]:
+                return self.send_json({"error": "Invalid params"}, 400)
+
+            db   = load_db()
+            data = get_user(db, uid)
+
+            field = f"follow_{red}"
+            if data.get(field):
+                return self.send_json({"already_done": True, "points": data["points"]})
+
+            earned = add_points(data, PTS[field])
+            data[field] = True
+
+            # Log historial
+            if "history" not in data:
+                data["history"] = []
+            data["history"].append({
+                "type":  f"follow_{red}",
+                "pts":   earned,
+                "date":  date.today().isoformat(),
+                "time":  datetime.now().strftime("%H:%M"),
+            })
+            data["history"] = data["history"][-20:]
+
+            bonus = 0
+            if (data.get("follow_ig") and data.get("follow_x") and data.get("follow_tiktok")
+                    and data.get("follow_facebook") and data.get("follow_youtube")
+                    and not data.get("follow_all_bonus")):
+                bonus = add_points(data, PTS["follow_all_bonus"])
+                data["follow_all_bonus"] = True
+
+            db[uid] = data
+            save_db(db)
+
+            return self.send_json({
+                "status": "ok",
+                "earned": earned,
+                "bonus":  bonus,
+                "points": data["points"],
+            })
+
         else:
             self.send_json({"error": "Not found"}, 404)
 

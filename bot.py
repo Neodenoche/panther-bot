@@ -1555,6 +1555,48 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "user_count": len(db),
                 "users": list(db.keys()),
             })
+        # ── GET /fix_referrals?referrer=ID&refs=ID1,ID2,ID3 (admin only) ──
+        elif path == "/fix_referrals":
+            referrer_id = params.get("referrer", [None])[0]
+            ref_ids_raw = params.get("refs", [""])[0]
+            secret = params.get("secret", [""])[0]
+            if secret != "panther_admin_2024":
+                return self.send_json({"error": "Unauthorized"}, 403)
+            if not referrer_id or not ref_ids_raw:
+                return self.send_json({"error": "Missing params"}, 400)
+            ref_ids = [r.strip() for r in ref_ids_raw.split(",") if r.strip()]
+            db = load_db()
+            if referrer_id not in db:
+                return self.send_json({"error": "Referrer not found"}, 404)
+            referrer_data = db[referrer_id]
+            if not isinstance(referrer_data.get("referrals"), list):
+                referrer_data["referrals"] = []
+            added = []
+            skipped = []
+            pts_added = 0
+            for rid in ref_ids:
+                if rid not in db:
+                    skipped.append(f"{rid} (not found)")
+                    continue
+                if rid in referrer_data["referrals"]:
+                    skipped.append(f"{rid} (already)")
+                    continue
+                referrer_data["referrals"].append(rid)
+                db[rid]["referred_by"] = referrer_id
+                pts = add_points(referrer_data, PTS["referral_join"])
+                pts_added += pts
+                added.append(rid)
+            db[referrer_id] = referrer_data
+            save_db(db)
+            return self.send_json({
+                "status": "ok",
+                "added": added,
+                "skipped": skipped,
+                "pts_added": pts_added,
+                "referrer_points_now": referrer_data["points"],
+                "referrer_referrals_now": len(referrer_data["referrals"]),
+            })
+
         else:
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
 

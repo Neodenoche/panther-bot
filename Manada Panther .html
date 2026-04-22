@@ -1414,24 +1414,26 @@ function shareLink(){
   // Extract numeric part from code (e.g. PANTH-467845 -> 467845)
   const refId = code.replace('PANTH-', '').trim();
   const shareUrl = 'https://t.me/ManadaPantherBot?start=' + refId;
-  const shareText = '🐆 ¡Unite a la Manada Panther! Entrá acá: ' + shareUrl;
+  // shareText solo tiene el texto, SIN la URL — el campo url: la agrega solo
+  const shareText = '🐆 ¡Unite a la Manada Panther! Ganá puntos, premios en USDT y PNT. Entrá acá:';
+  const fullText = shareText + ' ' + shareUrl;
   const b = document.getElementById('ref-share-btn');
   
   if(navigator.share) {
     navigator.share({
       title: 'Manada Panther 🐆',
-      text: shareText,
-      url: shareUrl
+      text: fullText,
+      // NO pasar url: por separado para evitar duplicado en WhatsApp
     }).then(()=>{
       b.textContent = '✅ ¡Compartido!';
       setTimeout(()=>b.textContent='🚀 COMPARTIR ENLACE', 2000);
     }).catch(()=>{
-      navigator.clipboard.writeText(shareText).catch(()=>{});
+      navigator.clipboard.writeText(fullText).catch(()=>{});
       b.textContent = '✅ ¡Copiado!';
       setTimeout(()=>b.textContent='🚀 COMPARTIR ENLACE', 2000);
     });
   } else {
-    navigator.clipboard.writeText(shareText + ' ' + shareUrl).catch(()=>{});
+    navigator.clipboard.writeText(fullText).catch(()=>{});
     b.textContent = '✅ ¡Copiado! Pegalo donde quieras';
     setTimeout(()=>b.textContent='🚀 COMPARTIR ENLACE', 2500);
   }

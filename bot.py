@@ -1286,6 +1286,12 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             if not data:
                 return self.send_json({"error": "User not found"}, 404)
 
+            # Fix: referrals puede estar guardado como int en usuarios viejos
+            if not isinstance(data.get("referrals"), list):
+                data["referrals"] = []
+                db[uid] = data
+                save_db(db)
+
             level = get_level(data["points"])
             next_lv, pts_needed = get_next_level(data["points"])
             today = date.today().isoformat()

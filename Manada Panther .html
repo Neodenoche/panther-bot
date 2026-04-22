@@ -281,6 +281,13 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="mc" onclick="openBotForShare('reel')"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Toca aquí para enviar la captura al Bot</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
     <div class="mc" onclick="openBotForShare('story')"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Toca aquí para enviar la captura al Bot</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
     <div class="mc" onclick="goTo('referido')"><div class="mic i5">👥</div><div class="mb"><div class="mn">Referir a un amigo</div><div class="ms">+25 al unirse · +150 si activa la wallet</div></div><div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+
+  <div class="stitle" style="margin-top:14px">REDES SOCIALES</div>
+    <div class="mc" id="mc-follow-ig" onclick="openFollowModal('ig')"><div class="mic" style="background:#1a001a">📸</div><div class="mb"><div class="mn">Seguir a Panther en Instagram</div><div class="ms" id="sub-follow-ig">Toca para seguir y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-ig">→</div></div>
+    <div class="mc" id="mc-follow-x" onclick="openFollowModal('x')"><div class="mic" style="background:#001a1a">🐦</div><div class="mb"><div class="mn">Seguir a Panther en X</div><div class="ms" id="sub-follow-x">Toca para seguir y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-x">→</div></div>
+    <div class="mc" id="mc-follow-tiktok" onclick="openFollowModal('tiktok')"><div class="mic" style="background:#001a0d">🎵</div><div class="mb"><div class="mn">Seguir a Panther en TikTok</div><div class="ms" id="sub-follow-tiktok">Toca para seguir y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-tiktok">→</div></div>
+    <div class="mc" id="mc-follow-facebook" onclick="openFollowModal('facebook')"><div class="mic" style="background:#001020">📘</div><div class="mb"><div class="mn">Seguir a Panther en Facebook</div><div class="ms" id="sub-follow-facebook">Toca para seguir y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-facebook">→</div></div>
+    <div class="mc" id="mc-follow-youtube" onclick="openFollowModal('youtube')"><div class="mic" style="background:#200000">▶️</div><div class="mb"><div class="mn">Suscribirse a Panther en YouTube</div><div class="ms" id="sub-follow-youtube">Toca para suscribirte y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-youtube">→</div></div>
   </div>
 </div>
 
@@ -693,6 +700,19 @@ function updateUI() {
     }
   }
 
+  // Social follow missions
+  ['ig', 'x', 'tiktok', 'facebook', 'youtube'].forEach(red => {
+    const done = userData['follow_' + red];
+    const mc = document.getElementById('mc-follow-' + red);
+    const arr = document.getElementById('arr-follow-' + red);
+    const sub = document.getElementById('sub-follow-' + red);
+    if (mc && done) {
+      mc.classList.add('done');
+      if (arr) { arr.classList.add('ok'); arr.textContent = '✓'; }
+      if (sub) sub.textContent = '✅ Completado';
+    }
+  });
+
   // Update ruleta screen status
   const ruletaStatus = document.getElementById('ruleta-status');
   if(ruletaStatus && userData) {
@@ -900,6 +920,123 @@ function startMusic() {
   
   // Try immediately too
   tryPlay();
+}
+
+// Social network URLs
+const SOCIAL_URLS = {
+  ig:       'https://www.instagram.com/panther.wallet/',
+  x:        'https://x.com/panther_wallet',
+  tiktok:   'https://www.tiktok.com/@panther.wallet',
+  facebook: 'https://web.facebook.com/Panther.wallet/',
+  youtube:  'https://www.youtube.com/@panther.wallet'
+};
+
+const SOCIAL_NAMES = {
+  ig: 'Instagram', x: 'X (Twitter)', tiktok: 'TikTok',
+  facebook: 'Facebook', youtube: 'YouTube'
+};
+
+let pendingFollow = null;
+
+function openFollowModal(red) {
+  const mc = document.getElementById('mc-follow-' + red);
+  if (mc && mc.classList.contains('done')) return;
+
+  pendingFollow = red;
+  const url = SOCIAL_URLS[red];
+  const name = SOCIAL_NAMES[red];
+
+  let modal = document.getElementById('follow-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'follow-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.92);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+
+  modal.innerHTML = `
+    <div style="background:#1a1a1a;border:1px solid #ff6b1a44;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center">
+      <div style="font-size:40px;margin-bottom:12px">${red === 'ig' ? '📸' : red === 'x' ? '🐦' : '🎵'}</div>
+      <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:8px">Seguir en ${name}</div>
+      <div style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.6">
+        1️⃣ Toca <b style="color:#ff6b1a">IR A ${name.toUpperCase()}</b><br>
+        2️⃣ Sigue la cuenta oficial de Panther<br>
+        3️⃣ Vuelve y toca <b style="color:#4ade80">VERIFICAR</b>
+      </div>
+      <a href="${url}" target="_blank" onclick="startFollowTimer('${red}')" style="
+        display:block;background:#ff6b1a;color:#fff;
+        border-radius:12px;padding:12px;margin-bottom:10px;
+        font-size:14px;font-weight:700;text-decoration:none">
+        🚀 IR A ${name.toUpperCase()}
+      </a>
+      <button id="verify-btn-${red}" onclick="verifyFollow('${red}')" disabled style="
+        width:100%;background:#1a2a1a;color:#555;border:1px solid #333;
+        border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:not-allowed;
+        margin-bottom:10px" id="verify-follow-btn">
+        ⏳ VERIFICAR (espera 5s)
+      </button>
+      <button onclick="document.getElementById('follow-modal').remove()"
+        style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:10px;width:100%;font-size:13px;cursor:pointer">
+        Cancelar
+      </button>
+    </div>`;
+
+  modal.style.display = 'flex';
+}
+
+function startFollowTimer(red) {
+  const btn = document.getElementById('verify-btn-' + red);
+  if (!btn) return;
+  let secs = 5;
+  const iv = setInterval(() => {
+    secs--;
+    if (secs <= 0) {
+      clearInterval(iv);
+      btn.disabled = false;
+      btn.style.background = '#0d2a0d';
+      btn.style.color = '#4ade80';
+      btn.style.borderColor = '#2a5a2a';
+      btn.style.cursor = 'pointer';
+      btn.textContent = '✅ VERIFICAR';
+    } else {
+      btn.textContent = `⏳ VERIFICAR (espera ${secs}s)`;
+    }
+  }, 1000);
+}
+
+async function verifyFollow(red) {
+  if (!USER_ID) return;
+  const modal = document.getElementById('follow-modal');
+  if (modal) modal.remove();
+
+  try {
+    const res = await fetch(`${API_BASE}/follow`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id: USER_ID, red: red})
+    });
+    const data = await res.json();
+
+    if (data.already_done) {
+      return;
+    }
+
+    // Update UI
+    const mc = document.getElementById('mc-follow-' + red);
+    const arr = document.getElementById('arr-follow-' + red);
+    const sub = document.getElementById('sub-follow-' + red);
+    if (mc) mc.classList.add('done');
+    if (arr) { arr.classList.add('ok'); arr.textContent = '✓'; }
+    if (sub) sub.textContent = '✅ Completado · +' + data.earned + ' pts';
+
+    if (data.bonus) {
+      alert('🎉 ¡Seguiste todas las redes! +' + data.bonus + ' pts de bonus');
+    }
+
+    await loadUserData();
+  } catch(e) {
+    console.error('Follow error:', e);
+  }
 }
 
 function goTo(n){

@@ -289,6 +289,31 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="mc" id="mc-follow-facebook" onclick="openFollowModal('facebook')"><div class="mic" style="background:#001020">📘</div><div class="mb"><div class="mn">Seguir a Panther en Facebook</div><div class="ms" id="sub-follow-facebook">Toca para seguir y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-facebook">→</div></div>
     <div class="mc" id="mc-follow-youtube" onclick="openFollowModal('youtube')"><div class="mic" style="background:#200000">▶️</div><div class="mb"><div class="mn">Suscribirse a Panther en YouTube</div><div class="ms" id="sub-follow-youtube">Toca para suscribirte y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-youtube">→</div></div>
   </div>
+
+  <!-- COMUNIDAD -->
+  <div class="sec" style="margin-top:6px">
+    <div class="stitle" id="stitle-comunidad">COMUNIDAD</div>
+    <a href="https://t.me/pantherwalletoficial" target="_blank" style="text-decoration:none">
+      <div class="mc" style="margin-bottom:8px">
+        <div class="mic" style="background:#0d1a2a">📢</div>
+        <div class="mb">
+          <div class="mn" id="com-canal-title">Canal oficial</div>
+          <div class="ms" id="com-canal-sub">Anuncios, novedades y lanzamientos</div>
+        </div>
+        <div class="marr">→</div>
+      </div>
+    </a>
+    <a href="https://t.me/manadapanther" target="_blank" style="text-decoration:none">
+      <div class="mc">
+        <div class="mic" style="background:#0d2a0d">💬</div>
+        <div class="mb">
+          <div class="mn" id="com-chat-title">Chat de la Manada</div>
+          <div class="ms" id="com-chat-sub">Hablá con la comunidad en vivo</div>
+        </div>
+        <div class="marr">→</div>
+      </div>
+    </a>
+  </div>
 </div>
 
 <!-- MIS PUNTOS -->
@@ -465,6 +490,11 @@ const T = {
     statLevelLabel: 'Nivel actual',
     statRefsJoined: 'Se unieron',
     statRefsWallet: 'Con wallet',
+    comunidadTitle: 'COMUNIDAD',
+    canalTitle: 'Canal oficial',
+    canalSub: 'Anuncios, novedades y lanzamientos',
+    chatTitle: 'Chat de la Manada',
+    chatSub: 'Hablá con la comunidad en vivo',
   },
   en: {
     misionesTitle: 'MISSIONS',
@@ -543,6 +573,11 @@ const T = {
     statLevelLabel: 'Current level',
     statRefsJoined: 'Joined',
     statRefsWallet: 'With wallet',
+    comunidadTitle: 'COMMUNITY',
+    canalTitle: 'Official channel',
+    canalSub: 'Announcements, news and launches',
+    chatTitle: 'Pack chat',
+    chatSub: 'Talk with the community live',
   }
 };
 
@@ -656,6 +691,18 @@ function applyTranslations() {
   if(slWallet) slWallet.textContent = t('statRefsWallet');
   if(slSpins) slSpins.textContent = t('statSpinsLabel');
   if(slLevel) slLevel.textContent = t('statLevelLabel');
+
+  // Comunidad section
+  const stitleCom = document.getElementById('stitle-comunidad');
+  const comCanalTitle = document.getElementById('com-canal-title');
+  const comCanalSub = document.getElementById('com-canal-sub');
+  const comChatTitle = document.getElementById('com-chat-title');
+  const comChatSub = document.getElementById('com-chat-sub');
+  if(stitleCom) stitleCom.textContent = t('comunidadTitle');
+  if(comCanalTitle) comCanalTitle.textContent = t('canalTitle');
+  if(comCanalSub) comCanalSub.textContent = t('canalSub');
+  if(comChatTitle) comChatTitle.textContent = t('chatTitle');
+  if(comChatSub) comChatSub.textContent = t('chatSub');
 
   // Historial title
   const histTitle = document.querySelector('.hist-title');

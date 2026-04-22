@@ -746,8 +746,8 @@ function updateUI() {
     ? `Próximo nivel: ${nextLevel} (${ptsToNext} pts)`
     : '👑 Nivel máximo';
 
-  const pillEl = document.querySelector('.level-pill');
-  if (pillEl) pillEl.innerHTML = `🐾 ${level.toUpperCase()}`;
+  // Actualizar TODAS las pills de nivel (hero + Mis PTS)
+  document.querySelectorAll('.level-pill').forEach(el => { el.innerHTML = `🐾 ${level.toUpperCase()}`; });
 
   const badgeEl = document.querySelector('.badge');
   if (badgeEl) badgeEl.textContent = `🐾 Lv.${userData.level_idx + 1}`;
@@ -869,9 +869,16 @@ function updateUI() {
   const codeEl = document.getElementById('ref-code-display');
   if (codeEl) codeEl.textContent = `PANTH-${code.toUpperCase()}`;
 
-  const refStats = document.querySelectorAll('.ref-stat-n');
-  if (refStats.length >= 3) {
-    refStats[0].textContent = refs;
+  // Referidos screen - mostrar datos correctos
+  const refInvitados = document.getElementById('ref-invitados');
+  const refWallet = document.getElementById('ref-wallet');
+  const refPts = document.getElementById('ref-pts');
+  if(refInvitados) refInvitados.textContent = userData.referrals || 0;
+  if(refWallet) refWallet.textContent = userData.referrals_active || 0;
+  if(refPts) {
+    // Calcular pts ganados por referidos: 25 por join + 150 por wallet activa
+    const ptsRef = (userData.referrals || 0) * 25 + (userData.referrals_active || 0) * 150;
+    refPts.textContent = ptsRef;
   }
 }
 

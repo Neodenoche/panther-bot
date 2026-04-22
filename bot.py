@@ -36,6 +36,12 @@ PTS = {
     "referral_join":    25,
     "referral_wallet": 150,
     "share_reel":       30,
+    "follow_ig":        15,
+    "follow_x":         15,
+    "follow_tiktok":    15,
+    "follow_facebook":  15,
+    "follow_youtube":   15,
+    "follow_all_bonus": 20,
     "share_story":      20,
     "own_content":     100,
 }
@@ -296,18 +302,18 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🐆 *¡Bienvenido a la Manada Panther, {user.first_name}!*\n\n"
             f"🏅 Nivel: *{level}*\n"
             f"⭐ Puntos: *{data['points']}*\n\n"
-            f"📢 Canal oficial: t.me/pantherwallet\n"
+            f"📢 Canal oficial: t.me/pantherwalletoficial\n"
             f"💬 Chat comunidad: t.me/manadapanther\n\n"
-            f"_Completá misiones, referí amigos y ganá premios en PNT y USDT 💰_"
+            f"_Completa misiones, refiere amigos y gana premios en PNT y USDT 💰_"
         )
     else:
         text = (
             f"🐾 *¡Hola, {user.first_name}!*\n\n"
             f"🏅 Nivel: *{level}*\n"
             f"⭐ Puntos: *{data['points']}*\n"
-            f"🔥 Racha: *{data['streak']} días*\n"
-            f"{'📈 Próximo: *' + next_lv + '* — ' + str(pts_needed) + ' pts' if next_lv else '👑 Nivel máximo'}\n\n"
-            f"_Hacé check-in cada día, referí amigos y subí en el ranking para ganar recompensas en PNT y USDT 💰_"
+            f"🔥 Racha: *{data['streak']} dias*\n"
+            f"{'📈 Proximo: *' + next_lv + '* — ' + str(pts_needed) + ' pts' if next_lv else '👑 Nivel maximo'}\n\n"
+            f"_Haz check-in cada dia, refiere amigos y sube en el ranking para ganar recompensas en PNT y USDT 💰_"
         )
 
     from telegram import WebAppInfo
@@ -499,6 +505,49 @@ async def cmd_referido(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_keyboard()
     )
 
+# ── /verificar_follow (honor system) ─────────────────────────────────────────
+async def cmd_verificar_follow(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    db   = load_db()
+    uid  = str(user.id)
+    data = get_user(db, uid, user)
+
+    args = context.args or []
+    red  = args[0].lower() if args else ""
+
+    valid_reds = {"ig": "follow_ig", "x": "follow_x", "tiktok": "follow_tiktok"}
+    if red not in valid_reds:
+        await update.message.reply_text(
+            "Uso: /verificar_follow ig | x | tiktok"
+        )
+        return
+
+    field = valid_reds[red]
+    if data.get(field):
+        await update.message.reply_text(f"✅ Ya verificaste esta red social anteriormente.")
+        return
+
+    earned = add_points(data, PTS[field])
+    data[field] = True
+
+    # Check if all 3 followed → bonus
+    bonus_msg = ""
+    if data.get("follow_ig") and data.get("follow_x") and data.get("follow_tiktok") and not data.get("follow_all_bonus"):
+        bonus = add_points(data, PTS["follow_all_bonus"])
+        data["follow_all_bonus"] = True
+        bonus_msg = f"\n\n🎉 *¡Bonus por seguir todas las redes!* +{bonus} pts extra"
+
+    db[uid] = data
+    save_db(db)
+
+    red_names = {"ig": "Instagram", "x": "X (Twitter)", "tiktok": "TikTok"}
+    await update.message.reply_text(
+        f"✅ *¡Mision completada!*\n\n"
+        f"Seguiste a Panther en {red_names[red]}\n"
+        f"*+{earned} pts* acreditados 🐆{bonus_msg}",
+        parse_mode="Markdown"
+    )
+
 # ── /ruleta_on / /ruleta_off (moderadores) ────────────────────────────────────
 async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
@@ -543,7 +592,7 @@ async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "Uso: /broadcast Tu mensaje aquí\n\n"
-            "Ejemplo: /broadcast ¡Bienvenidos al canal oficial! t.me/pantherwallet"
+            "Ejemplo: /broadcast ¡Bienvenidos al canal oficial! t.me/pantherwalletoficial"
         )
         return
     
@@ -725,6 +774,49 @@ async def cmd_misiones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_keyboard()
     )
 
+# ── /verificar_follow (honor system) ─────────────────────────────────────────
+async def cmd_verificar_follow(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    db   = load_db()
+    uid  = str(user.id)
+    data = get_user(db, uid, user)
+
+    args = context.args or []
+    red  = args[0].lower() if args else ""
+
+    valid_reds = {"ig": "follow_ig", "x": "follow_x", "tiktok": "follow_tiktok"}
+    if red not in valid_reds:
+        await update.message.reply_text(
+            "Uso: /verificar_follow ig | x | tiktok"
+        )
+        return
+
+    field = valid_reds[red]
+    if data.get(field):
+        await update.message.reply_text(f"✅ Ya verificaste esta red social anteriormente.")
+        return
+
+    earned = add_points(data, PTS[field])
+    data[field] = True
+
+    # Check if all 3 followed → bonus
+    bonus_msg = ""
+    if data.get("follow_ig") and data.get("follow_x") and data.get("follow_tiktok") and not data.get("follow_all_bonus"):
+        bonus = add_points(data, PTS["follow_all_bonus"])
+        data["follow_all_bonus"] = True
+        bonus_msg = f"\n\n🎉 *¡Bonus por seguir todas las redes!* +{bonus} pts extra"
+
+    db[uid] = data
+    save_db(db)
+
+    red_names = {"ig": "Instagram", "x": "X (Twitter)", "tiktok": "TikTok"}
+    await update.message.reply_text(
+        f"✅ *¡Mision completada!*\n\n"
+        f"Seguiste a Panther en {red_names[red]}\n"
+        f"*+{earned} pts* acreditados 🐆{bonus_msg}",
+        parse_mode="Markdown"
+    )
+
 # ── /ruleta_on / /ruleta_off (moderadores) ────────────────────────────────────
 async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
@@ -769,7 +861,7 @@ async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
         await update.message.reply_text(
             "Uso: /broadcast Tu mensaje aquí\n\n"
-            "Ejemplo: /broadcast ¡Bienvenidos al canal oficial! t.me/pantherwallet"
+            "Ejemplo: /broadcast ¡Bienvenidos al canal oficial! t.me/pantherwalletoficial"
         )
         return
     
@@ -1093,6 +1185,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "compartir": cmd_compartir,
         "broadcast":  cmd_broadcast,
         "ruleta_on":  cmd_ruleta_on,
+        "verificar_follow": cmd_verificar_follow,
         "ruleta_off": cmd_ruleta_off,
         "ruleta_auto": cmd_ruleta_auto,
         "misiones": cmd_misiones,
@@ -1231,6 +1324,11 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "spins_used":     data.get("spins_used_this_event", 0),
                 "reel_verified":  data.get("reel_verified", False),
                 "story_verified": data.get("story_verified", False),
+                "follow_ig":      data.get("follow_ig", False),
+                "follow_x":       data.get("follow_x", False),
+                "follow_tiktok":  data.get("follow_tiktok", False),
+                "follow_facebook": data.get("follow_facebook", False),
+                "follow_youtube":  data.get("follow_youtube", False),
                 "usdt_won_month": has_won_this_month(data, "usdt"),
                 "pnt_won_month":  has_won_this_month(data, "pnt"),
                 "history":        history,
@@ -1360,6 +1458,39 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "prize_type": prize_type,
                 "prize_amount": prize_amount,
                 "already_done": False
+            })
+
+        elif path == "/follow":
+            uid = body.get("id")
+            red = body.get("red")
+            if not uid or red not in ["ig", "x", "tiktok", "facebook", "youtube"]:
+                return self.send_json({"error": "Invalid params"}, 400)
+
+            db   = load_db()
+            data = get_user(db, uid)
+
+            field = f"follow_{red}"
+            if data.get(field):
+                return self.send_json({"already_done": True, "points": data["points"]})
+
+            earned = add_points(data, PTS[field])
+            data[field] = True
+
+            bonus = 0
+            if (data.get("follow_ig") and data.get("follow_x") and data.get("follow_tiktok") 
+                and data.get("follow_facebook") and data.get("follow_youtube") 
+                and not data.get("follow_all_bonus")):
+                bonus = add_points(data, PTS["follow_all_bonus"])
+                data["follow_all_bonus"] = True
+
+            db[uid] = data
+            save_db(db)
+
+            return self.send_json({
+                "status": "ok",
+                "earned": earned,
+                "bonus": bonus,
+                "points": data["points"]
             })
 
         elif path == "/missions":

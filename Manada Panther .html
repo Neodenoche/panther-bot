@@ -441,6 +441,27 @@ const T = {
     puntos: 'PUNTOS',
     tocaEntrar: 'TOCA PARA ENTRAR',
     manadaActiva: 'Manada activa',
+    seccionSociales: 'Sociales',
+    seccionRedes: 'REDES SOCIALES',
+    labelDiarias: 'Diarias',
+    followIg: 'Seguir a Panther en Instagram',
+    followX: 'Seguir a Panther en X',
+    followTiktok: 'Seguir a Panther en TikTok',
+    followFacebook: 'Seguir a Panther en Facebook',
+    followYoutube: 'Suscribirse a Panther en YouTube',
+    followSub: 'Toca para seguir y verificar',
+    followSubYt: 'Toca para suscribirte y verificar',
+    followCompleted: '✅ Completado',
+    followModalBtn: '🚀 IR A ',
+    followModalVerify: '✅ VERIFICAR',
+    followModalWait: '⏳ VERIFICAR (espera ',
+    followModalCancel: 'Cancelar',
+    ruletaNote: 'Los puntos se acreditan automáticamente',
+    girosUsados: 'Giros usados',
+    statStreakLabel: 'Racha actual',
+    statRefsLabel: 'Referidos activos',
+    statSpinsLabel: 'Giros usados',
+    statLevelLabel: 'Nivel actual',
   },
   en: {
     misionesTitle: 'MISSIONS',
@@ -496,6 +517,27 @@ const T = {
     puntos: 'POINTS',
     tocaEntrar: 'TAP TO ENTER',
     manadaActiva: 'Pack active',
+    seccionSociales: 'Social',
+    seccionRedes: 'SOCIAL NETWORKS',
+    labelDiarias: 'Daily',
+    followIg: 'Follow Panther on Instagram',
+    followX: 'Follow Panther on X',
+    followTiktok: 'Follow Panther on TikTok',
+    followFacebook: 'Follow Panther on Facebook',
+    followYoutube: 'Subscribe to Panther on YouTube',
+    followSub: 'Tap to follow and verify',
+    followSubYt: 'Tap to subscribe and verify',
+    followCompleted: '✅ Completed',
+    followModalBtn: '🚀 GO TO ',
+    followModalVerify: '✅ VERIFY',
+    followModalWait: '⏳ VERIFY (wait ',
+    followModalCancel: 'Cancel',
+    ruletaNote: 'Points are credited automatically',
+    girosUsados: 'Spins used',
+    statStreakLabel: 'Current streak',
+    statRefsLabel: 'Active referrals',
+    statSpinsLabel: 'Spins used',
+    statLevelLabel: 'Current level',
   }
 };
 
@@ -520,7 +562,7 @@ function applyTranslations() {
   const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','ruletaTitle','referidoTitle'];
   navItems.forEach((el, i) => { if(navKeys[i]) el.textContent = t(navKeys[i]); });
 
-  // Mission cards
+  // Mission cards — diarias
   const mn = document.querySelectorAll('.mn');
   const ms = document.querySelectorAll('.ms');
   const missionNames = ['checkinName','ruletaName','reelName','storyName','referName'];
@@ -532,21 +574,82 @@ function applyTranslations() {
   const strip = document.querySelector('.strip-t');
   if(strip) strip.textContent = t('misionesHoy');
 
+  // Sección labels (Diarias / Sociales / Redes)
+  const stitles = document.querySelectorAll('.stitle');
+  if(stitles[0]) stitles[0].textContent = t('labelDiarias');
+  if(stitles[1]) stitles[1].textContent = t('seccionSociales');
+  if(stitles[2]) stitles[2].textContent = t('seccionRedes');
+
+  // Redes sociales - nombres y subtítulos
+  const followMap = {
+    'mc-follow-ig':       { name: 'followIg',      sub: 'followSub',    subId: 'sub-follow-ig' },
+    'mc-follow-x':        { name: 'followX',       sub: 'followSub',    subId: 'sub-follow-x' },
+    'mc-follow-tiktok':   { name: 'followTiktok',  sub: 'followSub',    subId: 'sub-follow-tiktok' },
+    'mc-follow-facebook': { name: 'followFacebook',sub: 'followSub',    subId: 'sub-follow-facebook' },
+    'mc-follow-youtube':  { name: 'followYoutube', sub: 'followSubYt',  subId: 'sub-follow-youtube' },
+  };
+  for(const [cardId, keys] of Object.entries(followMap)) {
+    const card = document.getElementById(cardId);
+    if(card) {
+      const nameEl = card.querySelector('.mn');
+      if(nameEl) nameEl.textContent = t(keys.name);
+    }
+    const subEl = document.getElementById(keys.subId);
+    if(subEl && !subEl.textContent.includes('✅')) subEl.textContent = t(keys.sub);
+  }
+
   // Ranking
   const rankTitle = document.querySelector('.rank-title');
   if(rankTitle) rankTitle.textContent = t('rankingTitle2');
   const rankSub = document.querySelector('.rank-sub');
   if(rankSub) rankSub.textContent = t('rankingSub');
 
-  // Spin button
+  // Spin button y nota ruleta
   const spinBtn = document.getElementById('spin-btn');
   if(spinBtn) spinBtn.textContent = t('spinBtn');
+  const spinNote = document.querySelector('.spin-note');
+  if(spinNote) spinNote.textContent = t('ruletaNote');
+
+  // Ruleta status text
+  const ruletaStatus = document.getElementById('ruleta-status');
+  if(ruletaStatus && !userData) ruletaStatus.textContent = t('ruletaDiaria');
 
   // Referral screen
   const refTitle = document.querySelector('.ref-title');
   if(refTitle) refTitle.textContent = t('miCodigoTitle');
   const refSub = document.querySelector('.ref-sub');
   if(refSub) refSub.textContent = t('miCodigoSub');
+  const refCodeLbl = document.querySelector('.ref-code-lbl');
+  if(refCodeLbl) refCodeLbl.textContent = t('codigoUnico');
+  const copyBtn = document.getElementById('copy-btn');
+  if(copyBtn) copyBtn.textContent = t('copiarCodigo');
+  const shareBtn = document.getElementById('ref-share-btn');
+  if(shareBtn) shareBtn.textContent = t('compartirEnlace');
+
+  // Referral stats labels
+  const refStatLabels = document.querySelectorAll('.ref-stat-l');
+  if(refStatLabels[0]) refStatLabels[0].textContent = t('invitados');
+  if(refStatLabels[1]) refStatLabels[1].textContent = t('conWallet');
+  if(refStatLabels[2]) refStatLabels[2].textContent = t('ptsGanados');
+
+  // Referral how-to title & steps
+  const refHowT = document.querySelector('.ref-how-t');
+  if(refHowT) refHowT.textContent = t('comoFunciona');
+  const refSteps = document.querySelectorAll('.ref-step-t');
+  if(refSteps[0]) refSteps[0].textContent = t('ref_step1');
+  if(refSteps[1]) refSteps[1].innerHTML = t('ref_step2');
+  if(refSteps[2]) refSteps[2].innerHTML = t('ref_step3');
+
+  // Mis Puntos screen — stats labels
+  const statLabels = document.querySelectorAll('.stat-label');
+  if(statLabels[0]) statLabels[0].textContent = t('statStreakLabel');
+  if(statLabels[1]) statLabels[1].textContent = t('statRefsLabel');
+  if(statLabels[2]) statLabels[2].textContent = t('statSpinsLabel');
+  if(statLabels[3]) statLabels[3].textContent = t('statLevelLabel');
+
+  // Historial title
+  const histTitle = document.querySelector('.hist-title');
+  if(histTitle) histTitle.textContent = t('historialReciente');
 
   // Live wrap
   const liveWrap = document.querySelector('.live-wrap span:last-child');
@@ -956,28 +1059,28 @@ function openFollowModal(red) {
 
   modal.innerHTML = `
     <div style="background:#1a1a1a;border:1px solid #ff6b1a44;border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center">
-      <div style="font-size:40px;margin-bottom:12px">${red === 'ig' ? '📸' : red === 'x' ? '🐦' : '🎵'}</div>
-      <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:8px">Seguir en ${name}</div>
+      <div style="font-size:40px;margin-bottom:12px">${red === 'ig' ? '📸' : red === 'x' ? '🐦' : red === 'tiktok' ? '🎵' : red === 'facebook' ? '📘' : '▶️'}</div>
+      <div style="font-size:17px;font-weight:700;color:#fff;margin-bottom:8px">${red === 'youtube' ? t('followYoutube') : t('follow' + red.charAt(0).toUpperCase() + red.slice(1))}</div>
       <div style="font-size:13px;color:#888;margin-bottom:20px;line-height:1.6">
-        1️⃣ Toca <b style="color:#ff6b1a">IR A ${name.toUpperCase()}</b><br>
-        2️⃣ Sigue la cuenta oficial de Panther<br>
-        3️⃣ Vuelve y toca <b style="color:#4ade80">VERIFICAR</b>
+        1️⃣ ${t('followModalBtn')}<b style="color:#ff6b1a">${name.toUpperCase()}</b><br>
+        2️⃣ ${red === 'youtube' ? (LANG === 'en' ? 'Subscribe to the official account' : 'Suscríbete a la cuenta oficial') : (LANG === 'en' ? 'Follow the official account' : 'Sigue la cuenta oficial de Panther')}<br>
+        3️⃣ ${LANG === 'en' ? 'Come back and tap' : 'Vuelve y toca'} <b style="color:#4ade80">${t('followModalVerify')}</b>
       </div>
       <a href="${url}" target="_blank" onclick="startFollowTimer('${red}')" style="
         display:block;background:#ff6b1a;color:#fff;
         border-radius:12px;padding:12px;margin-bottom:10px;
         font-size:14px;font-weight:700;text-decoration:none">
-        🚀 IR A ${name.toUpperCase()}
+        ${t('followModalBtn')}${name.toUpperCase()}
       </a>
       <button id="verify-btn-${red}" onclick="verifyFollow('${red}')" disabled style="
         width:100%;background:#1a2a1a;color:#555;border:1px solid #333;
         border-radius:12px;padding:12px;font-size:14px;font-weight:700;cursor:not-allowed;
-        margin-bottom:10px" id="verify-follow-btn">
-        ⏳ VERIFICAR (espera 5s)
+        margin-bottom:10px">
+        ${t('followModalWait')}5s)
       </button>
       <button onclick="document.getElementById('follow-modal').remove()"
         style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:10px;width:100%;font-size:13px;cursor:pointer">
-        Cancelar
+        ${t('followModalCancel')}
       </button>
     </div>`;
 
@@ -999,7 +1102,7 @@ function startFollowTimer(red) {
       btn.style.cursor = 'pointer';
       btn.textContent = '✅ VERIFICAR';
     } else {
-      btn.textContent = `⏳ VERIFICAR (espera ${secs}s)`;
+      btn.textContent = `${t('followModalWait')}${secs}s)`;
     }
   }, 1000);
 }

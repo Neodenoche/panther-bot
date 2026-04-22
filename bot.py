@@ -834,6 +834,10 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ── Manejo de fotos (capturas de misiones) ────────────────────────────────────
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Only handle photos in private chats
+    if update.effective_chat.type != "private":
+        return
+    
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)

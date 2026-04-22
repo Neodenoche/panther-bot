@@ -298,10 +298,11 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="level-pill" style="justify-content:center">🐾 Cachorro · Lv.1</div>
   </div>
   <div class="stats-grid">
-    <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label">Racha actual</div><div class="stat-val" id="stat-streak">0 días</div></div>
-    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label">Referidos activos</div><div class="stat-val" id="stat-refs">0</div></div>
-    <div class="stat-card"><div class="stat-icon">🎰</div><div class="stat-label">Giros usados</div><div class="stat-val" id="stat-spins">0</div></div>
-    <div class="stat-card"><div class="stat-icon">📢</div><div class="stat-label">Nivel actual</div><div class="stat-val" id="stat-level" style="font-size:14px">-</div></div>
+    <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label" id="sl-streak">Racha actual</div><div class="stat-val" id="stat-streak">0 días</div></div>
+    <div class="stat-card"><div class="stat-icon">👥</div><div class="stat-label" id="sl-refs">Se unieron</div><div class="stat-val" id="stat-refs">0</div></div>
+    <div class="stat-card"><div class="stat-icon">🐆</div><div class="stat-label" id="sl-wallet">Con wallet</div><div class="stat-val" id="stat-wallet">0</div></div>
+    <div class="stat-card"><div class="stat-icon">🎰</div><div class="stat-label" id="sl-spins">Giros usados</div><div class="stat-val" id="stat-spins">0</div></div>
+    <div class="stat-card" style="grid-column:1/-1"><div class="stat-icon">📢</div><div class="stat-label" id="sl-level">Nivel actual</div><div class="stat-val" id="stat-level" style="font-size:14px">-</div></div>
   </div>
   <div class="hist-title">Historial reciente</div>
   <div id="hist-container">
@@ -462,6 +463,8 @@ const T = {
     statRefsLabel: 'Referidos activos',
     statSpinsLabel: 'Giros usados',
     statLevelLabel: 'Nivel actual',
+    statRefsJoined: 'Se unieron',
+    statRefsWallet: 'Con wallet',
   },
   en: {
     misionesTitle: 'MISSIONS',
@@ -538,6 +541,8 @@ const T = {
     statRefsLabel: 'Active referrals',
     statSpinsLabel: 'Spins used',
     statLevelLabel: 'Current level',
+    statRefsJoined: 'Joined',
+    statRefsWallet: 'With wallet',
   }
 };
 
@@ -640,12 +645,17 @@ function applyTranslations() {
   if(refSteps[1]) refSteps[1].innerHTML = t('ref_step2');
   if(refSteps[2]) refSteps[2].innerHTML = t('ref_step3');
 
-  // Mis Puntos screen — stats labels
-  const statLabels = document.querySelectorAll('.stat-label');
-  if(statLabels[0]) statLabels[0].textContent = t('statStreakLabel');
-  if(statLabels[1]) statLabels[1].textContent = t('statRefsLabel');
-  if(statLabels[2]) statLabels[2].textContent = t('statSpinsLabel');
-  if(statLabels[3]) statLabels[3].textContent = t('statLevelLabel');
+  // Mis Puntos screen — stats labels por ID para evitar colisiones
+  const slStreak = document.getElementById('sl-streak');
+  const slRefs = document.getElementById('sl-refs');
+  const slWallet = document.getElementById('sl-wallet');
+  const slSpins = document.getElementById('sl-spins');
+  const slLevel = document.getElementById('sl-level');
+  if(slStreak) slStreak.textContent = t('statStreakLabel');
+  if(slRefs) slRefs.textContent = t('statRefsJoined');
+  if(slWallet) slWallet.textContent = t('statRefsWallet');
+  if(slSpins) slSpins.textContent = t('statSpinsLabel');
+  if(slLevel) slLevel.textContent = t('statLevelLabel');
 
   // Historial title
   const histTitle = document.querySelector('.hist-title');
@@ -836,28 +846,44 @@ function updateUI() {
     }
   }
 
-  // Mis puntos screen
+  // Mis puntos screen — actualizar siempre, no solo cuando está activa
   USER_PTS = pts;
   const ptsCounter = document.getElementById('pts-counter');
-  if(ptsCounter && document.getElementById('s-puntos').classList.contains('active')) {
-    ptsCounter.textContent = pts;
-  }
+  if(ptsCounter) ptsCounter.textContent = pts;
 
   // Stats - Mis Puntos screen
   const statStreak = document.getElementById('stat-streak');
   const statRefs = document.getElementById('stat-refs');
   const statLevel = document.getElementById('stat-level');
   if(statStreak) statStreak.textContent = streak + ' días';
-  if(statRefs) statRefs.textContent = refs;
+  if(statRefs) statRefs.textContent = userData.referrals || 0;
+  const statWallet = document.getElementById('stat-wallet');
+  if(statWallet) statWallet.textContent = userData.referrals_active || 0;
   if(statLevel) statLevel.textContent = level;
 
   // History
   const histContainer = document.getElementById('hist-container');
   if(histContainer && userData.history && userData.history.length > 0) {
-    const typeMap = {checkin:'🔥 Check-in diario', ruleta:'🎰 Ruleta', reel:'📹 Reel compartido', story:'📸 Historia compartida', referral:'👥 Referido'};
+    const typeMap = {
+      checkin:        '🔥 Check-in diario',
+      ruleta:         '🎰 Ruleta',
+      reel:           '📹 Reel compartido',
+      story:          '📸 Historia compartida',
+      referral:       '👥 Referido',
+      follow_ig:      '📸 Seguir en Instagram',
+      follow_x:       '🐦 Seguir en X',
+      follow_tiktok:  '🎵 Seguir en TikTok',
+      follow_facebook:'📘 Seguir en Facebook',
+      follow_youtube: '▶️ Suscribirse en YouTube',
+    };
+    const iconMap = {
+      checkin:'🔥', ruleta:'🎰', reel:'📹', story:'📸', referral:'👥',
+      follow_ig:'📸', follow_x:'🐦', follow_tiktok:'🎵',
+      follow_facebook:'📘', follow_youtube:'▶️',
+    };
     histContainer.innerHTML = userData.history.slice().reverse().map(h => `
       <div class="hist-row">
-        <div class="hist-ic">${h.type==='checkin'?'🔥':h.type==='ruleta'?'🎰':h.type==='reel'?'📹':h.type==='story'?'📸':'👥'}</div>
+        <div class="hist-ic">${iconMap[h.type] || '🐾'}</div>
         <div class="hist-body"><div class="hist-desc">${typeMap[h.type]||h.type}</div><div class="hist-time">${h.date||''} ${h.time||''}</div></div>
         <div class="hist-pts">+${h.pts}</div>
       </div>`).join('');

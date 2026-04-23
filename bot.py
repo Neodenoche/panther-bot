@@ -429,11 +429,8 @@ def is_ruleta_active():
     return date.today().day in [15, 30]
 
 def can_access_ruleta(data):
-    return (
-        data.get("reel_verified", False) and
-        data.get("story_verified", False) and
-        data.get("referrals_active", 0) >= 1
-    )
+    # Condición de lanzamiento: 3 días de check-in seguidos
+    return data.get("streak", 0) >= 3
 
 def get_available_spins(data):
     base = 1
@@ -1609,14 +1606,12 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
             # Check access conditions
             if not can_access_ruleta(data):
-                missing = []
-                if not data.get("reel_verified"): missing.append("reel verificado")
-                if not data.get("story_verified"): missing.append("historia verificada")
-                if data.get("referrals_active", 0) < 1: missing.append("1 referido activo")
+                streak = data.get("streak", 0)
+                missing = [f"racha de 3 días (tenés {streak})"] if streak < 3 else []
                 return self.send_json({
                     "available": False,
                     "reason": "missions",
-                    "message": "Completa todas las misiones para desbloquear la ruleta",
+                    "message": f"Necesitás 3 días de check-in seguidos para girar (racha actual: {streak})",
                     "missing": missing
                 })
 

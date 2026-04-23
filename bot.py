@@ -4,7 +4,7 @@ PANTHER WALLET — MANADA PANTHER GAME BOT
 Módulo completo: Bot + API HTTP para Mini App
 """
 
-import os, json, logging, random, asyncio, threading
+import os, json, logging, random, asyncio, threading, sqlite3
 from datetime import datetime, date, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -21,7 +21,8 @@ logging.basicConfig(format="%(asctime)s - %(levelname)s - %(message)s", level=lo
 logger = logging.getLogger(__name__)
 
 TOKEN   = os.environ.get("BOT_TOKEN", "")
-DB_FILE = "/data/panther_db.json"
+DB_FILE  = "/data/panther_db.json"   # JSON legacy (para migración)
+SQLITE_FILE = "/data/panther.db"
 
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524").split(",") if x.strip()]
@@ -105,19 +106,224 @@ def get_usdt_prize():
             return p["amount"]
     return None
 
-# ── DB ────────────────────────────────────────────────────────────────────────
+# ── DB — SQLite ──────────────────────────────────────────────────────────────
 DB_LOCK = threading.Lock()
 
+def get_conn():
+    """Retorna una conexión SQLite thread-safe."""
+    conn = sqlite3.connect(SQLITE_FILE, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    """Crea la tabla si no existe y migra datos del JSON legacy."""
+    db_dir = os.path.dirname(SQLITE_FILE)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
+
+    with get_conn() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id              TEXT PRIMARY KEY,
+                username        TEXT DEFAULT '',
+                first_name      TEXT DEFAULT '',
+                points          INTEGER DEFAULT 0,
+                streak          INTEGER DEFAULT 0,
+                last_checkin    TEXT,
+                last_ruleta     TEXT,
+                double_pts_until TEXT,
+                referral_code   TEXT DEFAULT '',
+                referred_by     TEXT,
+                referrals       TEXT DEFAULT '[]',
+                referrals_active INTEGER DEFAULT 0,
+                joined_at       TEXT,
+                usdt_won_month  TEXT,
+                pnt_won_month   TEXT,
+                reel_verified   INTEGER DEFAULT 0,
+                story_verified  INTEGER DEFAULT 0,
+                follow_ig       INTEGER DEFAULT 0,
+                follow_x        INTEGER DEFAULT 0,
+                follow_tiktok   INTEGER DEFAULT 0,
+                follow_facebook INTEGER DEFAULT 0,
+                follow_youtube  INTEGER DEFAULT 0,
+                follow_all_bonus INTEGER DEFAULT 0,
+                has_virtual_card INTEGER DEFAULT 0,
+                has_physical_card INTEGER DEFAULT 0,
+                big_transaction INTEGER DEFAULT 0,
+                wallet_activated INTEGER DEFAULT 0,
+                pending_wallet_proof INTEGER DEFAULT 0,
+                spins_used_this_event INTEGER DEFAULT 0,
+                history         TEXT DEFAULT '[]',
+                extra           TEXT DEFAULT '{}'
+            )
+        """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS globals (
+                key   TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+        conn.commit()
+
+    # ── Migración desde JSON legacy ──
+    if os.path.exists(DB_FILE):
+        try:
+            with open(DB_FILE, "r", encoding="utf-8") as f:
+                old = json.load(f)
+            migrated = 0
+            with get_conn() as conn:
+                for uid, data in old.items():
+                    if uid == "_global":
+                        for k, v in data.items():
+                            conn.execute(
+                                "INSERT OR IGNORE INTO globals(key,value) VALUES(?,?)",
+                                (k, json.dumps(v))
+                            )
+                        continue
+                    if not isinstance(data, dict) or "points" not in data:
+                        continue
+                    # Verificar si ya existe
+                    row = conn.execute("SELECT id FROM users WHERE id=?", (uid,)).fetchone()
+                    if row:
+                        continue
+                    refs = data.get("referrals", [])
+                    if not isinstance(refs, list):
+                        refs = []
+                    history = data.get("history", [])
+                    conn.execute("""
+                        INSERT OR IGNORE INTO users
+                        (id, username, first_name, points, streak, last_checkin, last_ruleta,
+                         double_pts_until, referral_code, referred_by, referrals, referrals_active,
+                         joined_at, usdt_won_month, pnt_won_month, reel_verified, story_verified,
+                         follow_ig, follow_x, follow_tiktok, follow_facebook, follow_youtube,
+                         follow_all_bonus, wallet_activated, history)
+                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, (
+                        uid,
+                        data.get("username", ""),
+                        data.get("first_name", ""),
+                        data.get("points", 0),
+                        data.get("streak", 0),
+                        data.get("last_checkin"),
+                        data.get("last_ruleta"),
+                        data.get("double_pts_until"),
+                        data.get("referral_code", uid[-6:]),
+                        data.get("referred_by"),
+                        json.dumps(refs),
+                        data.get("referrals_active", 0),
+                        data.get("joined_at", datetime.now().isoformat()),
+                        data.get("usdt_won_month"),
+                        data.get("pnt_won_month"),
+                        int(data.get("reel_verified", False)),
+                        int(data.get("story_verified", False)),
+                        int(data.get("follow_ig", False)),
+                        int(data.get("follow_x", False)),
+                        int(data.get("follow_tiktok", False)),
+                        int(data.get("follow_facebook", False)),
+                        int(data.get("follow_youtube", False)),
+                        int(data.get("follow_all_bonus", False)),
+                        int(data.get("wallet_activated", False)),
+                        json.dumps(history),
+                    ))
+                    migrated += 1
+                conn.commit()
+            if migrated > 0:
+                logger.info(f"✅ Migrados {migrated} usuarios desde JSON a SQLite")
+                # Renombrar JSON para no migrar dos veces
+                os.rename(DB_FILE, DB_FILE + ".migrated")
+        except Exception as e:
+            logger.error(f"Error en migración JSON→SQLite: {e}")
+
+def _row_to_dict(row):
+    """Convierte una fila SQLite al dict que usa el resto del código."""
+    if row is None:
+        return None
+    d = dict(row)
+    # Deserializar campos JSON
+    for field in ("referrals", "history"):
+        try:
+            d[field] = json.loads(d.get(field) or "[]")
+        except Exception:
+            d[field] = []
+    # Booleans
+    for field in ("reel_verified", "story_verified", "follow_ig", "follow_x",
+                  "follow_tiktok", "follow_facebook", "follow_youtube",
+                  "follow_all_bonus", "has_virtual_card", "has_physical_card",
+                  "big_transaction", "wallet_activated", "pending_wallet_proof"):
+        d[field] = bool(d.get(field, 0))
+    return d
+
 def load_db():
-    if not os.path.exists(DB_FILE):
-        return {}
-    with open(DB_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    """Carga TODOS los usuarios como dict {uid: data} — compatibilidad total."""
+    with get_conn() as conn:
+        rows = conn.execute("SELECT * FROM users").fetchall()
+        db = {row["id"]: _row_to_dict(row) for row in rows}
+        # Cargar globals
+        g_rows = conn.execute("SELECT key, value FROM globals").fetchall()
+        if g_rows:
+            db["_global"] = {r["key"]: json.loads(r["value"]) for r in g_rows}
+    return db
 
 def save_db(db):
+    """Guarda el dict completo de vuelta a SQLite."""
     with DB_LOCK:
-        with open(DB_FILE, "w", encoding="utf-8") as f:
-            json.dump(db, f, ensure_ascii=False, indent=2)
+        with get_conn() as conn:
+            for uid, data in db.items():
+                if uid == "_global":
+                    for k, v in data.items():
+                        conn.execute(
+                            "INSERT OR REPLACE INTO globals(key,value) VALUES(?,?)",
+                            (k, json.dumps(v))
+                        )
+                    continue
+                if not isinstance(data, dict) or "id" not in data:
+                    continue
+                refs = data.get("referrals", [])
+                if not isinstance(refs, list):
+                    refs = []
+                history = data.get("history", [])
+                conn.execute("""
+                    INSERT OR REPLACE INTO users
+                    (id, username, first_name, points, streak, last_checkin, last_ruleta,
+                     double_pts_until, referral_code, referred_by, referrals, referrals_active,
+                     joined_at, usdt_won_month, pnt_won_month, reel_verified, story_verified,
+                     follow_ig, follow_x, follow_tiktok, follow_facebook, follow_youtube,
+                     follow_all_bonus, has_virtual_card, has_physical_card, big_transaction,
+                     wallet_activated, pending_wallet_proof, spins_used_this_event, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    data["id"],
+                    data.get("username", ""),
+                    data.get("first_name", ""),
+                    data.get("points", 0),
+                    data.get("streak", 0),
+                    data.get("last_checkin"),
+                    data.get("last_ruleta"),
+                    data.get("double_pts_until"),
+                    data.get("referral_code", ""),
+                    data.get("referred_by"),
+                    json.dumps(refs),
+                    data.get("referrals_active", 0),
+                    data.get("joined_at", datetime.now().isoformat()),
+                    data.get("usdt_won_month"),
+                    data.get("pnt_won_month"),
+                    int(data.get("reel_verified", False)),
+                    int(data.get("story_verified", False)),
+                    int(data.get("follow_ig", False)),
+                    int(data.get("follow_x", False)),
+                    int(data.get("follow_tiktok", False)),
+                    int(data.get("follow_facebook", False)),
+                    int(data.get("follow_youtube", False)),
+                    int(data.get("follow_all_bonus", False)),
+                    int(data.get("has_virtual_card", False)),
+                    int(data.get("has_physical_card", False)),
+                    int(data.get("big_transaction", False)),
+                    int(data.get("wallet_activated", False)),
+                    int(data.get("pending_wallet_proof", False)),
+                    data.get("spins_used_this_event", 0),
+                    json.dumps(history),
+                ))
+            conn.commit()
 
 def get_user(db, uid: str, user=None):
     if uid not in db:
@@ -134,19 +340,39 @@ def get_user(db, uid: str, user=None):
             "referral_code": code,
             "referred_by": None,
             "referrals": [],
+            "referrals_active": 0,
             "joined_at": datetime.now().isoformat(),
             "usdt_won_month": None,
             "pnt_won_month": None,
+            "reel_verified": False,
+            "story_verified": False,
+            "follow_ig": False,
+            "follow_x": False,
+            "follow_tiktok": False,
+            "follow_facebook": False,
+            "follow_youtube": False,
+            "follow_all_bonus": False,
+            "wallet_activated": False,
+            "pending_wallet_proof": False,
+            "spins_used_this_event": 0,
+            "history": [],
         }
     elif user:
-        db[uid]["username"] = user.username or db[uid].get("username","")
-        db[uid]["first_name"] = user.first_name or db[uid].get("first_name","")
+        db[uid]["username"] = user.username or db[uid].get("username", "")
+        db[uid]["first_name"] = user.first_name or db[uid].get("first_name", "")
     # Asegurar campos nuevos en usuarios existentes
-    if "usdt_won_month" not in db[uid]:
-        db[uid]["usdt_won_month"] = None
-    if "pnt_won_month" not in db[uid]:
-        db[uid]["pnt_won_month"] = None
-    # Fix referrals if stored as int instead of list
+    for field, default in [
+        ("usdt_won_month", None), ("pnt_won_month", None),
+        ("referrals_active", 0), ("reel_verified", False),
+        ("story_verified", False), ("follow_ig", False),
+        ("follow_x", False), ("follow_tiktok", False),
+        ("follow_facebook", False), ("follow_youtube", False),
+        ("follow_all_bonus", False), ("wallet_activated", False),
+        ("pending_wallet_proof", False), ("spins_used_this_event", 0),
+        ("history", []),
+    ]:
+        if field not in db[uid]:
+            db[uid][field] = default
     if not isinstance(db[uid].get("referrals"), list):
         db[uid]["referrals"] = []
     return db[uid]
@@ -1757,6 +1983,10 @@ def main():
     if not TOKEN:
         print("❌ Falta BOT_TOKEN en las variables de entorno")
         return
+
+    # Inicializar SQLite y migrar desde JSON si existe
+    init_db()
+    print("✅ Base de datos SQLite inicializada")
 
     # Test escritura en volumen
     db_dir = os.path.dirname(DB_FILE)

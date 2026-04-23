@@ -882,7 +882,10 @@ function updateUI() {
       const spinBtn = document.getElementById('spin-btn');
       if(spinBtn) spinBtn.disabled = true;
     } else if(!userData.ruleta_access) {
-      ruletaStatus.textContent = '⚠️ Completá misiones para acceder';
+      const streak = userData.streak || 0;
+      ruletaStatus.textContent = streak < 3
+        ? `⚠️ Necesitás racha de 3 días (tenés ${streak})`
+        : '⚠️ Completá el check-in para desbloquear';
       ruletaStatus.style.color = '#ff6b1a';
       const spinBtn = document.getElementById('spin-btn');
       if(spinBtn) spinBtn.disabled = true;

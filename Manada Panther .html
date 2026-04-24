@@ -830,7 +830,7 @@ function updateUI() {
       if (arrCheckin) { arrCheckin.classList.add('ok'); arrCheckin.textContent = '✓'; }
       const updateCheckinTimer = () => {
         const midnight = new Date();
-        midnight.setUTCHours(24, 0, 0, 0);
+        midnight.setHours(24, 0, 0, 0); // medianoche hora local
         const diff = midnight - new Date();
         const h = Math.floor(diff / 3600000);
         const m = Math.floor((diff % 3600000) / 60000);
@@ -1002,7 +1002,7 @@ async function doCheckin() {
         setTimeout(() => {
           if (subEl) {
             const midnight = new Date();
-            midnight.setUTCHours(24, 0, 0, 0);
+            midnight.setHours(24, 0, 0, 0); // medianoche hora local
             const diff = midnight - new Date();
             const h = Math.floor(diff / 3600000);
             const m = Math.floor((diff % 3600000) / 60000);

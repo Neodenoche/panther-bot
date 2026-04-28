@@ -1201,7 +1201,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     reply_markup=keyboard
                 )
             except Exception as e:
-                logger.error(f"Error notifying mod: {e}")
+                logger.error(f"Error notifying mod {mod_id}: {type(e).__name__}: {e}")
         return
 
     save_db(db)
@@ -1426,6 +1426,31 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handlers[data_str](fake_update, context)
 
 # ── /ayuda ────────────────────────────────────────────────────────────────────
+async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envía un mensaje de prueba a todos los mods — solo moderadores"""
+    if update.effective_user.id not in MOD_IDS:
+        return
+    results = []
+    for mod_id in MOD_IDS:
+        try:
+            msg = (
+                "🔔 *Test de notificación*\n\n"
+                "Este mensaje confirma que recibís notificaciones del bot correctamente.\n\n"
+                f"_Enviado por mod {update.effective_user.id}_"
+            )
+            await context.bot.send_message(
+                chat_id=mod_id,
+                text=msg,
+                parse_mode="Markdown"
+            )
+            results.append(f"✅ {mod_id}")
+        except Exception as e:
+            results.append(f"❌ {mod_id}: {e}")
+    await update.message.reply_text(
+        "Resultados:\n" + "\n".join(results),
+        parse_mode="Markdown"
+    )
+
 async def cmd_resetcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reset check-in for testing — solo moderadores"""
     if update.effective_user.id not in MOD_IDS:
@@ -2014,6 +2039,7 @@ def main():
     app.add_handler(CommandHandler("ayuda",      cmd_ayuda))
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
+    app.add_handler(CommandHandler("pingmods", cmd_pingmods))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))

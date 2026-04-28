@@ -26,6 +26,7 @@ SQLITE_FILE = "/data/panther.db"
 
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
+MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
 
 # ── Puntos por acción ─────────────────────────────────────────────────────────
 PTS = {
@@ -1172,36 +1173,56 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-        # Notify mods with wallet proof buttons
+        # Notify mods — grupo primero, luego individuales como fallback
         referred_by = data.get("referred_by")
-        for mod_id in MOD_IDS:
-            try:
-                await context.bot.forward_message(
-                    chat_id=mod_id,
-                    from_chat_id=update.effective_chat.id,
-                    message_id=update.message.message_id
-                )
-                keyboard = InlineKeyboardMarkup([
-                    [InlineKeyboardButton(
-                        f"✅ Aprobar wallet (+150 pts al referidor)",
-                        callback_data=f"wallet_{uid}_{referred_by}"
-                    )],
-                    [InlineKeyboardButton(
-                        "❌ Rechazar",
-                        callback_data=f"reject_{uid}"
-                    )]
-                ])
-                await context.bot.send_message(
-                    chat_id=mod_id,
-                    text=f"🔐 *Prueba de wallet*\n\n"
-                         f"Usuario: {name} (ID: {uid})\n"
-                         f"Referido por: {referred_by or 'N/A'}\n\n"
-                         f"¿Aprobar activación de wallet?",
-                    parse_mode="Markdown",
-                    reply_markup=keyboard
-                )
-            except Exception as e:
-                logger.error(f"Error notifying mod {mod_id}: {type(e).__name__}: {e}")
+        keyboard_wallet = InlineKeyboardMarkup([
+            [InlineKeyboardButton(
+                f"✅ Aprobar wallet (+150 pts al referidor)",
+                callback_data=f"wallet_{uid}_{referred_by}"
+            )],
+            [InlineKeyboardButton(
+                "❌ Rechazar",
+                callback_data=f"reject_{uid}"
+            )]
+        ])
+        wallet_text = (
+            f"🔐 *Prueba de wallet*\n\n"
+            f"Usuario: {name} (ID: {uid})\n"
+            f"Referido por: {referred_by or 'N/A'}\n\n"
+            f"¿Aprobar activación de wallet?"
+        )
+        notified = False
+        try:
+            await context.bot.forward_message(
+                chat_id=MOD_GROUP_ID,
+                from_chat_id=update.effective_chat.id,
+                message_id=update.message.message_id
+            )
+            await context.bot.send_message(
+                chat_id=MOD_GROUP_ID,
+                text=wallet_text,
+                parse_mode="Markdown",
+                reply_markup=keyboard_wallet
+            )
+            notified = True
+        except Exception as e:
+            logger.error(f"Error notifying mod group: {type(e).__name__}: {e}")
+        if not notified:
+            for mod_id in MOD_IDS:
+                try:
+                    await context.bot.forward_message(
+                        chat_id=mod_id,
+                        from_chat_id=update.effective_chat.id,
+                        message_id=update.message.message_id
+                    )
+                    await context.bot.send_message(
+                        chat_id=mod_id,
+                        text=wallet_text,
+                        parse_mode="Markdown",
+                        reply_markup=keyboard_wallet
+                    )
+                except Exception as e2:
+                    logger.error(f"Error notifying mod {mod_id}: {type(e2).__name__}: {e2}")
         return
 
     save_db(db)
@@ -1213,47 +1234,69 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-    # Notificar a moderadores con botones inline
-    for mod_id in MOD_IDS:
-        try:
-            await context.bot.forward_message(
-                chat_id=mod_id,
-                from_chat_id=update.effective_chat.id,
-                message_id=update.message.message_id
-            )
-            keyboard = InlineKeyboardMarkup([
-                [
-                    InlineKeyboardButton(
-                        f"✅ Reel (+{PTS['share_reel']} pts)",
-                        callback_data=f"approve_{uid}_reel"
-                    ),
-                    InlineKeyboardButton(
-                        f"✅ Historia (+{PTS['share_story']} pts)",
-                        callback_data=f"approve_{uid}_story"
-                    ),
-                ],
-                [
-                    InlineKeyboardButton(
-                        f"✅ Contenido (+{PTS['own_content']} pts)",
-                        callback_data=f"approve_{uid}_content"
-                    ),
-                    InlineKeyboardButton(
-                        "❌ Rechazar",
-                        callback_data=f"reject_{uid}"
-                    ),
-                ]
-            ])
-            await context.bot.send_message(
-                chat_id=mod_id,
-                text=f"📸 *Captura de verificación*\n"
-                     f"Usuario: {name} (ID: `{uid}`)\n"
-                     f"Puntos actuales: *{data['points']}*\n\n"
-                     f"Seleccioná la acción:",
-                parse_mode="Markdown",
-                reply_markup=keyboard
-            )
-        except Exception as e:
-            logger.warning(f"No se pudo notificar al mod {mod_id}: {e}")
+    # Notificar a moderadores — grupo primero, fallback individual
+    mission_keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                f"✅ Reel (+{PTS['share_reel']} pts)",
+                callback_data=f"approve_{uid}_reel"
+            ),
+            InlineKeyboardButton(
+                f"✅ Historia (+{PTS['share_story']} pts)",
+                callback_data=f"approve_{uid}_story"
+            ),
+        ],
+        [
+            InlineKeyboardButton(
+                f"✅ Contenido (+{PTS['own_content']} pts)",
+                callback_data=f"approve_{uid}_content"
+            ),
+            InlineKeyboardButton(
+                "❌ Rechazar",
+                callback_data=f"reject_{uid}"
+            ),
+        ]
+    ])
+    mission_text = (
+        f"📸 *Captura de verificación*\n"
+        f"Usuario: {name} (ID: `{uid}`)\n"
+        f"Puntos actuales: *{data['points']}*\n\n"
+        f"Seleccioná la acción:"
+    )
+    # Enviar al grupo de mods primero
+    mission_notified = False
+    try:
+        await context.bot.forward_message(
+            chat_id=MOD_GROUP_ID,
+            from_chat_id=update.effective_chat.id,
+            message_id=update.message.message_id
+        )
+        await context.bot.send_message(
+            chat_id=MOD_GROUP_ID,
+            text=mission_text,
+            parse_mode="Markdown",
+            reply_markup=mission_keyboard
+        )
+        mission_notified = True
+    except Exception as e:
+        logger.error(f"Error notifying mod group: {type(e).__name__}: {e}")
+    # Fallback: enviar a mods individuales si el grupo falló
+    if not mission_notified:
+        for mod_id in MOD_IDS:
+            try:
+                await context.bot.forward_message(
+                    chat_id=mod_id,
+                    from_chat_id=update.effective_chat.id,
+                    message_id=update.message.message_id
+                )
+                await context.bot.send_message(
+                    chat_id=mod_id,
+                    text=mission_text,
+                    parse_mode="Markdown",
+                    reply_markup=mission_keyboard
+                )
+            except Exception as e2:
+                logger.warning(f"No se pudo notificar al mod {mod_id}: {e2}")
 
 # ── /aprobar — comando de texto para moderadores (fallback) ───────────────────
 async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):

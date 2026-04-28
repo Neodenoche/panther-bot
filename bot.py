@@ -25,7 +25,7 @@ DB_FILE  = "/data/panther_db.json"   # JSON legacy (para migración)
 SQLITE_FILE = "/data/panther.db"
 
 # ── Moderadores ───────────────────────────────────────────────────────────────
-MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987").split(",") if x.strip()]
+MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
 
 # ── Puntos por acción ─────────────────────────────────────────────────────────
 PTS = {

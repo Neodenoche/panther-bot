@@ -1541,6 +1541,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "level":          level,
                 "level_idx":      level_idx,
                 "xp_pct":         xp_pct,
+                "level_min":      level_min,
+                "level_max":      level_max,
                 "next_level":     next_lv,
                 "pts_to_next":    pts_needed,
                 "referrals":         len(data.get("referrals", [])),

@@ -1346,6 +1346,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ── Aprobar wallet (moderadores) ──
     if data_str.startswith("wallet_"):
+        logger.info(f"Wallet callback: from_user.id={query.from_user.id} MOD_IDS={MOD_IDS}")
         parts = data_str.split("_")
         target_uid = parts[1]
         referrer_uid = parts[2] if len(parts) > 2 else None
@@ -1388,8 +1389,10 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ── Aprobar/rechazar captura (moderadores) ──
     if data_str.startswith("approve_") or data_str.startswith("reject_"):
+        logger.info(f"Callback mod check: from_user.id={query.from_user.id} type={type(query.from_user.id)} MOD_IDS={MOD_IDS}")
         if query.from_user.id not in MOD_IDS:
-            await query.edit_message_text("❌ No tenés permisos de moderador.")
+            await query.answer("❌ No tenés permisos de moderador.", show_alert=True)
+            logger.warning(f"ID {query.from_user.id} no está en MOD_IDS {MOD_IDS}")
             return
 
         parts = data_str.split("_")

@@ -268,7 +268,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
   <div class="xp-wrap">
     <div class="xp-track"><div class="xp-fill" style="width:0%"></div></div>
-    <div class="xp-row"><span class="xp-lbl">0 pts</span><span class="xp-lbl">100 pts</span></div>
+    <div class="xp-row"><span class="xp-lbl" id="xp-min">0 pts</span><span class="xp-lbl" id="xp-max">150 pts</span></div>
   </div>
   <div class="strip"><span class="strip-t">Misiones completadas hoy</span><span class="strip-n">1 / 5</span></div>
   <div class="sec">
@@ -789,6 +789,12 @@ function updateUI() {
   const nextLevel = userData.next_level;
   const ptsToNext = userData.pts_to_next;
   const xpPct = userData.xp_pct;
+  const levelMin = userData.level_min || 0;
+  const levelMax = userData.level_max || 150;
+  // Actualizar labels de la barra de XP
+  const xpLabels = document.querySelectorAll('.xp-lbl');
+  if(xpLabels[0]) xpLabels[0].textContent = levelMin + ' pts';
+  if(xpLabels[1]) xpLabels[1].textContent = levelMax + ' pts';
   const refs = userData.referrals;
   const code = userData.referral_code;
   const checkinDone = userData.checkin_today;
@@ -989,20 +995,24 @@ async function doCheckin() {
       body: JSON.stringify({id: USER_ID})
     });
     const data = await res.json();
-    if (data.success || data.status === 'ok') {
-      // Show success feedback immediately
+    if (data.already_done) {
+      // Ya hecho hoy — recargar datos y mostrar countdown
+      if (mcCheckin) mcCheckin.style.opacity = '1';
+      await loadUserData();
+    } else if (data.success) {
+      // Check-in exitoso
       if (mcCheckin) {
         mcCheckin.style.opacity = '1';
         mcCheckin.classList.add('done');
         const arrEl = document.getElementById('checkin-arr');
         const subEl = document.getElementById('checkin-sub');
         if (arrEl) { arrEl.classList.add('ok'); arrEl.textContent = '✓'; }
-        if (subEl) subEl.innerHTML = '🎉 <span style="color:#4ade80;font-weight:700">¡Check-in realizado! +' + (data.points_earned || 5) + ' pts</span>';
-        // After 2 seconds show countdown
+        if (subEl) subEl.innerHTML = '🎉 <span style="color:#4ade80;font-weight:700">¡Check-in realizado! +' + (data.earned || 5) + ' pts</span>';
+        // Después de 2 segundos mostrar countdown
         setTimeout(() => {
           if (subEl) {
             const midnight = new Date();
-            midnight.setHours(24, 0, 0, 0); // medianoche hora local
+            midnight.setHours(24, 0, 0, 0);
             const diff = midnight - new Date();
             const h = Math.floor(diff / 3600000);
             const m = Math.floor((diff % 3600000) / 60000);
@@ -1014,9 +1024,6 @@ async function doCheckin() {
           }
         }, 2000);
       }
-      await loadUserData();
-    } else if (data.status === 'already_checked') {
-      if (mcCheckin) mcCheckin.style.opacity = '1';
       await loadUserData();
     }
   } catch(e) {

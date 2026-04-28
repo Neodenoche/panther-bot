@@ -1345,8 +1345,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data_str = query.data
 
     # ── Aprobar wallet (moderadores) ──
-    if cb.startswith("wallet_"):
-        parts = cb.split("_")
+    if data_str.startswith("wallet_"):
+        parts = data_str.split("_")
         target_uid = parts[1]
         referrer_uid = parts[2] if len(parts) > 2 else None
 

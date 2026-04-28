@@ -1402,25 +1402,45 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.edit_message_text("❌ Usuario no encontrado.")
             return
 
+        mod_name = query.from_user.first_name or str(query.from_user.id)
+
         if action == "approve" and tipo:
             pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"]}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
             save_db(db)
 
             tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido"}
-            await query.edit_message_text(
+            approve_text = (
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"
-                f"Puntos acreditados: *+{earned}*",
-                parse_mode="Markdown"
+                f"Puntos acreditados: *+{earned}*\n"
+                f"Aprobado por: {mod_name}"
             )
+            # Confirmar el tap inmediatamente
+            await query.answer(f"✅ {tipo_label.get(tipo, tipo)} aprobado — +{earned} pts")
+            # Editar el mensaje en el grupo
+            try:
+                await query.edit_message_text(approve_text, parse_mode="Markdown")
+            except Exception as e:
+                logger.warning(f"No se pudo editar mensaje de aprobación: {e}")
+                try:
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=approve_text,
+                        parse_mode="Markdown"
+                    )
+                except Exception:
+                    pass
+            # Notificar al usuario
             try:
                 await context.bot.send_message(
                     chat_id=int(target_uid),
-                    text=f"✅ *¡Misión verificada!*\n\n"
-                         f"Tu captura fue aprobada.\n"
-                         f"➕ *+{earned} puntos* acreditados 🐾\n"
-                         f"⭐ Total: *{db[target_uid]['points']} puntos*",
+                    text=(
+                        f"✅ *¡Misión verificada!*\n\n"
+                        f"Tu captura fue aprobada.\n"
+                        f"➕ *+{earned} puntos* acreditados 🐾\n"
+                        f"⭐ Total: *{db[target_uid]['points']} puntos*"
+                    ),
                     parse_mode="Markdown"
                 )
             except Exception:
@@ -1428,15 +1448,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         elif action == "reject":
             save_db(db)
-            await query.edit_message_text(
-                f"❌ *Captura rechazada*\nUsuario: `{target_uid}`",
-                parse_mode="Markdown"
+            reject_text = (
+                f"❌ *Captura rechazada*\n"
+                f"Usuario: `{target_uid}`\n"
+                f"Rechazado por: {mod_name}"
             )
+            await query.answer("❌ Captura rechazada")
+            try:
+                await query.edit_message_text(reject_text, parse_mode="Markdown")
+            except Exception as e:
+                logger.warning(f"No se pudo editar mensaje de rechazo: {e}")
+                try:
+                    await context.bot.send_message(
+                        chat_id=query.message.chat_id,
+                        text=reject_text,
+                        parse_mode="Markdown"
+                    )
+                except Exception:
+                    pass
             try:
                 await context.bot.send_message(
                     chat_id=int(target_uid),
-                    text=f"❌ Tu captura no pudo ser verificada.\n\n"
-                         f"Asegurate de que se vea claramente el contenido de Panther y volvé a intentarlo 🐾",
+                    text=(
+                        "❌ Tu captura no pudo ser verificada.\n\n"
+                        "Asegurate de que se vea claramente el contenido "
+                        "de Panther y volvé a intentarlo 🐾"
+                    ),
                 )
             except Exception:
                 pass

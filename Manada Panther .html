@@ -1059,7 +1059,11 @@ function openBotForShare(type) {
       <button onclick="
         document.getElementById('share-modal').remove();
         const tg = window.Telegram && window.Telegram.WebApp;
-        if(tg) tg.close();
+        if(tg) {
+          tg.openTelegramLink('https://t.me/ManadaPantherBot');
+        } else {
+          window.open('https://t.me/ManadaPantherBot', '_blank');
+        }
       " style="background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
         🐆 IR AL BOT
       </button>

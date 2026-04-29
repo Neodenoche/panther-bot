@@ -1036,7 +1036,20 @@ function openBotForShare(type) {
   const isReel = type === 'reel';
   const pts = isReel ? 30 : 20;
   const label = isReel ? 'reel de Instagram' : 'historia de Instagram';
-  
+
+  // Guardar el tipo para usarlo en goToBot
+  _currentMissionType = type;
+
+  // Chequear límite diario antes de mostrar el modal
+  const countKey = type + '_count_today';
+  const todayCount = userData ? (userData[countKey] || 0) : 0;
+  const MAX_DAILY = 3;
+  if(todayCount >= MAX_DAILY) {
+    const typeLabel = type === 'reel' ? 'reels' : type === 'story' ? 'historias' : 'contenidos';
+    alert('⚠️ Ya compartiste ' + MAX_DAILY + ' ' + typeLabel + ' hoy.\nVolvé mañana para seguir ganando puntos 🐾');
+    return;
+  }
+
   // Show instructions modal inside Mini App
   let modal = document.getElementById('share-modal');
   if (!modal) {

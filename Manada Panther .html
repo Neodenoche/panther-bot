@@ -1050,15 +1050,8 @@ function openBotForShare(type) {
   // Guardar el tipo para usarlo en goToBot
   _currentMissionType = type;
 
-  // Chequear límite diario antes de mostrar el modal
-  const countKey = type + '_count_today';
-  const todayCount = userData ? (userData[countKey] || 0) : 0;
-  const MAX_DAILY = 3;
-  if(userData && todayCount >= MAX_DAILY) {
-    const typeLabel = type === 'reel' ? 'reels' : type === 'story' ? 'historias' : 'contenidos';
-    alert('⚠️ Ya compartiste ' + MAX_DAILY + ' ' + typeLabel + ' hoy.\nVolvé mañana para seguir ganando puntos 🐾');
-    return;
-  }
+  // Límite diario — verificado en el servidor
+  // El modal siempre se abre; el bot rechaza si ya se alcanzó el límite
 
   // Show instructions modal inside Mini App
   let modal = document.getElementById('share-modal');

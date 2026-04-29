@@ -1057,6 +1057,13 @@ function openBotForShare(type) {
         4️⃣ Si se aprueba ganas <span style="color:#ff6b1a;font-weight:700">+${pts} pts</span>
       </div>
       <button onclick="
+        const mType = ${JSON.stringify(isReel ? 'reel' : 'story')};
+        // Avisar al servidor qué misión va a subir
+        fetch(API_BASE + '/set_mission_type', {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({id: USER_ID, type: mType})
+        }).catch(()=>{});
         document.getElementById('share-modal').remove();
         const tg = window.Telegram && window.Telegram.WebApp;
         if(tg) {

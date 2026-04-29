@@ -967,6 +967,16 @@ function updateUI() {
 // Load data on start
 loadUserData();
 
+// Recargar cuando el usuario vuelve a la mini app (después de ir al bot)
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) {
+    loadUserData();
+  }
+});
+window.addEventListener('focus', function() {
+  loadUserData();
+});
+
 // Reload data when switching to certain screens
 const originalGoTo = function(n) {
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -1044,7 +1054,7 @@ function openBotForShare(type) {
   const countKey = type + '_count_today';
   const todayCount = userData ? (userData[countKey] || 0) : 0;
   const MAX_DAILY = 3;
-  if(todayCount >= MAX_DAILY) {
+  if(userData && todayCount >= MAX_DAILY) {
     const typeLabel = type === 'reel' ? 'reels' : type === 'story' ? 'historias' : 'contenidos';
     alert('⚠️ Ya compartiste ' + MAX_DAILY + ' ' + typeLabel + ' hoy.\nVolvé mañana para seguir ganando puntos 🐾');
     return;

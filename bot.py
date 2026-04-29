@@ -309,7 +309,7 @@ def save_db(db):
                      follow_all_bonus, has_virtual_card, has_physical_card, big_transaction,
                      wallet_activated, pending_wallet_proof, spins_used_this_event,
                     reel_count_today, story_count_today, content_count_today, last_mission_date, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     data.get("username", ""),
@@ -1882,6 +1882,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")
                 self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.send_header("Pragma", "no-cache")
+                self.send_header("Expires", "0")
                 self.end_headers()
                 self.wfile.write(html.encode())
             except Exception as e:
@@ -2211,5 +2214,4 @@ def main():
         app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    
     main()

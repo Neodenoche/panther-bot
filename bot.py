@@ -391,7 +391,7 @@ def get_user(db, uid: str, user=None):
         ("follow_x", False), ("follow_tiktok", False),
         ("follow_facebook", False), ("follow_youtube", False),
         ("follow_all_bonus", False), ("wallet_activated", False),
-        ("pending_wallet_proof", False), ("spins_used_this_event", 0),
+        ("pending_wallet_proof", False), ("spins_used_this_event", 0), ("founder_number", None),
         ("history", []),
     ]:
         if field not in db[uid]:
@@ -484,6 +484,122 @@ def main_keyboard():
         [InlineKeyboardButton("🏅 Tabla de niveles",   callback_data="niveles")],
     ])
 
+
+# ── Badge de Fundador ─────────────────────────────────────────────────────────
+def generate_founder_badge(name: str, number: int) -> bytes:
+    """Genera el badge de Fundador como bytes PNG"""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+        import math, io, os
+
+        W, H = 1080, 1080
+        NEGRO = "#0A0A0A"
+        NARANJA = "#FF5C1A"
+        NARANJA_DIM = "#2a1000"
+        NARANJA_MED = "#7a2d0d"
+        ORO = "#FFD700"
+
+        fB = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        fR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+        img = Image.new("RGB", (W, H), NEGRO)
+        d = ImageDraw.Draw(img)
+
+        # Fondo hexagonal
+        for row in range(-1, 18):
+            for col in range(-1, 18):
+                cx = col * 78 + (39 if row % 2 else 0)
+                cy = row * 68
+                pts = [(cx + 34*math.cos(math.radians(60*i-30)),
+                        cy + 34*math.sin(math.radians(60*i-30))) for i in range(6)]
+                d.polygon(pts, outline="#181818", fill=NEGRO)
+
+        # Marco dorado
+        d.rounded_rectangle([30, 30, W-30, H-30], radius=30, outline=ORO, width=4, fill=NEGRO)
+        d.rounded_rectangle([40, 40, W-40, H-40], radius=24, outline="#7a6000", width=1)
+
+        # Asset pantera
+        pantera_path = "/app/Recurso_1_4x.png"
+        if not os.path.exists(pantera_path):
+            pantera_path = "Recurso_1_4x.png"
+        if os.path.exists(pantera_path):
+            pantera = Image.open(pantera_path).convert("RGBA")
+            ratio = 380 / pantera.height
+            new_w = int(pantera.width * ratio)
+            pantera = pantera.resize((new_w, 380), Image.LANCZOS)
+            pixels = list(pantera.getdata())
+            pantera.putdata([(0,0,0,0) if r<30 and g<30 and b<30 else (r,g,b,a) for r,g,b,a in pixels])
+            img.paste(pantera, (W//2 - new_w//2, 160), pantera)
+
+        f_badge = ImageFont.truetype(fB, 28)
+        f_name  = ImageFont.truetype(fB, 52)
+        f_sub   = ImageFont.truetype(fR, 28)
+        f_small = ImageFont.truetype(fR, 22)
+
+        # Título
+        titulo = "✦ FUNDADOR DE LA MANADA ✦"
+        bb = d.textbbox((0,0), titulo, font=f_badge)
+        d.text(((W-(bb[2]-bb[0]))//2, 88), titulo, font=f_badge, fill=ORO)
+        d.rectangle([80, 125, W-80, 127], fill=ORO)
+
+        # Nombre
+        display_name = name[:22] + "..." if len(name) > 22 else name
+        bb = d.textbbox((0,0), display_name, font=f_name)
+        d.text(((W-(bb[2]-bb[0]))//2, 575), display_name, font=f_name, fill="#FFFFFF")
+
+        d.rectangle([200, 648, W-200, 650], fill=NARANJA)
+
+        sub = "Entre los primeros 500 en la Manada Panther"
+        bb = d.textbbox((0,0), sub, font=f_sub)
+        d.text(((W-(bb[2]-bb[0]))//2, 668), sub, font=f_sub, fill="#aaaaaa")
+
+        num_text = f"# {number:04d}"
+        d.rounded_rectangle([W//2-120, 730, W//2+120, 800], radius=20, fill=NARANJA_DIM, outline=NARANJA_MED, width=1)
+        bb = d.textbbox((0,0), num_text, font=f_badge)
+        d.text(((W-(bb[2]-bb[0]))//2, 748), num_text, font=f_badge, fill=NARANJA)
+
+        fecha = "29 de abril, 2026"
+        bb = d.textbbox((0,0), fecha, font=f_small)
+        d.text(((W-(bb[2]-bb[0]))//2, 830), fecha, font=f_small, fill="#555555")
+
+        handle = "@pantherwalletoficial"
+        bb = d.textbbox((0,0), handle, font=f_small)
+        d.text(((W-(bb[2]-bb[0]))//2, 870), handle, font=f_small, fill="#444444")
+
+        d.rectangle([30, H-50, W-30, H-30], fill=NARANJA)
+
+        out = io.BytesIO()
+        img.save(out, format="PNG")
+        return out.getvalue()
+    except Exception as e:
+        logger.error(f"Error generando badge: {e}")
+        return None
+
+async def send_founder_badge(bot, uid: str, name: str, number: int):
+    """Envía el badge de Fundador a un usuario"""
+    badge_bytes = generate_founder_badge(name, number)
+    if not badge_bytes:
+        return False
+    try:
+        import io
+        await bot.send_photo(
+            chat_id=int(uid),
+            photo=io.BytesIO(badge_bytes),
+            caption=(
+                f"🏆 *¡Sos Fundador de la Manada!*\n\n"
+                f"Guardaste tu lugar entre los primeros 500 miembros "
+                f"de la Manada Panther.\n\n"
+                f"Guardá tu badge y compartilo en tus historias 🐆\n\n"
+                f"_Panther Wallet — Tu dinero, tus reglas._"
+            ),
+            parse_mode="Markdown"
+        )
+        return True
+    except Exception as e:
+        logger.error(f"Error enviando badge a {uid}: {e}")
+        return False
+
+
 # ── /start ────────────────────────────────────────────────────────────────────
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -536,7 +652,21 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await check_member_milestone(context.bot, total)
                 break
 
-    save_db(db)
+    # Asignar número de fundador si es nuevo y hay cupos
+    if is_new:
+        db2 = load_db()
+        user_count = len([u for u in db2.keys() if not u.startswith("_")])
+        if user_count <= 500:
+            data["founder_number"] = user_count
+            db[uid] = data
+            save_db(db)
+            # Enviar badge
+            fname = user.first_name or user.username or "Miembro"
+            asyncio.create_task(send_founder_badge(context.bot, uid, fname, user_count))
+        else:
+            save_db(db)
+    else:
+        save_db(db)
 
     level = get_level(data["points"])
     next_lv, pts_needed = get_next_level(data["points"])
@@ -1531,6 +1661,61 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handlers[data_str](fake_update, context)
 
 # ── /ayuda ────────────────────────────────────────────────────────────────────
+async def cmd_mi_badge(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envía el badge de Fundador al usuario si lo tiene"""
+    user = update.effective_user
+    db = load_db()
+    uid = str(user.id)
+    data = db.get(uid, {})
+    
+    founder_number = data.get("founder_number")
+    if not founder_number:
+        await update.message.reply_text(
+            "❌ No tenés badge de Fundador.\n\n"
+            "El badge es exclusivo para los primeros 500 miembros de la Manada 🐾"
+        )
+        return
+    
+    await update.message.reply_text("🏆 Generando tu badge...")
+    fname = user.first_name or user.username or "Miembro"
+    success = await send_founder_badge(context.bot, uid, fname, founder_number)
+    if not success:
+        await update.message.reply_text("❌ Error generando el badge. Intentá de nuevo.")
+
+async def cmd_enviar_badges(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Envía badges a todos los usuarios existentes — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("❌ No tenés permisos.")
+        return
+    
+    db = load_db()
+    users = [(uid, data) for uid, data in db.items() 
+             if not uid.startswith("_") and isinstance(data, dict) and "points" in data]
+    
+    await update.message.reply_text(f"📤 Enviando badges a {len(users)} usuarios...")
+    
+    sent = 0
+    failed = 0
+    for i, (uid, data) in enumerate(users):
+        number = data.get("founder_number", i + 1)
+        if not data.get("founder_number"):
+            data["founder_number"] = i + 1
+            db[uid] = data
+        fname = data.get("first_name") or data.get("username") or "Miembro"
+        success = await send_founder_badge(context.bot, uid, fname, number)
+        if success:
+            sent += 1
+        else:
+            failed += 1
+        await asyncio.sleep(0.3)
+    
+    save_db(db)
+    await update.message.reply_text(
+        f"✅ Badges enviados\n\n"
+        f"📤 Enviados: {sent}\n"
+        f"❌ Fallidos: {failed}"
+    )
+
 async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía un mensaje de prueba a todos los mods — solo moderadores"""
     if update.effective_user.id not in MOD_IDS:
@@ -2161,6 +2346,8 @@ def main():
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CommandHandler("pingmods", cmd_pingmods))
+    app.add_handler(CommandHandler("mi_badge", cmd_mi_badge))
+    app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))

@@ -27,6 +27,7 @@ SQLITE_FILE = "/data/panther.db"
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
+PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
 
 # ── Puntos por acción ─────────────────────────────────────────────────────────
 PTS = {
@@ -290,8 +291,9 @@ def save_db(db):
                      joined_at, usdt_won_month, pnt_won_month, reel_verified, story_verified,
                      follow_ig, follow_x, follow_tiktok, follow_facebook, follow_youtube,
                      follow_all_bonus, has_virtual_card, has_physical_card, big_transaction,
-                     wallet_activated, pending_wallet_proof, spins_used_this_event, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                     wallet_activated, pending_wallet_proof, spins_used_this_event,
+                    reel_count_today, story_count_today, content_count_today, last_mission_date, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     data.get("username", ""),
@@ -1992,6 +1994,16 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "level_up":   old_lv != new_lv,
                 "bonus":      bonus,
             })
+
+        # ── POST /set_mission_type — guarda qué misión va a subir el usuario ──
+        elif path == "/set_mission_type":
+            uid = body.get("id")
+            mission_type = body.get("type")  # reel | story | content
+            if not uid or mission_type not in ["reel", "story", "content"]:
+                return self.send_json({"error": "Invalid params"}, 400)
+            # Guardar en memoria del bot usando un dict global temporal
+            PENDING_MISSIONS[uid] = mission_type
+            return self.send_json({"status": "ok", "type": mission_type})
 
         # ── POST /follow ──
         elif path == "/follow":

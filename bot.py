@@ -340,6 +340,10 @@ def save_db(db):
                     int(data.get("wallet_activated", False)),
                     int(data.get("pending_wallet_proof", False)),
                     data.get("spins_used_this_event", 0),
+                    data.get("reel_count_today", 0),
+                    data.get("story_count_today", 0),
+                    data.get("content_count_today", 0),
+                    data.get("last_mission_date"),
                     json.dumps(history),
                 ))
             conn.commit()

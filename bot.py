@@ -570,10 +570,10 @@ def generate_founder_badge(name: str, number: int) -> bytes:
             except:
                 return ImageFont.load_default()
 
-        f_badge = ft(fB_path, 28)
-        f_name  = ft(fB_path, 52)
-        f_sub   = ft(fR_path, 28)
-        f_small = ft(fR_path, 22)
+        f_badge = ft(fB_path, 48)
+        f_name  = ft(fB_path, 80)
+        f_sub   = ft(fR_path, 42)
+        f_small = ft(fR_path, 36)
 
         # Título
         titulo = "✦ FUNDADOR DE LA MANADA ✦"

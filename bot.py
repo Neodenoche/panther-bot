@@ -499,8 +499,14 @@ def generate_founder_badge(name: str, number: int) -> bytes:
         NARANJA_MED = "#7a2d0d"
         ORO = "#FFD700"
 
-        fB = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-        fR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        # Fuentes — usar DejaVu si está disponible, sino default
+        try:
+            fB_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+            fR_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+            ImageFont.truetype(fB_path, 10)  # test
+        except:
+            fB_path = None
+            fR_path = None
 
         img = Image.new("RGB", (W, H), NEGRO)
         d = ImageDraw.Draw(img)
@@ -531,10 +537,16 @@ def generate_founder_badge(name: str, number: int) -> bytes:
             pantera.putdata([(0,0,0,0) if r<30 and g<30 and b<30 else (r,g,b,a) for r,g,b,a in pixels])
             img.paste(pantera, (W//2 - new_w//2, 160), pantera)
 
-        f_badge = ImageFont.truetype(fB, 28)
-        f_name  = ImageFont.truetype(fB, 52)
-        f_sub   = ImageFont.truetype(fR, 28)
-        f_small = ImageFont.truetype(fR, 22)
+        def ft(path, size):
+            try:
+                return ImageFont.truetype(path, size) if path else ImageFont.load_default()
+            except:
+                return ImageFont.load_default()
+
+        f_badge = ft(fB_path, 28)
+        f_name  = ft(fB_path, 52)
+        f_sub   = ft(fR_path, 28)
+        f_small = ft(fR_path, 22)
 
         # Título
         titulo = "✦ FUNDADOR DE LA MANADA ✦"

@@ -117,6 +117,30 @@ def get_conn():
     conn.row_factory = sqlite3.Row
     return conn
 
+def download_fonts():
+    """Descarga fuentes si no están disponibles"""
+    import subprocess
+    font_dir = "/app/fonts"
+    os.makedirs(font_dir, exist_ok=True)
+    
+    fonts = {
+        "bold.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf",
+        "regular.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf",
+    }
+    
+    for fname, url in fonts.items():
+        fpath = os.path.join(font_dir, fname)
+        if not os.path.exists(fpath):
+            try:
+                import urllib.request
+                urllib.request.urlretrieve(url, fpath)
+                logger.info(f"✅ Fuente descargada: {fname}")
+            except Exception as e:
+                logger.error(f"Error descargando fuente {fname}: {e}")
+
+FONT_BOLD = "/app/fonts/bold.ttf"
+FONT_REGULAR = "/app/fonts/regular.ttf"
+
 def init_db():
     """Crea la tabla si no existe y migra datos del JSON legacy."""
     db_dir = os.path.dirname(SQLITE_FILE)
@@ -499,14 +523,9 @@ def generate_founder_badge(name: str, number: int) -> bytes:
         NARANJA_MED = "#7a2d0d"
         ORO = "#FFD700"
 
-        # Fuentes — usar DejaVu si está disponible, sino default
-        try:
-            fB_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-            fR_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-            ImageFont.truetype(fB_path, 10)  # test
-        except:
-            fB_path = None
-            fR_path = None
+        # Fuentes
+        fB_path = FONT_BOLD if os.path.exists(FONT_BOLD) else "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        fR_path = FONT_REGULAR if os.path.exists(FONT_REGULAR) else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
         img = Image.new("RGB", (W, H), NEGRO)
         d = ImageDraw.Draw(img)
@@ -2324,7 +2343,8 @@ def main():
         print("❌ Falta BOT_TOKEN en las variables de entorno")
         return
 
-    # Inicializar SQLite y migrar desde JSON si existe
+    # Descargar fuentes y inicializar SQLite
+    download_fonts()
     init_db()
     print("✅ Base de datos SQLite inicializada")
 

@@ -1069,7 +1069,7 @@ function openBotForShare(type) {
         3️⃣ Abre el Bot y envía la foto<br>
         4️⃣ Si se aprueba ganas <span style="color:#ff6b1a;font-weight:700">+${pts} pts</span>
       </div>
-      <button onclick="goToBot()" style="background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      <button id="btn-ir-al-bot" style="background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
         🐆 IR AL BOT
       </button>
       <button onclick="document.getElementById('share-modal').remove()" 
@@ -1079,6 +1079,12 @@ function openBotForShare(type) {
     </div>`;
   
   modal.style.display = 'flex';
+
+  // Agregar event listener al botón IR AL BOT después de insertar el HTML
+  const botBtn = modal.querySelector('#btn-ir-al-bot');
+  if(botBtn) {
+    botBtn.addEventListener('click', goToBot);
+  }
 }
 
 function goToBot() {

@@ -124,9 +124,17 @@ def download_fonts():
     os.makedirs(font_dir, exist_ok=True)
     
     fonts = {
-        "bold.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans-Bold.ttf",
-        "regular.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSans.ttf",
+        "bold.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/releases/download/version_2_37/dejavu-fonts-ttf-2.37.tar.bz2",
     }
+    # Usar fuentes del sistema o instalar via apt
+    try:
+        import subprocess
+        subprocess.run(["apt-get", "install", "-y", "fonts-dejavu-core"], 
+                      capture_output=True, timeout=30)
+        logger.info("✅ Fuentes DejaVu instaladas via apt")
+    except Exception as e:
+        logger.error(f"Error instalando fuentes: {e}")
+    fonts = {}
     
     for fname, url in fonts.items():
         fpath = os.path.join(font_dir, fname)

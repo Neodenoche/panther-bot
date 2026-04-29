@@ -215,7 +215,7 @@ def init_db():
                          joined_at, usdt_won_month, pnt_won_month, reel_verified, story_verified,
                          follow_ig, follow_x, follow_tiktok, follow_facebook, follow_youtube,
                          follow_all_bonus, wallet_activated, history)
-                        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                     """, (
                         uid,
                         data.get("username", ""),

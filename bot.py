@@ -146,8 +146,8 @@ def download_fonts():
             except Exception as e:
                 logger.error(f"Error descargando fuente {fname}: {e}")
 
-FONT_BOLD = "/app/fonts/bold.ttf"
-FONT_REGULAR = "/app/fonts/regular.ttf"
+FONT_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_REGULAR = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 def init_db():
     """Crea la tabla si no existe y migra datos del JSON legacy."""

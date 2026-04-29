@@ -167,6 +167,22 @@ def init_db():
         """)
         conn.commit()
 
+    # ── Migración de columnas nuevas (ALTER TABLE) ──
+    new_columns = [
+        ("reel_count_today",    "INTEGER DEFAULT 0"),
+        ("story_count_today",   "INTEGER DEFAULT 0"),
+        ("content_count_today", "INTEGER DEFAULT 0"),
+        ("last_mission_date",   "TEXT"),
+    ]
+    with get_conn() as conn:
+        for col_name, col_def in new_columns:
+            try:
+                conn.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_def}")
+                logger.info(f"✅ Columna {col_name} agregada a users")
+            except Exception:
+                pass  # Ya existe, ignorar
+        conn.commit()
+
     # ── Migración desde JSON legacy ──
     if os.path.exists(DB_FILE):
         try:

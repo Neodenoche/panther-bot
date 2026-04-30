@@ -1430,34 +1430,37 @@ function openWalletMission(type) {
 function goToWalletBot() {
   document.getElementById('wallet-mission-modal').style.display = 'none';
   const mType = window._walletMissionType || 'content';
+  // Abrir el bot PRIMERO antes de cualquier fetch
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if(tg && tg.openTelegramLink) {
+    tg.openTelegramLink('https://t.me/ManadaPantherBot');
+  } else {
+    window.open('https://t.me/ManadaPantherBot', '_blank');
+  }
+  // Registrar tipo de misión después
   fetch(API_BASE + '/set_mission_type', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({id: USER_ID, type: mType})
   }).catch(()=>{});
+}
+
+function goToBot() {
+  document.getElementById('share-modal').remove();
+  // Abrir el bot PRIMERO
   const tg = window.Telegram && window.Telegram.WebApp;
-  if(tg) {
+  if(tg && tg.openTelegramLink) {
     tg.openTelegramLink('https://t.me/ManadaPantherBot');
   } else {
     window.open('https://t.me/ManadaPantherBot', '_blank');
   }
-}
-
-function goToBot() {
-  // Avisar al servidor qué misión va a subir
+  // Registrar tipo después
   if(_currentMissionType) {
     fetch(API_BASE + '/set_mission_type', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({id: USER_ID, type: _currentMissionType})
     }).catch(()=>{});
-  }
-  document.getElementById('share-modal').remove();
-  const tg = window.Telegram && window.Telegram.WebApp;
-  if(tg) {
-    tg.openTelegramLink('https://t.me/ManadaPantherBot');
-  } else {
-    window.open('https://t.me/ManadaPantherBot', '_blank');
   }
 }
 

@@ -2074,12 +2074,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
         # ── GET /ranking ──
         elif path == "/ranking":
-            db      = load_db()
-            sorted_ = sorted(db.values(), key=lambda x: x["points"], reverse=True)
-            top20   = sorted_[:20]
-            # Filter out _global key
-            valid = [u for u in sorted_ if isinstance(u, dict) and "points" in u]
-            top20 = valid[:20]
+            db    = load_db()
+            valid = [u for u in db.values() if isinstance(u, dict) and "points" in u]
+            top20 = sorted(valid, key=lambda x: x["points"], reverse=True)[:20]
             return self.send_json([
                 {
                     "pos":        i + 1,

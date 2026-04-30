@@ -661,6 +661,16 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     is_new = uid not in db
     data = get_user(db, uid, user)
 
+    # Handle mission deep link
+    if context.args and context.args[0] == 'mission':
+        await update.message.reply_text(
+            f"📸 *¡Listo {user.first_name}!*\n\n"
+            f"Enviá tu captura de pantalla acá directamente 👇\n\n"
+            f"_Un moderador la verificará y acreditará los puntos en las próximas 24h 🐾_",
+            parse_mode="Markdown"
+        )
+        return
+
     # Handle compartir deep links
     if context.args and context.args[0] in ('compartir_reel', 'compartir_historia'):
         tipo = context.args[0]

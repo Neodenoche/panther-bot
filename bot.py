@@ -208,6 +208,9 @@ def init_db():
         ("story_count_today",   "INTEGER DEFAULT 0"),
         ("content_count_today", "INTEGER DEFAULT 0"),
         ("last_mission_date",   "TEXT"),
+        ("review_store_done",   "INTEGER DEFAULT 0"),
+        ("review_trust_done",   "INTEGER DEFAULT 0"),
+        ("founder_number",      "INTEGER"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -663,8 +666,23 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Handle mission deep link
     if context.args and context.args[0] == 'mission':
+        db   = load_db()
+        data = get_user(db, uid, user)
+        save_db(db)
+        # Mostrar mensaje de instrucción y esperar la foto
+        mission_type = PENDING_MISSIONS.get(uid)
+        tipo_labels = {
+            "wallet_activate": "🔐 Activación de Wallet",
+            "review_store":    "⭐ Review en Tienda",
+            "review_trust":    "🌟 Review en Trustpilot",
+            "content":         "✏️ Contenido propio",
+            "reel":            "🎬 Reel de Panther",
+            "story":           "📸 Historia de Panther",
+        }
+        tipo_label = tipo_labels.get(mission_type, "📎 Tu misión")
         await update.message.reply_text(
             f"📸 *¡Listo {user.first_name}!*\n\n"
+            f"Misión: *{tipo_label}*\n\n"
             f"Enviá tu captura de pantalla acá directamente 👇\n\n"
             f"_Un moderador la verificará y acreditará los puntos en las próximas 24h 🐾_",
             parse_mode="Markdown"
@@ -1707,6 +1725,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action == "approve" and tipo:
             pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
+
+            # Acciones especiales por tipo
+            if tipo == "wallet_activate":
+                db[target_uid]["wallet_activated"] = True
+            elif tipo == "review_store":
+                db[target_uid]["review_store_done"] = True
+            elif tipo == "review_trust":
+                db[target_uid]["review_trust_done"] = True
+
             save_db(db)
 
             tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot"}
@@ -2038,6 +2065,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "follow_facebook": data.get("follow_facebook", False),
                 "follow_youtube":  data.get("follow_youtube", False),
                 "wallet_activated": data.get("wallet_activated", False),
+                "review_store_done": data.get("review_store_done", False),
+                "review_trust_done": data.get("review_trust_done", False),
                 "usdt_won_month": has_won_this_month(data, "usdt"),
                 "pnt_won_month":  has_won_this_month(data, "pnt"),
                 "history":        history,

@@ -344,8 +344,8 @@ def save_db(db):
                     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
-                    data.get("username", ""),
-                    data.get("first_name", ""),
+                    sanitize_name(data.get("username", "")),
+                    sanitize_name(data.get("first_name", "")),
                     data.get("points", 0),
                     data.get("streak", 0),
                     data.get("last_checkin"),
@@ -385,8 +385,8 @@ def get_user(db, uid: str, user=None):
         code = uid[-6:] if len(uid) >= 6 else uid
         db[uid] = {
             "id": uid,
-            "username": user.username if user else "",
-            "first_name": user.first_name if user else "",
+            "username": sanitize_name(user.username if user else ""),
+            "first_name": sanitize_name(user.first_name if user else ""),
             "points": 0,
             "streak": 0,
             "last_checkin": None,
@@ -413,8 +413,8 @@ def get_user(db, uid: str, user=None):
             "history": [],
         }
     elif user:
-        db[uid]["username"] = user.username or db[uid].get("username", "")
-        db[uid]["first_name"] = user.first_name or db[uid].get("first_name", "")
+        db[uid]["username"] = sanitize_name(user.username or db[uid].get("username", ""))
+        db[uid]["first_name"] = sanitize_name(user.first_name or db[uid].get("first_name", ""))
     # Asegurar campos nuevos en usuarios existentes
     for field, default in [
         ("usdt_won_month", None), ("pnt_won_month", None),
@@ -431,6 +431,17 @@ def get_user(db, uid: str, user=None):
     if not isinstance(db[uid].get("referrals"), list):
         db[uid]["referrals"] = []
     return db[uid]
+
+def sanitize_name(name: str) -> str:
+    """Limpia nombres con caracteres especiales para SQLite"""
+    if not name:
+        return ""
+    try:
+        # Encodear y decodear para eliminar caracteres problemáticos
+        cleaned = name.encode('utf-8', errors='ignore').decode('utf-8')
+        return cleaned
+    except Exception:
+        return "Usuario"
 
 def get_level(pts: int):
     for mn, mx, name in LEVELS:
@@ -1423,12 +1434,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.error(f"Error notifying mod {mod_id}: {type(e2).__name__}: {e2}")
         return
 
-    save_db(db)
+    try:
+        save_db(db)
+    except Exception as e:
+        logger.error(f"Error guardando DB en handle_photo: {e}")
+        # Continuar aunque falle el guardado
 
     await update.message.reply_text(
         f"📸 ¡Captura recibida! Gracias {name}.\n\n"
-        f"Un moderador verificará tu misión y acreditará los puntos en las próximas 24h.\n\n"
-        f"_Seguí acumulando con /checkin y /ruleta mientras tanto 🐾_",
+        f"Un moderador verificará tu misión y acreditará los puntos en las próximas 24h 🐾",
         parse_mode="Markdown"
     )
 

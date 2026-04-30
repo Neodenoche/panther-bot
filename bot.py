@@ -1164,6 +1164,21 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /misiones ─────────────────────────────────────────────────────────────────
 async def cmd_misiones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    uid  = str(user.id)
+    db   = load_db()
+    data = get_user(db, uid, user)
+    save_db(db)
+    app_url = f"https://go.mypanther.io/app?id={uid}"
+    from telegram import WebAppInfo
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🐆 Abrir Misiones en la Mini App", web_app=WebAppInfo(url=app_url))],
+    ])
+    await update.message.reply_text(
+        "Las misiones estan disponibles en la Mini App. Toca el boton para abrirla.",
+        reply_markup=keyboard
+    )
+    return
     db   = load_db()
     uid  = str(update.effective_user.id)
     data = get_user(db, uid, update.effective_user)

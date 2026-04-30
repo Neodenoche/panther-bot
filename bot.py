@@ -1438,11 +1438,58 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db(db)
     except Exception as e:
         logger.error(f"Error guardando DB en handle_photo: {e}")
-        # Continuar aunque falle el guardado
+
+    # ── Detectar tipo de misión y verificar límite diario ──
+    today = date.today().isoformat()
+    if data.get("last_mission_date") != today:
+        data["reel_count_today"] = 0
+        data["story_count_today"] = 0
+        data["content_count_today"] = 0
+        data["last_mission_date"] = today
+
+    mission_type = PENDING_MISSIONS.pop(uid, None)
+    MAX_DAILY = 3
+
+    tipo_labels = {
+        "reel":    "🎬 Reel de Panther",
+        "story":   "📸 Historia de Panther",
+        "content": "✏️ Contenido propio",
+        None:      "📎 Sin clasificar",
+    }
+    tipo_label = tipo_labels.get(mission_type, "📎 Sin clasificar")
+
+    count_key = f"{mission_type}_count_today" if mission_type else None
+    current_count = data.get(count_key, 0) if count_key else 0
+
+    if count_key and current_count >= MAX_DAILY:
+        type_name = {"reel": "reels", "story": "historias", "content": "contenidos"}.get(mission_type, "misiones")
+        await update.message.reply_text(
+            f"⚠️ Ya alcanzaste el límite de {MAX_DAILY} {type_name} por hoy.\n"
+            f"Volvé mañana para seguir ganando puntos 🐾"
+        )
+        return
+
+    if count_key:
+        data[count_key] = current_count + 1
+        remaining = MAX_DAILY - data[count_key]
+    else:
+        remaining = None
+
+    try:
+        save_db(db)
+    except Exception as e:
+        logger.error(f"Error guardando contadores en handle_photo: {e}")
+
+    if count_key and remaining is not None:
+        type_name = {"reel": "reels", "story": "historias", "content": "contenidos"}.get(mission_type, "misiones")
+        counter_msg = f"\n\n📊 {tipo_label}: *{data[count_key]}/{MAX_DAILY}* hoy · te quedan *{remaining}* restantes."
+    else:
+        counter_msg = ""
 
     await update.message.reply_text(
         f"📸 ¡Captura recibida! Gracias {name}.\n\n"
-        f"Un moderador verificará tu misión y acreditará los puntos en las próximas 24h 🐾",
+        f"Misión: *{tipo_label}*{counter_msg}\n\n"
+        f"Un moderador verificará y acreditará los puntos en las próximas 24h 🐾",
         parse_mode="Markdown"
     )
 
@@ -1471,6 +1518,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ])
     mission_text = (
         f"📸 *Captura de verificación*\n"
+        f"Tipo: *{tipo_label}*\n"
         f"Usuario: {name} (ID: `{uid}`)\n"
         f"Puntos actuales: *{data['points']}*\n\n"
         f"Seleccioná la acción:"

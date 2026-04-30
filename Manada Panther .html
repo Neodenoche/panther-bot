@@ -1369,10 +1369,11 @@ function getStoreUrl() {
   return 'https://play.google.com/store/search?q=panther+wallet';
 }
 
-async function openWalletMission(type) {
-  // Si userData aún no cargó, esperarlo
+function openWalletMission(type) {
+  // Si userData aún no cargó, cargar y reintentar
   if(!userData) {
-    await loadUserData();
+    loadUserData().then(function() { openWalletMission(type); });
+    return;
   }
   const tg = window.Telegram && window.Telegram.WebApp;
 
@@ -2063,6 +2064,8 @@ function enterApp() {
     loadUserData().then(() => {
       const walletSec = document.getElementById('sec-wallet-missions');
       if(walletSec) { walletSec.style.opacity = '1'; walletSec.style.pointerEvents = 'auto'; }
+      // Segunda carga para asegurar datos frescos
+      setTimeout(() => loadUserData(), 1000);
     });
   }, 520);
 }

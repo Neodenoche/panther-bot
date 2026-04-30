@@ -1407,7 +1407,7 @@ function doSpin(){
       return;
     }
     if(!userData.ruleta_access) {
-      alert('⚠️ Completá todas las misiones verificadas para acceder a la ruleta:\n\n✅ Reel verificado\n✅ Historia verificada\n✅ 1 referido activo');
+      alert('⚠️ Necesitás 3 días de check-in seguidos para acceder a la ruleta.\n\nTu racha actual: ' + (userData ? userData.streak : 0) + ' días.');
       return;
     }
     if((userData.spins_used || 0) >= (userData.spins_available || 1)) {

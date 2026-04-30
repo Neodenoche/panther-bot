@@ -2027,6 +2027,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "follow_tiktok":  data.get("follow_tiktok", False),
                 "follow_facebook": data.get("follow_facebook", False),
                 "follow_youtube":  data.get("follow_youtube", False),
+                "wallet_activated": data.get("wallet_activated", False),
                 "usdt_won_month": has_won_this_month(data, "usdt"),
                 "pnt_won_month":  has_won_this_month(data, "pnt"),
                 "history":        history,

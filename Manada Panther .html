@@ -1719,6 +1719,7 @@ async function loadRanking() {
     }
   } catch(e) {
     console.error('Ranking error:', e);
+    if(list) list.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Error cargando ranking. Intentá de nuevo.</div>';
   }
 }
 
@@ -2060,7 +2061,11 @@ function enterApp() {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     const misiones = document.getElementById('s-misiones');
     if (misiones) misiones.classList.add('active');
-    loadUserData();
+    // Cargar userData y esperar a que termine para habilitar wallet missions
+    loadUserData().then(() => {
+      const walletSec = document.getElementById('sec-wallet-missions');
+      if(walletSec) { walletSec.style.opacity = '1'; walletSec.style.pointerEvents = 'auto'; }
+    });
   }, 520);
 }
 

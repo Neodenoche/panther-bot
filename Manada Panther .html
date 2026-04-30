@@ -290,6 +290,55 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="mc" id="mc-follow-youtube" onclick="openFollowModal('youtube')"><div class="mic" style="background:#200000">▶️</div><div class="mb"><div class="mn">Suscribirse a Panther en YouTube</div><div class="ms" id="sub-follow-youtube">Toca para suscribirte y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-youtube">→</div></div>
   </div>
 
+  <!-- PANTHER WALLET MISIONES -->
+  <div class="sec" style="margin-top:6px" id="sec-wallet-missions">
+    <div class="stitle" id="stitle-wallet">PANTHER WALLET</div>
+
+    <!-- Activar Wallet -->
+    <div class="mc" id="mc-wallet-activate" onclick="openWalletMission('activate')" style="margin-bottom:8px">
+      <div class="mic" style="background:#0a1f0a">🔐</div>
+      <div class="mb">
+        <div class="mn" id="wm-activate-title">Activar mi Panther Wallet</div>
+        <div class="ms" id="wm-activate-sub">Subí captura con 2FA, email y PIN activos</div>
+      </div>
+      <div class="mr"><div class="mpts" id="wm-activate-pts">+150</div><div class="mplab">PTS</div></div>
+      <div class="marr" id="arr-wallet-activate">→</div>
+    </div>
+
+    <!-- Review Store (Android/iOS según plataforma) -->
+    <div class="mc" id="mc-wallet-review-store" onclick="openWalletMission('review_store')" style="margin-bottom:8px">
+      <div class="mic" style="background:#0a0a1f">⭐</div>
+      <div class="mb">
+        <div class="mn" id="wm-store-title">Review en la tienda</div>
+        <div class="ms" id="wm-store-sub">Dejá una review de +500 caracteres</div>
+      </div>
+      <div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div>
+      <div class="marr" id="arr-wallet-review-store">→</div>
+    </div>
+
+    <!-- Review Trustpilot -->
+    <div class="mc" id="mc-wallet-review-trust" onclick="openWalletMission('review_trust')" style="margin-bottom:8px">
+      <div class="mic" style="background:#001a0f">🌟</div>
+      <div class="mb">
+        <div class="mn" id="wm-trust-title">Review en Trustpilot</div>
+        <div class="ms" id="wm-trust-sub">Dejá una review de +500 caracteres</div>
+      </div>
+      <div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div>
+      <div class="marr" id="arr-wallet-review-trust">→</div>
+    </div>
+
+    <!-- Contenido propio -->
+    <div class="mc" id="mc-wallet-content" onclick="openWalletMission('content')" style="margin-bottom:8px">
+      <div class="mic" style="background:#1a0a00">✏️</div>
+      <div class="mb">
+        <div class="mn" id="wm-content-title">Contenido propio de Panther</div>
+        <div class="ms" id="wm-content-sub">Post, video o artículo sobre Panther Wallet</div>
+      </div>
+      <div class="mr"><div class="mpts">+100</div><div class="mplab">PTS</div></div>
+      <div class="marr" id="arr-wallet-content">→</div>
+    </div>
+  </div>
+
   <!-- COMUNIDAD -->
   <div class="sec" style="margin-top:6px">
     <div class="stitle" id="stitle-comunidad">COMUNIDAD</div>
@@ -490,6 +539,14 @@ const T = {
     statLevelLabel: 'Nivel actual',
     statRefsJoined: 'Se unieron',
     statRefsWallet: 'Con wallet',
+    walletTitle: 'PANTHER WALLET',
+    wmActivateTitle: 'Activar mi Panther Wallet',
+    wmActivateSub: 'Subí captura con 2FA, email y PIN activos',
+    wmStoreSub: 'Dejá una review de +500 caracteres',
+    wmTrustTitle: 'Review en Trustpilot',
+    wmTrustSub: 'Dejá una review de +500 caracteres',
+    wmContentTitle: 'Contenido propio de Panther',
+    wmContentSub: 'Post, video o artículo sobre Panther Wallet',
     comunidadTitle: 'COMUNIDAD',
     canalTitle: 'Canal oficial',
     canalSub: 'Anuncios, novedades y lanzamientos',
@@ -573,6 +630,14 @@ const T = {
     statLevelLabel: 'Current level',
     statRefsJoined: 'Joined',
     statRefsWallet: 'With wallet',
+    walletTitle: 'PANTHER WALLET',
+    wmActivateTitle: 'Activate my Panther Wallet',
+    wmActivateSub: 'Upload screenshot with 2FA, email and PIN active',
+    wmStoreSub: 'Leave a review with +500 characters',
+    wmTrustTitle: 'Review on Trustpilot',
+    wmTrustSub: 'Leave a review with +500 characters',
+    wmContentTitle: 'Own Panther content',
+    wmContentSub: 'Post, video or article about Panther Wallet',
     comunidadTitle: 'COMMUNITY',
     canalTitle: 'Official channel',
     canalSub: 'Announcements, news and launches',
@@ -691,6 +756,24 @@ function applyTranslations() {
   if(slWallet) slWallet.textContent = t('statRefsWallet');
   if(slSpins) slSpins.textContent = t('statSpinsLabel');
   if(slLevel) slLevel.textContent = t('statLevelLabel');
+
+  // Wallet missions — actualizar nombre de tienda
+  const wmStoreTitle = document.getElementById('wm-store-title');
+  const wmStoreSub = document.getElementById('wm-store-sub');
+  if(wmStoreTitle) {
+    const store = getStoreName();
+    wmStoreTitle.textContent = 'Review en ' + store;
+  }
+
+  // Marcar misiones de wallet completadas
+  if(userData) {
+    if(userData.wallet_activated) {
+      const activateArr = document.getElementById('arr-wallet-activate');
+      if(activateArr) { activateArr.textContent = '✓'; activateArr.style.color = '#4ade80'; }
+      const mc = document.getElementById('mc-wallet-activate');
+      if(mc) mc.style.opacity = '0.6';
+    }
+  }
 
   // Comunidad section
   const stitleCom = document.getElementById('stitle-comunidad');
@@ -1088,6 +1171,120 @@ function openBotForShare(type) {
   if(botBtn) {
     botBtn.addEventListener('click', goToBot);
   }
+}
+
+function getStoreName() {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const platform = tg ? tg.platform : 'unknown';
+  if(platform === 'ios' || platform === 'macos') return 'App Store';
+  return 'Google Play';
+}
+
+function getStoreUrl() {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const platform = tg ? tg.platform : 'unknown';
+  if(platform === 'ios' || platform === 'macos') {
+    return 'https://apps.apple.com/search?term=panther+wallet';
+  }
+  return 'https://play.google.com/store/search?q=panther+wallet';
+}
+
+function openWalletMission(type) {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  
+  // Verificar que tiene wallet activa para reviews y contenido
+  if(type !== 'activate' && userData && !userData.wallet_activated) {
+    alert('⚠️ Primero necesitás activar tu Panther Wallet para acceder a esta misión.');
+    return;
+  }
+
+  let title, steps, pts, missionType;
+
+  if(type === 'activate') {
+    title = '🔐 Activar Panther Wallet';
+    steps = [
+      '1️⃣ Activá tu Panther Wallet con Google 2FA, email y PIN',
+      '2️⃣ Tomá una captura que muestre los tres activos',
+      '3️⃣ Abrí el Bot y enviá la captura',
+      '4️⃣ Un mod verificará y acreditará +150 pts a tu referidor'
+    ];
+    pts = '+150 pts al referidor';
+    missionType = 'content';
+  } else if(type === 'review_store') {
+    const store = getStoreName();
+    title = '⭐ Review en ' + store;
+    steps = [
+      '1️⃣ Abrí ' + store + ' y buscá Panther Wallet',
+      '2️⃣ Dejá una review de más de 500 caracteres',
+      '3️⃣ Tomá captura mostrando la review publicada con tu nombre',
+      '4️⃣ Abrí el Bot y enviá la captura'
+    ];
+    pts = '+175 pts';
+    missionType = 'content';
+  } else if(type === 'review_trust') {
+    title = '🌟 Review en Trustpilot';
+    steps = [
+      '1️⃣ Abrí trustpilot.com y buscá Panther Wallet',
+      '2️⃣ Dejá una review de más de 500 caracteres',
+      '3️⃣ Tomá captura mostrando la review publicada con tu nombre',
+      '4️⃣ Abrí el Bot y enviá la captura'
+    ];
+    pts = '+175 pts';
+    missionType = 'content';
+  } else if(type === 'content') {
+    title = '✏️ Contenido propio';
+    steps = [
+      '1️⃣ Creá un post, video o artículo sobre Panther Wallet',
+      '2️⃣ Publicalo en tus redes sociales',
+      '3️⃣ Tomá captura mostrando el contenido publicado',
+      '4️⃣ Abrí el Bot y enviá la captura'
+    ];
+    pts = '+100 pts';
+    missionType = 'content';
+  }
+
+  // Mostrar modal
+  let modal = document.getElementById('wallet-mission-modal');
+  if(!modal) {
+    modal = document.createElement('div');
+    modal.id = 'wallet-mission-modal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
+    document.body.appendChild(modal);
+  }
+  modal.style.display = 'flex';
+  modal.innerHTML = `
+    <div style="background:#161616;border-radius:20px;padding:24px;width:100%;max-width:360px;border:1px solid #2a2a2a">
+      <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:16px">${title}</div>
+      <div style="font-size:14px;color:#aaa;line-height:1.8;margin-bottom:20px">${steps.join('<br>')}</div>
+      <div style="background:#1f0a00;border:1px solid #3a1500;border-radius:10px;padding:10px;text-align:center;margin-bottom:20px">
+        <span style="color:#FF5C1A;font-weight:700;font-size:16px">${pts}</span>
+        <span style="color:#888;font-size:13px"> si se aprueba</span>
+      </div>
+      <button id="btn-wallet-ir-al-bot" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+        🐆 IR AL BOT
+      </button>
+      <button onclick="document.getElementById('wallet-mission-modal').style.display='none'" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
+        Cancelar
+      </button>
+    </div>
+  `;
+
+  // Event listener para IR AL BOT
+  document.getElementById('btn-wallet-ir-al-bot').addEventListener('click', function() {
+    document.getElementById('wallet-mission-modal').style.display = 'none';
+    // Registrar tipo de misión
+    fetch(API_BASE + '/set_mission_type', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id: USER_ID, type: missionType})
+    }).catch(()=>{});
+    // Abrir bot
+    if(tg) {
+      tg.openTelegramLink('https://t.me/ManadaPantherBot');
+    } else {
+      window.open('https://t.me/ManadaPantherBot', '_blank');
+    }
+  });
 }
 
 function goToBot() {

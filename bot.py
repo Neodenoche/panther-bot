@@ -1545,6 +1545,30 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 
 # ── Callbacks (botones inline) ────────────────────────────────────────────────
+async def cmd_ruleta_redirect(update, context):
+    uid = str(update.effective_user.id)
+    app_url = f"https://go.mypanther.io/app?id={uid}"
+    from telegram import WebAppInfo
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🎰 Abrir Ruleta en la Mini App", web_app=WebAppInfo(url=app_url))
+    ]])
+    await update.message.reply_text(
+        "La ruleta solo esta disponible en la Mini App. Toca el boton para abrirla.",
+        reply_markup=keyboard
+    )
+
+async def cmd_misiones_redirect(update, context):
+    uid = str(update.effective_user.id)
+    app_url = f"https://go.mypanther.io/app?id={uid}"
+    from telegram import WebAppInfo
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("📋 Abrir Misiones en la Mini App", web_app=WebAppInfo(url=app_url))
+    ]])
+    await update.message.reply_text(
+        "Las misiones solo estan disponibles en la Mini App. Toca el boton para abrirla.",
+        reply_markup=keyboard
+    )
+
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -1689,19 +1713,32 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # ── Navegación del menú principal ──
+    # Función genérica de redirect a la mini app
+    async def redirect_to_app(upd, ctx):
+        uid = str(upd.effective_user.id)
+        app_url = f"https://go.mypanther.io/app?id={uid}"
+        from telegram import WebAppInfo
+        kb = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🐆 Abrir Manada Panther", web_app=WebAppInfo(url=app_url))
+        ]])
+        await upd.message.reply_text(
+            "Todas las misiones y funciones estan en la Mini App. Toca el boton para abrirla.",
+            reply_markup=kb
+        )
+
     handlers = {
-        "checkin":  cmd_checkin,
-        "puntos":   cmd_puntos,
-        "ranking":  cmd_ranking,
-        "ruleta":   cmd_ruleta,
-        "compartir": cmd_compartir,
+        "checkin":  redirect_to_app,
+        "puntos":   redirect_to_app,
+        "ranking":  redirect_to_app,
+        "ruleta":   redirect_to_app,
+        "compartir": redirect_to_app,
         "broadcast":  cmd_broadcast,
         "ruleta_on":  cmd_ruleta_on,
         "verificar_follow": cmd_verificar_follow,
         "ruleta_off": cmd_ruleta_off,
         "ruleta_auto": cmd_ruleta_auto,
-        "misiones": cmd_misiones,
-        "referido": cmd_referido,
+        "misiones": redirect_to_app,
+        "referido": redirect_to_app,
         "niveles":  cmd_niveles,
     }
 

@@ -54,6 +54,15 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 .strip-t{font-size:12px;color:var(--t3)}
 .strip-n{font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--or)}
 .sec{padding:12px 14px 0}
+.gtab{background:#1a1a1a;border:1px solid #222;border-radius:100px;padding:6px 14px;font-size:11px;font-weight:700;color:#666;cursor:pointer;white-space:nowrap}
+.gtab.active{background:#FF5C1A;border-color:#FF5C1A;color:#0a0a0a}
+.gcard{background:#111;border:1px solid #1a1a1a;border-radius:14px;padding:16px;position:relative;overflow:hidden}
+.gcard-cat{display:inline-block;font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#FF5C1A;background:rgba(255,92,26,.12);border-radius:5px;padding:2px 7px;margin-bottom:8px}
+.gcard-term{font-size:20px;font-weight:900;color:#fff;margin-bottom:2px}
+.gcard-full{font-size:11px;color:#666;font-style:italic;margin-bottom:10px}
+.gcard-def{font-size:13px;line-height:1.6;color:#bbb}
+.gcard-ex{margin-top:10px;background:#0d0d0d;border-left:2px solid #FF5C1A;border-radius:0 8px 8px 0;padding:8px 12px;font-size:12px;font-style:italic;color:#777}
+.gcard-emoji{position:absolute;top:14px;right:14px;font-size:24px;opacity:.5}
 .stitle{font-size:10px;font-weight:600;color:var(--t3);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;padding:0 4px}
 .mc{background:var(--card);border:1px solid #282828;border-radius:16px;padding:13px 14px;margin-bottom:8px;display:flex;align-items:center;gap:12px;cursor:pointer}
 .mc:active{border-color:var(--ob);background:#1f0d00}
@@ -271,6 +280,14 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="xp-row"><span class="xp-lbl" id="xp-min">0 pts</span><span class="xp-lbl" id="xp-max">150 pts</span></div>
   </div>
   <div class="strip"><span class="strip-t">Misiones completadas hoy</span><span class="strip-n">1 / 5</span></div>
+  <div onclick="openGlosario()" style="margin:8px 18px 0;background:#111;border:1px solid #2a1500;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#FF5C1A'" onmouseout="this.style.borderColor='#2a1500'">
+    <span style="font-size:22px">📖</span>
+    <div style="flex:1">
+      <div style="font-size:14px;font-weight:700;color:#fff">Glosario Crypto</div>
+      <div style="font-size:12px;color:#666;margin-top:2px">Aprende el idioma de las calles crypto</div>
+    </div>
+    <span style="color:#FF5C1A;font-size:18px">→</span>
+  </div>
   <div class="sec">
     <div class="stitle">Diarias</div>
     <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
@@ -363,6 +380,27 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
       </div>
     </a>
   </div>
+</div>
+
+<!-- GLOSARIO -->
+<div class="screen" id="s-glosario">
+  <div style="padding:16px 18px 8px;display:flex;align-items:center;gap:12px">
+    <button onclick="closeGlosario()" style="background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;cursor:pointer">← Volver</button>
+    <div style="font-size:16px;font-weight:700;color:#fff">📖 Glosario Crypto</div>
+  </div>
+  <div style="padding:0 18px 12px">
+    <input id="glos-search" type="text" placeholder="Buscar término..." onkeyup="filterGlosario()" style="width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:10px 14px;color:#fff;font-size:14px;outline:none">
+  </div>
+  <div style="display:flex;gap:6px;padding:0 18px 12px;flex-wrap:wrap" id="glos-tabs">
+    <button class="gtab active" onclick="filterGlosarioTab('todos')" data-cat="todos">Todos</button>
+    <button class="gtab" onclick="filterGlosarioTab('slang')" data-cat="slang">Slang</button>
+    <button class="gtab" onclick="filterGlosarioTab('trading')" data-cat="trading">Trading</button>
+    <button class="gtab" onclick="filterGlosarioTab('defi')" data-cat="defi">DeFi</button>
+    <button class="gtab" onclick="filterGlosarioTab('abrev')" data-cat="abrev">Abrev.</button>
+    <button class="gtab" onclick="filterGlosarioTab('panther')" data-cat="panther">🐾 Panther</button>
+  </div>
+  <div id="glos-count" style="font-size:12px;color:#555;padding:0 18px 8px"></div>
+  <div id="glos-grid" style="padding:0 18px 80px;display:flex;flex-direction:column;gap:10px"></div>
 </div>
 
 <!-- MIS PUNTOS -->
@@ -1173,6 +1211,129 @@ function openBotForShare(type) {
   }
 }
 
+// ── GLOSARIO ──────────────────────────────────────────────────────────────────
+const glossary = [
+  // ── SLANG CRYPTO ──────────────────────────────────────────
+  {term:"HODL",full:"Hold On for Dear Life",cat:"slang",emoji:"💎",def:"Quedarse con tus tokens sin importar cuánto baje el mercado. El opuesto del pánico. Nació de un typo en un foro en 2013 y se convirtió en filosofía de vida.",ex:"\"El BTC cayó 20%... yo HODL, la manada no vende.\""},
+  {term:"NGMI",full:"Not Gonna Make It",cat:"slang",emoji:"💀",def:"Alguien que toma decisiones tan malas en crypto que claramente no va a sobrevivir el mercado. Se usa para bromear con uno mismo o con otros.",ex:"\"Vendí ETH a $100... soy NGMI.\""},
+  {term:"WAGMI",full:"We're All Gonna Make It",cat:"slang",emoji:"🚀",def:"El grito de guerra de la comunidad. Optimismo colectivo. Lo contrario de NGMI. Se usa cuando el mercado sube o para motivar a la manada.",ex:"\"PNT subió 30% esta semana. WAGMI 🐾🚀\""},
+  {term:"Rekt",full:"Wrecked (destruido)",cat:"slang",emoji:"☠️",def:"Cuando perdiste mucha plata en una operación o porque el mercado te pasó por encima. El nivel más alto de pérdida.",ex:"\"Entré en long y el mercado bajó 15% en una hora. Full rekt.\""},
+  {term:"Wen Moon?",full:"When Moon?",cat:"slang",emoji:"🌕",def:"Pregunta clásica: ¿cuándo va a subir el precio hasta la luna? Se usa en serio y en broma.",ex:"\"¿Wen moon PNT? 🌕 La manada quiere saber.\""},
+  {term:"Degen",full:"Degenerate",cat:"slang",emoji:"🎰",def:"Trader que toma riesgos extremos, mete todo en proyectos locos y vive por la adrenalina. No es insulto, es un estilo de vida en crypto.",ex:"\"Metió todo en un meme coin a las 3am. Ese tipo es un degen puro.\""},
+  {term:"Shill",full:"—",cat:"slang",emoji:"📣",def:"Promocionar agresivamente una crypto, muchas veces porque tenés intereses propios en que suba el precio.",ex:"\"Ese influencer shillea monedas random sin decir que le pagan.\""},
+  {term:"FOMO",full:"Fear Of Missing Out",cat:"slang",emoji:"😱",def:"El miedo de quedarte afuera cuando ves que algo sube mucho. El FOMO es el peor enemigo del trader. Te hace comprar en el techo.",ex:"\"Entré al token porque subió 200%. Puro FOMO. Al día siguiente bajó 50%.\""},
+  {term:"FUD",full:"Fear, Uncertainty & Doubt",cat:"slang",emoji:"🌫️",def:"Información negativa, falsa o exagerada que se esparce para bajar el precio de una crypto o crear pánico en el mercado.",ex:"\"Ese artículo diciendo que la SEC va a banear todo es FUD. Ignoren y HODL.\""},
+  {term:"Diamond Hands",full:"Manos de Diamante",cat:"slang",emoji:"💎🙌",def:"Alguien que no vende pase lo que pase. El HODLER definitivo. Las manos de diamante no tiemblan.",ex:"\"La manada Panther tiene diamond hands. Ni el crash nos mueve.\""},
+  {term:"Paper Hands",full:"Manos de Papel",cat:"slang",emoji:"🧻",def:"El opuesto al diamond hands. El que vende a la primera bajada por miedo.",ex:"\"Vendió en cuanto bajó 5%. Paper hands total.\""},
+  {term:"Rug Pull",full:"Tirón de alfombra",cat:"slang",emoji:"🪤",def:"Estafa donde los creadores de un proyecto agarran toda la liquidez y desaparecen.",ex:"\"Ese protocolo era un rug pull. Los devs se fugaron con $2M overnight.\""},
+  {term:"Pump & Dump",full:"—",cat:"slang",emoji:"📈📉",def:"Esquema donde se infla artificialmente el precio de una crypto con hype falso y después los promotores venden todo.",ex:"\"Ese token subió 500% en una hora... claro pump & dump.\""},
+  {term:"NFA",full:"Not Financial Advice",cat:"slang",emoji:"⚠️",def:"Disclaimer que la gente pone antes o después de hablar de crypto para aclarar que no son asesores financieros.",ex:"\"Creo que PNT va a subir mucho este mes. NFA obvio 🐾\""},
+  {term:"DYOR",full:"Do Your Own Research",cat:"slang",emoji:"🔬",def:"Investigá vos mismo antes de invertir. No le creas a nadie ciegamente. La responsabilidad es tuya.",ex:"\"Este proyecto me parece bueno pero DYOR antes de meter plata.\""},
+  {term:"LFG",full:"Let's F***ing Go",cat:"slang",emoji:"🔥",def:"Expresión de hype máximo. Se usa cuando algo bueno pasa en el mercado o en el proyecto.",ex:"\"PNT listado en nuevo exchange. LFG 🔥🐾\""},
+  {term:"Ser",full:"Señor / Sir (ironico)",cat:"slang",emoji:"🎩",def:"Forma irónica y afectuosa de referirse a alguien en la comunidad crypto.",ex:"\"Ser, with all due respect, comprá el dip.\""},
+  {term:"Fren",full:"Friend (amigo)",cat:"slang",emoji:"🤝",def:"Forma cripto de decir amigo. Vocabulario del ecosistema meme.",ex:"\"¿Ya registraste tu referido fren? La manada espera.\""},
+  // ── TRADING ───────────────────────────────────────────────
+  {term:"Long",full:"Posición Larga",cat:"trading",emoji:"📈",def:"Apostar a que el precio va a subir. Comprás esperando vender más caro.",ex:"\"Entré long en XAU/USD a $2.300. A esperar el pump.\""},
+  {term:"Short",full:"Posición Corta",cat:"trading",emoji:"📉",def:"Apostar a que el precio va a bajar. Vendés esperando recomprar más barato.",ex:"\"Abrí un short en BTC cuando rompió el soporte.\""},
+  {term:"Liquidación",full:"Liquidation",cat:"trading",emoji:"💥",def:"Cuando tu posición con leverage se cierra automáticamente porque ya no tenés fondos para cubrirla.",ex:"\"Entró con 50x leverage y lo liquidaron en 10 minutos.\""},
+  {term:"Stop Loss",full:"SL",cat:"trading",emoji:"🛑",def:"Orden automática para cerrar tu posición si el precio llega a cierto nivel de pérdida. Siempre usalo.",ex:"\"Puse stop loss en $2.250 para no perder más del 2% de mi cuenta.\""},
+  {term:"Take Profit",full:"TP",cat:"trading",emoji:"✅",def:"Orden automática para cerrar tu posición y tomar ganancias cuando el precio llega a tu objetivo.",ex:"\"Mi TP está en $2.400. Si llega, se cierra solo y cobro.\""},
+  {term:"Dip",full:"Caída temporal",cat:"trading",emoji:"🤏",def:"Bajada corta de precio antes de continuar una tendencia alcista. El dip es oportunidad, no pánico.",ex:"\"BTC bajó 8%... buy the dip, la manada sabe.\""},
+  {term:"ATH",full:"All-Time High",cat:"trading",emoji:"🏆",def:"El precio más alto que jamás tuvo una crypto en toda su historia.",ex:"\"BTC rompió su ATH otra vez. Estamos en territorio desconocido.\""},
+  {term:"ATL",full:"All-Time Low",cat:"trading",emoji:"⬇️",def:"El precio más bajo que jamás tuvo una crypto.",ex:"\"Ese token está en ATL. ¿Oportunidad o trampa?\""},
+  {term:"Bull Run",full:"Mercado Alcista",cat:"trading",emoji:"🐂",def:"Período sostenido de subida de precios. Todo sube, la gente se vuelve optimista.",ex:"\"El bull run de 2024-2025 fue histórico para la manada.\""},
+  {term:"Bear Market",full:"Mercado Bajista",cat:"trading",emoji:"🐻",def:"Período sostenido de caída de precios. Quien sobrevive al bear, gana en el bull.",ex:"\"En el bear market se acumula. En el bull se cosecha.\""},
+  {term:"Soporte",full:"Support",cat:"trading",emoji:"🧱",def:"Nivel de precio donde históricamente el mercado dejó de bajar y rebotó.",ex:"\"$2.280 es soporte fuerte en XAU. Si lo rompe, próximo destino $2.200.\""},
+  {term:"Resistencia",full:"Resistance",cat:"trading",emoji:"🔒",def:"Nivel de precio donde el mercado históricamente paró de subir.",ex:"\"$2.350 es resistencia clave. Si se rompe, puede explotar al alza.\""},
+  {term:"Leverage",full:"Apalancamiento",cat:"trading",emoji:"⚖️",def:"Usar capital prestado para abrir posiciones más grandes. Amplifica ganancias Y pérdidas.",ex:"\"Usé 5x leverage. 10% de movimiento = 50% de ganancia o pérdida.\""},
+  {term:"SMC",full:"Smart Money Concepts",cat:"trading",emoji:"🧠",def:"Metodología que estudia el movimiento del dinero inteligente (institucionales y bancos). Order Blocks, FVG, BOS y Liquidity Sweeps.",ex:"\"Detecté un OB institucional en H4. Espero el retroceso para entrar.\""},
+  {term:"Order Block",full:"OB",cat:"trading",emoji:"📦",def:"Zona de precio donde los grandes jugadores colocaron órdenes masivas. El precio suele volver ahí antes de moverse fuerte.",ex:"\"El order block está en $2.290. Ahí espero el long con SL ajustado.\""},
+  {term:"Liquidity Sweep",full:"Barrida de Liquidez",cat:"trading",emoji:"🌊",def:"Movimiento del mercado diseñado para cazar los stop loss de los traders retail antes de ir en la dirección real.",ex:"\"Barrieron los stops de los longs antes de subir. Típico liquidity sweep.\""},
+  // ── DEFI & WEB3 ───────────────────────────────────────────
+  {term:"DeFi",full:"Decentralized Finance",cat:"defi",emoji:"🏗️",def:"Servicios financieros sin bancos ni intermediarios. Préstamos, intercambios y ahorro en blockchain.",ex:"\"Con DeFi podés ganar intereses sin pasar por un banco.\""},
+  {term:"NFT",full:"Non-Fungible Token",cat:"defi",emoji:"🖼️",def:"Token único e irrepetible en la blockchain que representa la propiedad de un activo digital.",ex:"\"Compré un NFT de arte digital. Es mío y nadie puede copiarlo en la blockchain.\""},
+  {term:"Smart Contract",full:"Contrato Inteligente",cat:"defi",emoji:"📜",def:"Código que se ejecuta automáticamente en la blockchain cuando se cumplen ciertas condiciones. Sin intermediarios.",ex:"\"El smart contract liberó los fondos automáticamente cuando se cumplió la condición.\""},
+  {term:"Wallet",full:"Billetera Digital",cat:"defi",emoji:"👛",def:"Software que guarda tus claves privadas y te permite enviar, recibir y almacenar criptomonedas.",ex:"\"Panther Wallet es tu billetera para gestionar tus PNT y USDT.\""},
+  {term:"Gas Fee",full:"Comisión de Red",cat:"defi",emoji:"⛽",def:"Comisión que se paga para ejecutar transacciones o contratos en la blockchain de Ethereum.",ex:"\"El gas fee estaba altísimo. Esperé a las 3am para transferir más barato.\""},
+  {term:"Staking",full:"—",cat:"defi",emoji:"🔒",def:"Bloquear tus tokens en un protocolo para ganar recompensas. Como un plazo fijo pero en crypto.",ex:"\"Hice staking de PNT y gano recompensas semanales.\""},
+  {term:"Yield Farming",full:"—",cat:"defi",emoji:"🌾",def:"Estrategia DeFi de mover liquidez entre protocolos para maximizar rendimientos.",ex:"\"El yield farming puede ser muy rentable pero también muy riesgoso.\""},
+  {term:"Liquidity Pool",full:"Pool de Liquidez",cat:"defi",emoji:"🏊",def:"Fondo de tokens bloqueados en un smart contract que permite el trading descentralizado.",ex:"\"Aporté liquidez al pool de PNT/USDT y gano comisiones de cada swap.\""},
+  {term:"Web3",full:"—",cat:"defi",emoji:"🌐",def:"La próxima generación de internet donde los usuarios son dueños de sus datos y activos digitales.",ex:"\"Panther Wallet es tu puerta de entrada al Web3 en Latinoamérica.\""},
+  {term:"Blockchain",full:"Cadena de Bloques",cat:"defi",emoji:"⛓️",def:"Base de datos distribuida e inmutable donde se registran todas las transacciones.",ex:"\"Cada transacción en la blockchain queda registrada para siempre.\""},
+  // ── ABREVIATURAS ──────────────────────────────────────────
+  {term:"BTC",full:"Bitcoin",cat:"abrev",emoji:"₿",def:"La primera y más grande criptomoneda del mundo. El oro digital.",ex:"\"BTC rompió los $100k. Histórico.\""},
+  {term:"ETH",full:"Ethereum",cat:"abrev",emoji:"🔷",def:"La segunda crypto más grande. Plataforma de smart contracts y DeFi.",ex:"\"ETH es el motor de todo el ecosistema DeFi.\""},
+  {term:"USDT",full:"Tether USD",cat:"abrev",emoji:"💵",def:"Stablecoin anclada al dólar americano. 1 USDT = $1 USD.",ex:"\"Gané $10 USDT en la ruleta de la Manada. Directo a mi wallet.\""},
+  {term:"PNT",full:"Panther Token",cat:"abrev",emoji:"🐾",def:"El token nativo de Panther Wallet. Se gana participando en la Manada.",ex:"\"Acumulé 500 PNT esta semana con check-ins y misiones.\""},
+  {term:"APR",full:"Annual Percentage Rate",cat:"abrev",emoji:"📊",def:"Tasa de rendimiento anual. Se usa para medir el retorno de staking o yield farming.",ex:"\"El staking de PNT tiene un APR del 15%. Vale la pena.\""},
+  {term:"P2P",full:"Peer to Peer",cat:"abrev",emoji:"🔄",def:"Transacciones directas entre personas sin intermediarios ni bancos.",ex:"\"Hice una transferencia P2P con Panther Wallet en segundos y sin comisiones.\""},
+  {term:"KYC",full:"Know Your Customer",cat:"abrev",emoji:"🪪",def:"Proceso de verificación de identidad que exigen muchas plataformas.",ex:"\"Completé el KYC de Panther Wallet con mi documento en 2 minutos.\""},
+  {term:"DEX",full:"Decentralized Exchange",cat:"abrev",emoji:"🔁",def:"Intercambio descentralizado donde podés comprar y vender crypto sin entregar tus fondos a nadie.",ex:"\"Usé un DEX para swappear ETH por PNT directamente desde mi wallet.\""},
+  // ── PANTHER ────────────────────────────────────────────────
+  {term:"La Manada",full:"—",cat:"panther",emoji:"🐆",def:"La comunidad oficial de Panther Wallet en Telegram. Si estás leyendo esto, sos parte de ella.",ex:"\"La Manada Panther tiene diamond hands. WAGMI 🐾\""},
+  {term:"Cachorro",full:"Nivel 1",cat:"panther",emoji:"🐾",def:"El primer nivel en la Manada Panther. Todos empezamos acá. Con check-in diario y misiones subís rápido.",ex:"\"Recién entré a la Manada. Soy Cachorro pero voy a llegar a Leyenda.\""},
+  {term:"PNT Token",full:"Panther Token",cat:"panther",emoji:"🏅",def:"El token nativo de Panther Wallet. Se gana completando misiones en el bot y se puede canjear por premios.",ex:"\"Gané 200 PNT esta semana. El ranking me tiene motivado.\""},
+  {term:"Check-in",full:"—",cat:"panther",emoji:"🔥",def:"La misión diaria más importante. Hacelo todos los días para mantener tu racha y ganar puntos bonus.",ex:"\"Llevo 14 días de racha. El check-in es lo primero que hago cada mañana.\""},
+  {term:"Ruleta",full:"—",cat:"panther",emoji:"🎰",def:"El evento mensual de la Manada donde podés ganar USDT, PNT o multiplicar tus puntos. Solo para miembros activos.",ex:"\"Giré la ruleta y gané $5 USDT. La Manada cumple con los premios.\""},
+  {term:"Racha",full:"Streak",cat:"panther",emoji:"🔥",def:"Los días consecutivos que hiciste check-in. Mantenerla da bonus de puntos: 7, 14 y 30 días.",ex:"\"Racha de 30 días: +500 pts bonus. La disciplina paga.\""},
+  {term:"Fundador",full:"Badge de Fundador",cat:"panther",emoji:"🏆",def:"Badge exclusivo para los primeros 500 miembros de la Manada. Un símbolo de los early adopters.",ex:"\"Tengo mi badge de Fundador #0047. Llegué antes que casi todos.\""} 
+];
+
+let _glosarioCat = 'todos';
+
+function openGlosario() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s-glosario').classList.add('active');
+  renderGlosario();
+}
+
+function closeGlosario() {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('s-misiones').classList.add('active');
+}
+
+function filterGlosarioTab(cat) {
+  _glosarioCat = cat;
+  document.querySelectorAll('.gtab').forEach(t => {
+    t.classList.toggle('active', t.dataset.cat === cat);
+  });
+  renderGlosario();
+}
+
+function filterGlosario() {
+  renderGlosario();
+}
+
+function renderGlosario() {
+  const q = (document.getElementById('glos-search').value || '').toLowerCase();
+  const grid = document.getElementById('glos-grid');
+  const count = document.getElementById('glos-count');
+  
+  let items = glossary.filter(item => {
+    const catOk = _glosarioCat === 'todos' || item.cat === _glosarioCat;
+    const searchOk = !q || 
+      item.term.toLowerCase().includes(q) || 
+      (item.full || '').toLowerCase().includes(q) || 
+      item.def.toLowerCase().includes(q);
+    return catOk && searchOk;
+  });
+  
+  count.textContent = 'Mostrando ' + items.length + ' términos';
+  
+  const catLabels = {slang:'Slang Crypto', trading:'Trading', defi:'DeFi & Web3', abrev:'Abreviaturas', panther:'🐾 Panther'};
+  
+  grid.innerHTML = items.map(item => `
+    <div class="gcard">
+      <span class="gcard-emoji">${item.emoji || '📖'}</span>
+      <div class="gcard-cat">${catLabels[item.cat] || item.cat}</div>
+      <div class="gcard-term">${item.term}</div>
+      ${item.full && item.full !== '—' ? `<div class="gcard-full">${item.full}</div>` : ''}
+      <div class="gcard-def">${item.def}</div>
+      ${item.ex ? `<div class="gcard-ex">${item.ex}</div>` : ''}
+    </div>
+  `).join('');
+}
+
 function getStoreName() {
   const tg = window.Telegram && window.Telegram.WebApp;
   const platform = tg ? tg.platform : 'unknown';
@@ -1260,7 +1421,7 @@ function openWalletMission(type) {
         <span style="color:#FF5C1A;font-weight:700;font-size:16px">${pts}</span>
         <span style="color:#888;font-size:13px"> si se aprueba</span>
       </div>
-      <button id="btn-wallet-ir-al-bot" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      <button onclick="goToWalletBot()" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
         🐆 IR AL BOT
       </button>
       <button onclick="document.getElementById('wallet-mission-modal').style.display='none'" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
@@ -1269,22 +1430,24 @@ function openWalletMission(type) {
     </div>
   `;
 
-  // Event listener para IR AL BOT
-  document.getElementById('btn-wallet-ir-al-bot').addEventListener('click', function() {
-    document.getElementById('wallet-mission-modal').style.display = 'none';
-    // Registrar tipo de misión
-    fetch(API_BASE + '/set_mission_type', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({id: USER_ID, type: missionType})
-    }).catch(()=>{});
-    // Abrir bot
-    if(tg) {
-      tg.openTelegramLink('https://t.me/ManadaPantherBot');
-    } else {
-      window.open('https://t.me/ManadaPantherBot', '_blank');
-    }
-  });
+  // Guardar missionType globalmente para el botón
+  window._walletMissionType = missionType;
+}
+
+function goToWalletBot() {
+  document.getElementById('wallet-mission-modal').style.display = 'none';
+  const mType = window._walletMissionType || 'content';
+  fetch(API_BASE + '/set_mission_type', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id: USER_ID, type: mType})
+  }).catch(()=>{});
+  const tg = window.Telegram && window.Telegram.WebApp;
+  if(tg) {
+    tg.openTelegramLink('https://t.me/ManadaPantherBot');
+  } else {
+    window.open('https://t.me/ManadaPantherBot', '_blank');
+  }
 }
 
 function goToBot() {

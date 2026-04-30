@@ -308,7 +308,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
 
   <!-- PANTHER WALLET MISIONES -->
-  <div class="sec" style="margin-top:6px" id="sec-wallet-missions">
+  <div class="sec" style="margin-top:6px;opacity:0.5;pointer-events:none" id="sec-wallet-missions">
     <div class="stitle" id="stitle-wallet">PANTHER WALLET</div>
 
     <!-- Activar Wallet -->
@@ -802,6 +802,10 @@ function applyTranslations() {
     const store = getStoreName();
     wmStoreTitle.textContent = 'Review en ' + store;
   }
+
+  // Habilitar sección wallet ahora que userData cargó
+  const walletSec = document.getElementById('sec-wallet-missions');
+  if(walletSec) { walletSec.style.opacity = '1'; walletSec.style.pointerEvents = 'auto'; }
 
   // Marcar misiones de wallet completadas
   if(userData) {

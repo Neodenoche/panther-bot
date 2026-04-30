@@ -688,7 +688,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
                     # Check milestone and notify group
                     total = len([u for u in db.values() if isinstance(u, dict) and "points" in u])
-                    await check_member_milestone(context.bot, total)
+                    # milestone check removed
                 break
 
     # Asignar número de fundador si es nuevo y hay cupos

@@ -1451,14 +1451,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     MAX_DAILY = 3
 
     tipo_labels = {
-        "reel":    "🎬 Reel de Panther",
-        "story":   "📸 Historia de Panther",
-        "content": "✏️ Contenido propio",
-        None:      "📎 Sin clasificar",
+        "reel":            "🎬 Reel de Panther",
+        "story":           "📸 Historia de Panther",
+        "content":         "✏️ Contenido propio",
+        "wallet_activate": "🔐 Activación de Wallet",
+        "review_store":    "⭐ Review en Tienda (Play/App Store)",
+        "review_trust":    "🌟 Review en Trustpilot",
+        None:              "📎 Sin clasificar",
     }
     tipo_label = tipo_labels.get(mission_type, "📎 Sin clasificar")
 
-    count_key = f"{mission_type}_count_today" if mission_type else None
+    # Misiones de wallet no tienen límite diario
+    wallet_missions = ["wallet_activate", "review_store", "review_trust"]
+    count_key = f"{mission_type}_count_today" if mission_type and mission_type not in wallet_missions else None
     current_count = data.get(count_key, 0) if count_key else 0
 
     if count_key and current_count >= MAX_DAILY:
@@ -2354,8 +2359,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
         # ── POST /set_mission_type — guarda qué misión va a subir el usuario ──
         elif path == "/set_mission_type":
             uid = body.get("id")
-            mission_type = body.get("type")  # reel | story | content
-            if not uid or mission_type not in ["reel", "story", "content"]:
+            mission_type = body.get("type")  # reel | story | content | wallet_activate | review_store | review_trust
+            if not uid or mission_type not in ["reel", "story", "content", "wallet_activate", "review_store", "review_trust"]:
                 return self.send_json({"error": "Invalid params"}, 400)
             # Guardar en memoria del bot usando un dict global temporal
             PENDING_MISSIONS[uid] = mission_type

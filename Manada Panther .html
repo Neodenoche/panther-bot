@@ -805,11 +805,26 @@ function applyTranslations() {
 
   // Marcar misiones de wallet completadas
   if(userData) {
+    // Activar wallet
     if(userData.wallet_activated) {
-      const activateArr = document.getElementById('arr-wallet-activate');
-      if(activateArr) { activateArr.textContent = '✓'; activateArr.style.color = '#4ade80'; }
-      const mc = document.getElementById('mc-wallet-activate');
-      if(mc) mc.style.opacity = '0.6';
+      const el = document.getElementById('mc-wallet-activate');
+      const arr = document.getElementById('arr-wallet-activate');
+      if(el) { el.style.opacity = '0.6'; el.onclick = null; }
+      if(arr) { arr.textContent = '✅'; arr.style.color = '#4ade80'; }
+    }
+    // Review store
+    if(userData.review_store_done) {
+      const el = document.getElementById('mc-wallet-review-store');
+      const arr = document.getElementById('arr-wallet-review-store');
+      if(el) { el.style.opacity = '0.6'; el.onclick = null; }
+      if(arr) { arr.textContent = '✅'; arr.style.color = '#4ade80'; }
+    }
+    // Review trust
+    if(userData.review_trust_done) {
+      const el = document.getElementById('mc-wallet-review-trust');
+      const arr = document.getElementById('arr-wallet-review-trust');
+      if(el) { el.style.opacity = '0.6'; el.onclick = null; }
+      if(arr) { arr.textContent = '✅'; arr.style.color = '#4ade80'; }
     }
   }
 
@@ -1368,6 +1383,19 @@ function openWalletMission(type) {
   // Verificar que tiene wallet activa para reviews y contenido
   if(type !== 'activate' && userData && !userData.wallet_activated) {
     alert('⚠️ Primero necesitás activar tu Panther Wallet para acceder a esta misión.');
+    return;
+  }
+  // Bloquear misiones ya completadas
+  if(type === 'activate' && userData && userData.wallet_activated) {
+    alert('✅ Ya completaste esta misión. Tu wallet está verificada.');
+    return;
+  }
+  if(type === 'review_store' && userData && userData.review_store_done) {
+    alert('✅ Ya dejaste tu review en la tienda. ¡Gracias!');
+    return;
+  }
+  if(type === 'review_trust' && userData && userData.review_trust_done) {
+    alert('✅ Ya dejaste tu review en Trustpilot. ¡Gracias!');
     return;
   }
 

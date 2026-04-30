@@ -1419,11 +1419,27 @@ function openWalletMission(type) {
   // Guardar missionType globalmente para el botón
   window._walletMissionType = missionType;
 
-  // Actualizar el modal estático con los datos de esta misión
-  document.getElementById('wm-title').textContent = title;
-  document.getElementById('wm-steps').innerHTML = steps.join('<br>');
-  document.getElementById('wm-pts').textContent = pts;
-  document.getElementById('wallet-mission-modal').style.display = 'flex';
+  // Guardar tipo y abrir bot directamente
+  window._walletMissionType = missionType;
+  
+  // Registrar tipo de misión en el servidor
+  fetch(API_BASE + '/set_mission_type', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({id: USER_ID, type: missionType})
+  }).catch(()=>{});
+
+  // Mostrar instrucciones con confirm nativo y abrir bot
+  const instrucciones = title + '\n\n' + steps.join('\n') + '\n\n' + pts + ' si se aprueba';
+  const ir = confirm(instrucciones + '\n\n¿Abrir el bot para enviar la captura?');
+  if(ir) {
+    const tg = window.Telegram && window.Telegram.WebApp;
+    if(tg && tg.openTelegramLink) {
+      tg.openTelegramLink('https://t.me/ManadaPantherBot');
+    } else {
+      window.open('https://t.me/ManadaPantherBot', '_blank');
+    }
+  }
 }
 
 function goToWalletBot() {
@@ -2061,10 +2077,10 @@ new MutationObserver(()=>{
       <span id="wm-pts" style="color:#FF5C1A;font-weight:700;font-size:16px"></span>
       <span style="color:#888;font-size:13px"> si se aprueba</span>
     </div>
-    <button id="wm-bot-btn" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+    <button onclick="goToWalletBot()" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
       🐆 IR AL BOT
     </button>
-    <button id="wm-cancel-btn" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
+    <button onclick="document.getElementById('wallet-mission-modal').style.display='none'" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
       Cancelar
     </button>
   </div>

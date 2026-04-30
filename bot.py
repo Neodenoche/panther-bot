@@ -47,6 +47,9 @@ PTS = {
     "follow_all_bonus": 20,
     "share_story":      20,
     "own_content":     100,
+    "wallet_activate": 175,
+    "review_store":    175,
+    "review_trust":    175,
 }
 
 # ── Niveles actualizados ──────────────────────────────────────────────────────
@@ -1501,24 +1504,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Notificar a moderadores — grupo primero, fallback individual
     mission_keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton(
-                f"✅ Reel (+{PTS['share_reel']} pts)",
-                callback_data=f"approve_{uid}_reel"
-            ),
-            InlineKeyboardButton(
-                f"✅ Historia (+{PTS['share_story']} pts)",
-                callback_data=f"approve_{uid}_story"
-            ),
+            InlineKeyboardButton(f"✅ Reel (+{PTS['share_reel']} pts)", callback_data=f"approve_{uid}_reel"),
+            InlineKeyboardButton(f"✅ Historia (+{PTS['share_story']} pts)", callback_data=f"approve_{uid}_story"),
         ],
         [
-            InlineKeyboardButton(
-                f"✅ Contenido (+{PTS['own_content']} pts)",
-                callback_data=f"approve_{uid}_content"
-            ),
-            InlineKeyboardButton(
-                "❌ Rechazar",
-                callback_data=f"reject_{uid}"
-            ),
+            InlineKeyboardButton(f"✅ Contenido (+{PTS['own_content']} pts)", callback_data=f"approve_{uid}_content"),
+            InlineKeyboardButton("✅ Wallet (+175 pts)", callback_data=f"approve_{uid}_wallet_activate"),
+        ],
+        [
+            InlineKeyboardButton("✅ Review Store (+175 pts)", callback_data=f"approve_{uid}_review_store"),
+            InlineKeyboardButton("✅ Review Trust (+175 pts)", callback_data=f"approve_{uid}_review_trust"),
+        ],
+        [
+            InlineKeyboardButton("❌ Rechazar", callback_data=f"reject_{uid}"),
         ]
     ])
     mission_text = (
@@ -1575,7 +1573,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     target_uid = context.args[0]
     tipo       = context.args[1].lower()
-    pts_map    = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"]}
+    pts_map    = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175}
 
     if tipo not in pts_map:
         await update.message.reply_text("Tipo inválido. Usá: reel, story o content")
@@ -1697,11 +1695,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mod_name = query.from_user.first_name or str(query.from_user.id)
 
         if action == "approve" and tipo:
-            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"]}
+            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
             save_db(db)
 
-            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido"}
+            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot"}
             approve_text = (
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"

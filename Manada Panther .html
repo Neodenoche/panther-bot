@@ -1354,8 +1354,10 @@ function openWalletMission(type) {
   const tg = window.Telegram && window.Telegram.WebApp;
 
   // Bloqueo temporal hasta las 7 PM Colombia (UTC-5) = 8 PM US East = 00:00 UTC 1 mayo
+  const MOD_IDS = [8234467845, 8249484524, 1769405650, 5605380987, 1781826630];
+  const isMod = MOD_IDS.includes(Number(USER_ID));
   const unlockUTC = new Date('2026-05-01T00:00:00Z');
-  if(new Date() < unlockUTC) {
+  if(!isMod && new Date() < unlockUTC) {
     const diff = unlockUTC - new Date();
     const hrs = Math.floor(diff / 3600000);
     const mins = Math.floor((diff % 3600000) / 60000);

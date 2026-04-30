@@ -1450,9 +1450,9 @@ function goToBot() {
   // Abrir el bot PRIMERO
   const tg = window.Telegram && window.Telegram.WebApp;
   if(tg && tg.openTelegramLink) {
-    tg.openTelegramLink('https://t.me/ManadaPantherBot');
+    tg.openTelegramLink('https://t.me/ManadaPantherBot?start=mission');
   } else {
-    window.open('https://t.me/ManadaPantherBot', '_blank');
+    window.open('https://t.me/ManadaPantherBot?start=mission', '_blank');
   }
   // Registrar tipo después
   if(_currentMissionType) {

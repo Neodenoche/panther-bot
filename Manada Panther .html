@@ -1352,6 +1352,16 @@ function getStoreUrl() {
 
 function openWalletMission(type) {
   const tg = window.Telegram && window.Telegram.WebApp;
+
+  // Bloqueo temporal hasta las 7 PM Colombia (UTC-5) = 8 PM US East = 00:00 UTC 1 mayo
+  const unlockUTC = new Date('2026-05-01T00:00:00Z');
+  if(new Date() < unlockUTC) {
+    const diff = unlockUTC - new Date();
+    const hrs = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    alert('🔒 Esta sección se habilita hoy a las 7:00 PM (hora Colombia).\n\nFaltan ' + hrs + 'h ' + mins + 'm');
+    return;
+  }
   
   // Verificar que tiene wallet activa para reviews y contenido
   if(type !== 'activate' && userData && !userData.wallet_activated) {
@@ -1404,34 +1414,14 @@ function openWalletMission(type) {
     missionType = 'content';
   }
 
-  // Mostrar modal
-  let modal = document.getElementById('wallet-mission-modal');
-  if(!modal) {
-    modal = document.createElement('div');
-    modal.id = 'wallet-mission-modal';
-    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px';
-    document.body.appendChild(modal);
-  }
-  modal.style.display = 'flex';
-  modal.innerHTML = `
-    <div style="background:#161616;border-radius:20px;padding:24px;width:100%;max-width:360px;border:1px solid #2a2a2a">
-      <div style="font-size:22px;font-weight:700;color:#fff;margin-bottom:16px">${title}</div>
-      <div style="font-size:14px;color:#aaa;line-height:1.8;margin-bottom:20px">${steps.join('<br>')}</div>
-      <div style="background:#1f0a00;border:1px solid #3a1500;border-radius:10px;padding:10px;text-align:center;margin-bottom:20px">
-        <span style="color:#FF5C1A;font-weight:700;font-size:16px">${pts}</span>
-        <span style="color:#888;font-size:13px"> si se aprueba</span>
-      </div>
-      <button onclick="goToWalletBot()" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
-        🐆 IR AL BOT
-      </button>
-      <button onclick="document.getElementById('wallet-mission-modal').style.display='none'" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
-        Cancelar
-      </button>
-    </div>
-  `;
-
   // Guardar missionType globalmente para el botón
   window._walletMissionType = missionType;
+
+  // Actualizar el modal estático con los datos de esta misión
+  document.getElementById('wm-title').textContent = title;
+  document.getElementById('wm-steps').innerHTML = steps.join('<br>');
+  document.getElementById('wm-pts').textContent = pts;
+  document.getElementById('wallet-mission-modal').style.display = 'flex';
 }
 
 function goToWalletBot() {
@@ -2061,5 +2051,21 @@ new MutationObserver(()=>{
 
 // Telegram WebApp already initialized above
 </script>
+<div id="wallet-mission-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#161616;border-radius:20px;padding:24px;width:100%;max-width:360px;border:1px solid #2a2a2a">
+    <div id="wm-title" style="font-size:22px;font-weight:700;color:#fff;margin-bottom:16px"></div>
+    <div id="wm-steps" style="font-size:14px;color:#aaa;line-height:1.8;margin-bottom:20px"></div>
+    <div style="background:#1f0a00;border:1px solid #3a1500;border-radius:10px;padding:10px;text-align:center;margin-bottom:20px">
+      <span id="wm-pts" style="color:#FF5C1A;font-weight:700;font-size:16px"></span>
+      <span style="color:#888;font-size:13px"> si se aprueba</span>
+    </div>
+    <button id="wm-bot-btn" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+      🐆 IR AL BOT
+    </button>
+    <button id="wm-cancel-btn" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
+      Cancelar
+    </button>
+  </div>
+</div>
 </body>
 </html>

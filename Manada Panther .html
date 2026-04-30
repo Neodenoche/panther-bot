@@ -1370,7 +1370,10 @@ function getStoreUrl() {
 }
 
 function openWalletMission(type) {
-  // Si userData aún no cargó, cargar y reintentar
+  // DEBUG - mostrar estado
+  const dbg = "USER_ID=" + USER_ID + " | userData=" + (userData ? "OK" : "NULL") + " | type=" + type;
+  alert("DEBUG: " + dbg);
+  
   if(!userData) {
     loadUserData().then(function() { openWalletMission(type); });
     return;

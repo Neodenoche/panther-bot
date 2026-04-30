@@ -1695,7 +1695,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parts = data_str.split("_")
         action = parts[0]
         target_uid = parts[1]
-        tipo = parts[2] if len(parts) > 2 else None
+        tipo = "_".join(parts[2:]) if len(parts) > 2 else None
 
         db = load_db()
         if target_uid not in db:

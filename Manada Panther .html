@@ -1381,7 +1381,6 @@ function openWalletMission(type) {
   const isMod = MOD_IDS_WALLET.includes(String(USER_ID));
   const unlockUTC = new Date('2026-05-01T00:00:00Z');
   const now = new Date();
-  alert("DEBUG2: isMod=" + isMod + " | now=" + now.toISOString() + " | unlock=" + unlockUTC.toISOString() + " | blocked=" + (!isMod && now < unlockUTC));
   if(!isMod && now < unlockUTC) {
     const diff = unlockUTC - now;
     const hrs = Math.floor(diff / 3600000);
@@ -2111,9 +2110,9 @@ new MutationObserver(()=>{
       <span id="wm-pts" style="color:#FF5C1A;font-weight:700;font-size:16px"></span>
       <span style="color:#888;font-size:13px"> si se aprueba</span>
     </div>
-    <button onclick="goToWalletBot()" style="background:#FF5C1A;color:#fff;border:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px">
+    <a id="wm-bot-link" href="https://t.me/ManadaPantherBot?start=mission" target="_blank" style="display:block;background:#FF5C1A;color:#fff;text-decoration:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:center">
       🐆 IR AL BOT
-    </button>
+    </a>
     <button onclick="document.getElementById('wallet-mission-modal').style.display='none'" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
       Cancelar
     </button>

@@ -965,8 +965,7 @@ async def cmd_verificar_follow(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # ── /ruleta_on / /ruleta_off (moderadores) ────────────────────────────────────
 async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         return
     db = load_db()
     if "_global" not in db:
@@ -976,8 +975,7 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Ruleta ACTIVADA manualmente")
 
 async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         return
     db = load_db()
     if "_global" not in db:
@@ -987,8 +985,7 @@ async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔴 Ruleta DESACTIVADA manualmente")
 
 async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         return
     db = load_db()
     if "_global" not in db:
@@ -999,8 +996,7 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         await update.message.reply_text("❌ No tenés permisos.")
         return
     
@@ -1249,8 +1245,7 @@ async def cmd_verificar_follow(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # ── /ruleta_on / /ruleta_off (moderadores) ────────────────────────────────────
 async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         return
     db = load_db()
     if "_global" not in db:
@@ -1260,8 +1255,7 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("✅ Ruleta ACTIVADA manualmente")
 
 async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         return
     db = load_db()
     if "_global" not in db:
@@ -1271,8 +1265,7 @@ async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("🔴 Ruleta DESACTIVADA manualmente")
 
 async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         return
     db = load_db()
     if "_global" not in db:
@@ -1283,8 +1276,7 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = str(update.effective_user.id)
-    if uid not in MOD_IDS:
+    if update.effective_user.id not in MOD_IDS:
         await update.message.reply_text("❌ No tenés permisos.")
         return
     

@@ -1417,29 +1417,14 @@ function openWalletMission(type) {
   }
 
   // Guardar missionType globalmente para el botón
+  // Guardar tipo de misión globalmente
   window._walletMissionType = missionType;
 
-  // Guardar tipo y abrir bot directamente
-  window._walletMissionType = missionType;
-  
-  // Registrar tipo de misión en el servidor
-  fetch(API_BASE + '/set_mission_type', {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({id: USER_ID, type: missionType})
-  }).catch(()=>{});
-
-  // Mostrar instrucciones con confirm nativo y abrir bot
-  const instrucciones = title + '\n\n' + steps.join('\n') + '\n\n' + pts + ' si se aprueba';
-  const ir = confirm(instrucciones + '\n\n¿Abrir el bot para enviar la captura?');
-  if(ir) {
-    const tg = window.Telegram && window.Telegram.WebApp;
-    if(tg && tg.openTelegramLink) {
-      tg.openTelegramLink('https://t.me/ManadaPantherBot');
-    } else {
-      window.open('https://t.me/ManadaPantherBot', '_blank');
-    }
-  }
+  // Actualizar modal estático y mostrarlo
+  document.getElementById('wm-title').textContent = title;
+  document.getElementById('wm-steps').innerHTML = steps.join('<br>');
+  document.getElementById('wm-pts').textContent = pts;
+  document.getElementById('wallet-mission-modal').style.display = 'flex';
 }
 
 function goToWalletBot() {

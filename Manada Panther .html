@@ -308,7 +308,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
 
   <!-- PANTHER WALLET MISIONES -->
-  <div class="sec" style="margin-top:6px;opacity:0.5;pointer-events:none" id="sec-wallet-missions">
+  <div class="sec" style="margin-top:6px" id="sec-wallet-missions">
     <div class="stitle" id="stitle-wallet">PANTHER WALLET</div>
 
     <!-- Activar Wallet -->
@@ -1369,14 +1369,12 @@ function getStoreUrl() {
   return 'https://play.google.com/store/search?q=panther+wallet';
 }
 
-function openWalletMission(type) {
-  const tg = window.Telegram && window.Telegram.WebApp;
-
-  // Si userData aún no cargó, esperar y reintentar
+async function openWalletMission(type) {
+  // Si userData aún no cargó, esperarlo
   if(!userData) {
-    loadUserData().then(() => openWalletMission(type));
-    return;
+    await loadUserData();
   }
+  const tg = window.Telegram && window.Telegram.WebApp;
 
   // Bloqueo temporal hasta las 7 PM Colombia (UTC-5) = 8 PM US East = 00:00 UTC 1 mayo
   const MOD_IDS_WALLET = ['8234467845', '8249484524', '1769405650', '5605380987', '1781826630'];

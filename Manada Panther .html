@@ -1665,6 +1665,7 @@ async function verifyFollow(red) {
 function goTo(n){
   originalGoTo(n);
   if(n === 'ranking') loadRanking();
+  if(n === 'misiones') loadUserData();
 }
 
 async function loadRanking() {

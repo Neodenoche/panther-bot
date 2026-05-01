@@ -438,6 +438,15 @@ def get_user(db, uid: str, user=None):
         db[uid]["referrals"] = []
     return db[uid]
 
+def escape_md(text: str) -> str:
+    """Escapa caracteres especiales de Markdown para Telegram"""
+    if not text:
+        return ""
+    # Escapar caracteres que rompen Markdown
+    for ch in ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']:
+        text = text.replace(ch, f'\\{ch}')
+    return text
+
 def sanitize_name(name: str) -> str:
     """Limpia nombres con caracteres especiales para SQLite"""
     if not name:
@@ -1399,7 +1408,9 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid  = str(user.id)
     data = get_user(db, uid, user)
 
-    name = f"@{user.username}" if user.username else user.first_name
+    raw_name = f"@{user.username}" if user.username else user.first_name
+    name = raw_name  # Para mensajes sin Markdown
+    name_md = escape_md(raw_name)  # Para mensajes con Markdown
 
     # Check if this is a wallet activation proof
     if data.get("pending_wallet_proof"):
@@ -1407,7 +1418,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db(db)
 
         await update.message.reply_text(
-            f"✅ *¡Captura recibida!* Gracias {name}.\n\n"
+            f"✅ *¡Captura recibida!* Gracias {name_md}.\n\n"
             f"Un moderador verificará tu activación de wallet en las próximas 24h.\n\n"
             f"_Cuando se apruebe, tu referidor recibirá sus puntos_ 🐆",
             parse_mode="Markdown"
@@ -1558,7 +1569,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     mission_text = (
         f"📸 *Captura de verificación*\n"
         f"Tipo: *{tipo_label}*\n"
-        f"Usuario: {name} (ID: `{uid}`)\n"
+        f"Usuario: {name_md} (ID: `{uid}`)\n"
         f"Puntos actuales: *{data['points']}*\n\n"
         f"Seleccioná la acción:"
     )

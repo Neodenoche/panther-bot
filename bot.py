@@ -1494,7 +1494,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Misiones de wallet no tienen límite diario
     wallet_missions = ["wallet_activate", "review_store", "review_trust"]
-    count_key = f"{mission_type}_count_today" if mission_type and mission_type not in wallet_missions else None
+    if mission_type in wallet_missions:
+        count_key = None  # Sin límite diario
+    elif mission_type in ["reel", "story", "content"]:
+        count_key = f"{mission_type}_count_today"
+    else:
+        # Sin tipo registrado — usar content como fallback
+        mission_type = "content"
+        count_key = "content_count_today"
+    
     current_count = data.get(count_key, 0) if count_key else 0
 
     if count_key and current_count >= MAX_DAILY:

@@ -1737,6 +1737,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Acciones especiales por tipo
             if tipo == "wallet_activate":
                 db[target_uid]["wallet_activated"] = True
+                # Dar +150 pts al referidor
+                referrer_uid = db[target_uid].get("referred_by")
+                if referrer_uid and referrer_uid in db:
+                    referrer_earned = add_points(db[referrer_uid], PTS["referral_wallet"])
+                    db[referrer_uid]["referrals_active"] = db[referrer_uid].get("referrals_active", 0) + 1
+                    try:
+                        await context.bot.send_message(
+                            chat_id=int(referrer_uid),
+                            text=(
+                                f"🎉 *¡Tu referido activó su wallet!*\n\n"
+                                f"*+{referrer_earned} puntos* acreditados en tu cuenta 🐆\n\n"
+                                f"_Seguí invitando amigos para ganar más recompensas_"
+                            ),
+                            parse_mode="Markdown"
+                        )
+                    except Exception:
+                        pass
             elif tipo == "review_store":
                 db[target_uid]["review_store_done"] = True
             elif tipo == "review_trust":

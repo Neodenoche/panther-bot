@@ -1901,6 +1901,54 @@ async def cmd_enviar_badges(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"❌ Fallidos: {failed}"
     )
 
+async def cmd_dar_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text("Uso: /dar_puntos USER_ID cantidad motivo")
+        return
+
+    target_uid = context.args[0]
+    try:
+        amount = int(context.args[1])
+    except ValueError:
+        await update.message.reply_text("❌ La cantidad debe ser un numero.")
+        return
+
+    if amount <= 0 or amount > 500:
+        await update.message.reply_text("❌ La cantidad debe ser entre 1 y 500.")
+        return
+
+    motivo = " ".join(context.args[2:]) if len(context.args) > 2 else "Bonus especial"
+
+    db = load_db()
+    if target_uid not in db:
+        await update.message.reply_text("❌ Usuario no encontrado.")
+        return
+
+    earned = add_points(db[target_uid], amount)
+    save_db(db)
+
+    name = db[target_uid].get("username") or db[target_uid].get("first_name") or target_uid
+    await update.message.reply_text(
+        f"✅ +{earned} puntos acreditados a @{name}\n"
+        f"Motivo: {motivo}\n"
+        f"Total: {db[target_uid]['points']} puntos",
+    )
+
+    try:
+        await context.bot.send_message(
+            chat_id=int(target_uid),
+            text=(
+                f"🎉 Bonus especial!\n\n"
+                f"Recibiste +{earned} puntos por: {motivo}\n\n"
+                f"Total: {db[target_uid]['points']} puntos 🐾"
+            ),
+        )
+    except Exception:
+        pass
+
 async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía un mensaje de prueba a todos los mods — solo moderadores"""
     if update.effective_user.id not in MOD_IDS:
@@ -2531,6 +2579,7 @@ def main():
     app.add_handler(CommandHandler("ayuda",      cmd_ayuda))
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
+    app.add_handler(CommandHandler("dar_puntos", cmd_dar_puntos))
     app.add_handler(CommandHandler("pingmods",   cmd_pingmods))
     app.add_handler(CommandHandler("mi_badge",   cmd_mi_badge))
     app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))

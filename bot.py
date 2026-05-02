@@ -761,7 +761,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     level = get_level(data["points"])
     next_lv, pts_needed = get_next_level(data["points"])
 
-    app_url = f"https://go.mypanther.io/app?id={uid}"
+    app_url = f"https://go.mypanther.io/app?id={uid}&v=2"
 
     if is_new:
         text = (
@@ -1216,7 +1216,7 @@ async def cmd_misiones(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db   = load_db()
     data = get_user(db, uid, user)
     save_db(db)
-    app_url = f"https://go.mypanther.io/app?id={uid}"
+    app_url = f"https://go.mypanther.io/app?id={uid}&v=2"
     from telegram import WebAppInfo
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("🐆 Abrir Misiones en la Mini App", web_app=WebAppInfo(url=app_url))],
@@ -1651,7 +1651,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── Callbacks (botones inline) ────────────────────────────────────────────────
 async def cmd_ruleta_redirect(update, context):
     uid = str(update.effective_user.id)
-    app_url = f"https://go.mypanther.io/app?id={uid}"
+    app_url = f"https://go.mypanther.io/app?id={uid}&v=2"
     from telegram import WebAppInfo
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("🎰 Abrir Ruleta en la Mini App", web_app=WebAppInfo(url=app_url))
@@ -1663,7 +1663,7 @@ async def cmd_ruleta_redirect(update, context):
 
 async def cmd_misiones_redirect(update, context):
     uid = str(update.effective_user.id)
-    app_url = f"https://go.mypanther.io/app?id={uid}"
+    app_url = f"https://go.mypanther.io/app?id={uid}&v=2"
     from telegram import WebAppInfo
     keyboard = InlineKeyboardMarkup([[
         InlineKeyboardButton("📋 Abrir Misiones en la Mini App", web_app=WebAppInfo(url=app_url))
@@ -1846,7 +1846,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Función genérica de redirect a la mini app
     async def redirect_to_app(upd, ctx):
         uid = str(upd.effective_user.id)
-        app_url = f"https://go.mypanther.io/app?id={uid}"
+        app_url = f"https://go.mypanther.io/app?id={uid}&v=2"
         from telegram import WebAppInfo
         kb = InlineKeyboardMarkup([[
             InlineKeyboardButton("🐆 Abrir Manada Panther", web_app=WebAppInfo(url=app_url))

@@ -2190,7 +2190,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
         # ── GET /missions?id=123456 ──
         elif path == "/ruleta":
-            uid = body.get("id")
+            uid = params.get("id", [None])[0]
             if not uid:
                 return self.send_json({"error": "Missing id"}, 400)
 

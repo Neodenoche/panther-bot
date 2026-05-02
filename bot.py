@@ -1985,6 +1985,21 @@ async def cmd_dar_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception:
         pass
 
+async def cmd_reset_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Resetea los giros de la ruleta para todos los usuarios — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+    db = load_db()
+    count = 0
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        data["spins_used_this_event"] = 0
+        count += 1
+    save_db(db)
+    await update.message.reply_text(f"Giros reseteados para {count} usuarios. Listos para la ruleta!")
+
 async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía un mensaje de prueba a todos los mods — solo moderadores"""
     if update.effective_user.id not in MOD_IDS:
@@ -2616,6 +2631,7 @@ def main():
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CommandHandler("dar_puntos", cmd_dar_puntos))
+    app.add_handler(CommandHandler("reset_ruleta", cmd_reset_ruleta))
     app.add_handler(CommandHandler("pingmods",   cmd_pingmods))
     app.add_handler(CommandHandler("mi_badge",   cmd_mi_badge))
     app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))

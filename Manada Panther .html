@@ -1936,10 +1936,8 @@ function doSpin(){
 
     if (USER_ID) {
       try {
-        const res = await fetch(`${API_BASE}/ruleta`, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json'},
-          body: JSON.stringify({id: USER_ID})
+        const res = await fetch(`${API_BASE}/ruleta?id=${USER_ID}`, {
+          method: 'GET'
         });
         const data = await res.json();
 

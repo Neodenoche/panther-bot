@@ -1866,14 +1866,13 @@ function getPNTPrize() {
 
 // Segments — visual labels
 const SEGMENTS = [
-  { angle: 22.5,  type:'pts',  label:'+5 pts 🔥'    },
-  { angle: 67.5,  type:'usdt', label:'USDT 💰'       },
-  { angle: 112.5, type:'pts',  label:'+10 pts 🔥'    },
-  { angle: 157.5, type:'pts',  label:'×2 puntos ⚡'  },
-  { angle: 202.5, type:'pts',  label:'+15 pts 🔥'    },
-  { angle: 247.5, type:'pnt',  label:'PNT 🐾'        },
-  { angle: 292.5, type:'pts',  label:'+8 pts 🔥'     },
-  { angle: 337.5, type:'usdt', label:'USDT 💰'       },
+  { angle: 25.7,  type:'pts',  label:'+50 pts 🔥'   },
+  { angle: 77.1,  type:'usdt', label:'USDT 💰'       },
+  { angle: 128.5, type:'pts',  label:'+100 pts 🔥'  },
+  { angle: 180.0, type:'x2',   label:'×2 puntos ⚡' },
+  { angle: 231.4, type:'pts',  label:'+15 pts 🔥'   },
+  { angle: 282.8, type:'pnt',  label:'PNT 🐾'        },
+  { angle: 334.2, type:'pts',  label:'+200 pts 🎁'  },
 ];
 
 function doSpin(){
@@ -1894,75 +1893,63 @@ function doSpin(){
   spinning=true;
   const btn=document.getElementById('spin-btn');
   btn.disabled=true;
-  document.getElementById('spin-result').textContent='';
-  document.getElementById('spin-result').style.color='#ff8c42';
+  document.getElementById('spin-result').textContent='🎰 Girando...';
+  document.getElementById('spin-result').style.color='#888';
 
-  // Weighted segment selection
-  // USDT blocked if already won this month
-  const canUsdt = !hasWonUSDTThisMonth() && getUSDTPrize() !== null;
-  const canPnt = getPNTPrize() !== null;
+  // 1. Llamar al backend PRIMERO
+  let backendData = null;
+  if(USER_ID) {
+    try {
+      const res = await fetch(`${API_BASE}/ruleta?id=${USER_ID}`, { method: 'GET' });
+      backendData = await res.json();
+    } catch(e) { console.error('Ruleta API error:', e); }
+  }
 
-  // Build weighted pool
-  const pool = [];
-  SEGMENTS.forEach((seg,i) => {
-    if(seg.type==='usdt' && !canUsdt) {
-      // Replace with +5 pts if USDT not available
-      pool.push({...seg, type:'pts', label:'+5 pts 🔥', weight:3});
-    } else if(seg.type==='pnt' && !canPnt) {
-      pool.push({...seg, type:'pts', label:'+8 pts 🔥', weight:2});
+  // 2. Determinar segmento visual según resultado real del backend
+  let chosen;
+  if(backendData && !backendData.already_done && !backendData.error && backendData.status === 'ok') {
+    if(backendData.prize_type === 'USDT') {
+      chosen = SEGMENTS.find(s => s.type === 'usdt') || SEGMENTS[1];
+    } else if(backendData.prize_type === 'PNT') {
+      chosen = SEGMENTS.find(s => s.type === 'pnt') || SEGMENTS[5];
     } else {
-      // Normal weights
-      const w = seg.type==='usdt'?1 : seg.type==='pnt'?2 : 5;
-      pool.push({...seg, weight:w});
+      const pts = backendData.pts_gained || 0;
+      if(pts >= 150) chosen = SEGMENTS.find(s => s.label.includes('200')) || SEGMENTS[6];
+      else if(pts >= 75) chosen = SEGMENTS.find(s => s.label.includes('100')) || SEGMENTS[2];
+      else if(pts >= 30) chosen = SEGMENTS.find(s => s.label.includes('50')) || SEGMENTS[0];
+      else chosen = SEGMENTS.find(s => s.label.includes('15')) || SEGMENTS[4];
     }
-  });
+  } else {
+    chosen = SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
+  }
 
-  // Pick weighted random
-  const totalW = pool.reduce((a,b)=>a+b.weight,0);
-  let r = Math.random()*totalW;
-  let chosen = pool[0];
-  for(const p of pool){ r-=p.weight; if(r<=0){chosen=p;break;} }
-
-  // Rotate to chosen segment
-  const offset = (Math.random()-0.5)*30;
+  // 3. Animar la rueda al segmento correcto
+  const offset = (Math.random()-0.5)*20;
   const targetAngle = (360 - chosen.angle + offset + 360) % 360;
   totalDeg = totalDeg + 6*360 + targetAngle;
   document.getElementById('wheel').style.transform=`rotate(${totalDeg}deg)`;
 
   setTimeout(async () => {
-    // Call backend
     let resultText = chosen.label;
     let resultColor = '#ff8c42';
 
-    if (USER_ID) {
-      try {
-        const res = await fetch(`${API_BASE}/ruleta?id=${USER_ID}`, {
-          method: 'GET'
-        });
-        const data = await res.json();
-
-        if (data.already_done || data.status === 'already_done') {
-          resultText = '🎰 Ya giraste hoy · volvé mañana';
-          resultColor = '#888';
-        } else if (data.prize_type === 'USDT') {
-          resultText = `🎉 ¡Ganaste ${data.prize_amount}! El equipo Panther te contactará.`;
-          resultColor = '#4ade80';
-        } else if (data.prize_type === 'PNT') {
-          resultText = `🐾 ¡Ganaste ${data.prize_amount}! Se acreditarán en tu wallet.`;
-          resultColor = '#cc88ff';
-        } else {
-          resultText = `✅ +${data.pts_gained || '?'} pts ganados!`;
-          resultColor = '#ff8c42';
-        }
-
-        // Refresh user data
-        await loadUserData();
-      } catch(e) {
-        resultText = chosen.label;
-        console.error('Ruleta API error:', e);
+    if(backendData) {
+      if(backendData.already_done) {
+        resultText = '🎰 Ya giraste hoy · volvé mañana';
+        resultColor = '#888';
+      } else if(backendData.prize_type === 'USDT') {
+        resultText = `🎉 ¡Ganaste ${backendData.prize_amount} USDT! El equipo Panther te contactará.`;
+        resultColor = '#4ade80';
+      } else if(backendData.prize_type === 'PNT') {
+        resultText = `🐾 ¡Ganaste ${backendData.prize_amount} PNT! Se acreditarán en tu wallet.`;
+        resultColor = '#cc88ff';
+      } else {
+        resultText = `✅ +${backendData.pts_gained} pts ganados!`;
+        resultColor = '#ff8c42';
       }
     }
 
+    await loadUserData();
     document.getElementById('spin-result').textContent = resultText;
     document.getElementById('spin-result').style.color = resultColor;
     spinning = false;

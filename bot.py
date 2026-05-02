@@ -2548,7 +2548,6 @@ class MiniAppHandler(BaseHTTPRequestHandler):
         else:
             self.send_json({"error": "Not found"}, 404)
 
-
 def run_http_server():
     """Corre el servidor HTTP en un thread separado"""
     port = int(os.environ.get("PORT", 8000))

@@ -28,6 +28,9 @@ SQLITE_FILE = "/data/panther.db"
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
 PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
+STAR_COOLDOWN: dict = {}    # uid -> list of timestamps (máx 5 por hora)
+CHAT_STARS: dict = {}       # uid -> {stars, awarded_pts, username, first_name}
+CHAT_AWARDS: dict = {}      # uid -> {pts, username, first_name, reasons}
 
 # ── Puntos por acción ─────────────────────────────────────────────────────────
 PTS = {
@@ -2000,6 +2003,154 @@ async def cmd_reset_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db(db)
     await update.message.reply_text(f"Giros reseteados para {count} usuarios. Listos para la ruleta!")
 
+async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Dar una estrella a un usuario respondiendo su mensaje"""
+    if not update.message.reply_to_message:
+        await update.message.reply_text("⭐ Respondé el mensaje del usuario al que querés dar una estrella.")
+        return
+
+    giver = update.effective_user
+    receiver = update.message.reply_to_message.from_user
+
+    if not receiver or receiver.id == giver.id:
+        await update.message.reply_text("No podés darte estrellas a vos mismo 😄")
+        return
+
+    if receiver.is_bot:
+        await update.message.reply_text("Los bots no reciben estrellas 🤖")
+        return
+
+    # Verificar cooldown — máximo 5 estrellas por hora
+    now = datetime.now().timestamp()
+    uid = str(giver.id)
+    if uid not in STAR_COOLDOWN:
+        STAR_COOLDOWN[uid] = []
+    STAR_COOLDOWN[uid] = [t for t in STAR_COOLDOWN[uid] if now - t < 3600]
+
+    if len(STAR_COOLDOWN[uid]) >= 5:
+        secs = int(3600 - (now - STAR_COOLDOWN[uid][0]))
+        mins = secs // 60
+        await update.message.reply_text(
+            f"⏳ Ya diste 5 estrellas esta hora. Podés dar más en {mins} minutos."
+        )
+        return
+
+    STAR_COOLDOWN[uid].append(now)
+
+    # Determinar puntos
+    is_reply_of_reply = update.message.reply_to_message.reply_to_message is not None
+    pts = 5 if is_reply_of_reply else 3
+
+    # Registrar estrella
+    rid = str(receiver.id)
+    if rid not in CHAT_STARS:
+        CHAT_STARS[rid] = {
+            "stars": 0, "pts": 0,
+            "username": receiver.username or "",
+            "first_name": receiver.first_name or "Usuario"
+        }
+    CHAT_STARS[rid]["stars"] += 1
+    CHAT_STARS[rid]["pts"] += pts
+
+    giver_name = ("@" + giver.username) if giver.username else giver.first_name
+    receiver_name = ("@" + receiver.username) if receiver.username else receiver.first_name
+
+    stars_total = CHAT_STARS[rid]["stars"]
+    pts_total = CHAT_STARS[rid]["pts"]
+
+    await update.message.reply_text(
+        "⭐ " + giver_name + " le dio una estrella a " + receiver_name + "!\n"
+        "+" + str(pts) + " pts en el ranking del chat 🐾\n\n"
+        "Total: " + str(stars_total) + " ⭐ · " + str(pts_total) + " pts"
+    )
+
+    # Notificar al receptor en privado
+    try:
+        await context.bot.send_message(
+            chat_id=int(rid),
+            text=(
+                "⭐ Recibiste una estrella!\n\n" +
+                giver_name + " reconocio tu aporte en el chat de la Manada.\n\n" +
+                "+" + str(pts) + " pts en el ranking del chat\n" +
+                "Total: " + str(stars_total) + " estrellas"
+            )
+        )
+    except Exception:
+        pass
+
+
+async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Mods dan puntos especiales a usuarios en el chat general"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenés permisos para usar /award.")
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text(
+            "Uso: /award @usuario cantidad razon\n"
+            "Ejemplo: /award @juan 50 Mejor respuesta del quiz"
+        )
+        return
+
+    username = context.args[0].lstrip("@")
+    try:
+        amount = int(context.args[1])
+    except ValueError:
+        await update.message.reply_text("La cantidad debe ser un número.")
+        return
+
+    if amount <= 0 or amount > 500:
+        await update.message.reply_text("La cantidad debe ser entre 1 y 500.")
+        return
+
+    reason = " ".join(context.args[2:]) if len(context.args) > 2 else "Premio especial"
+    mod_name = f"@{update.effective_user.username}" if update.effective_user.username else update.effective_user.first_name
+
+    # Buscar usuario por username en CHAT_STARS o crear entrada
+    uid_found = None
+    for uid, data in CHAT_STARS.items():
+        if data.get("username", "").lower() == username.lower():
+            uid_found = uid
+            break
+
+    if not uid_found:
+        uid_found = f"@{username}"
+        CHAT_STARS[uid_found] = {"stars": 0, "pts": 0, "username": username, "first_name": username}
+
+    CHAT_STARS[uid_found]["pts"] += amount
+
+    if uid_found not in CHAT_AWARDS:
+        CHAT_AWARDS[uid_found] = []
+    CHAT_AWARDS[uid_found].append({"pts": amount, "reason": reason, "mod": mod_name})
+
+    await update.message.reply_text(
+        "🏆 " + mod_name + " le otorgo +" + str(amount) + " pts a @" + username + "\n" +
+        "Motivo: " + reason + "\n\n" +
+        "Total en ranking del chat: " + str(CHAT_STARS[uid_found]['pts']) + " pts"
+    )
+
+
+async def cmd_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra el ranking del chat general por estrellas"""
+    if not CHAT_STARS:
+        await update.message.reply_text("🌟 Aún no hay estrellas repartidas. Usá /star para reconocer a alguien!")
+        return
+
+    sorted_users = sorted(CHAT_STARS.items(), key=lambda x: x[1]["pts"], reverse=True)[:10]
+
+    medals = ["🥇", "🥈", "🥉"]
+    lines = ["🏆 Ranking de la Manada 🏆\n"]
+
+    for i, (uid, data) in enumerate(sorted_users):
+        medal = medals[i] if i < 3 else str(i+1) + "."
+        name = ("@" + data['username']) if data.get("username") else data.get("first_name", "Usuario")
+        stars = data.get("stars", 0)
+        pts = data.get("pts", 0)
+        lines.append(medal + " " + name + " — " + str(stars) + " ⭐ · " + str(pts) + " pts")
+
+    await update.message.reply_text("\n".join(lines))
+
+
 async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía un mensaje de prueba a todos los mods — solo moderadores"""
     if update.effective_user.id not in MOD_IDS:
@@ -2630,7 +2781,10 @@ def main():
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CommandHandler("dar_puntos", cmd_dar_puntos))
-    app.add_handler(CommandHandler("reset_ruleta", cmd_reset_ruleta))
+    app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
+    app.add_handler(CommandHandler("star",          cmd_star))
+    app.add_handler(CommandHandler("award",         cmd_award))
+    app.add_handler(CommandHandler("leaderboard",   cmd_leaderboard))
     app.add_handler(CommandHandler("pingmods",   cmd_pingmods))
     app.add_handler(CommandHandler("mi_badge",   cmd_mi_badge))
     app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))

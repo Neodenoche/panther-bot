@@ -1499,15 +1499,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "reel":            "🎬 Reel de Panther",
         "story":           "📸 Historia de Panther",
         "content":         "✏️ Contenido propio",
-        "wallet_activate": "🔐 Activación de Wallet",
-        "review_store":    "⭐ Review en Tienda (Play/App Store)",
-        "review_trust":    "🌟 Review en Trustpilot",
-        None:              "📎 Sin clasificar",
+        "wallet_activate":  "🔐 Activación de Wallet",
+        "review_store":     "⭐ Review en Tienda (Play/App Store)",
+        "review_trust":     "🌟 Review en Trustpilot",
+        "comment_ig":       "💬 Comentario en Instagram",
+        "comment_ig_last":  "💬 Comentario en Ultimo Post IG (+30 pts)",
+        "comment_tt":       "💬 Comentario en TikTok",
+        "comment_tt_last":  "💬 Comentario en Ultimo Video TikTok (+30 pts)",
+        None:               "📎 Sin clasificar",
     }
     tipo_label = tipo_labels.get(mission_type, "📎 Sin clasificar")
 
     # Misiones de wallet no tienen límite diario
-    wallet_missions = ["wallet_activate", "review_store", "review_trust"]
+    wallet_missions = ["wallet_activate", "review_store", "review_trust", "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last"]
     if mission_type in wallet_missions:
         count_key = None  # Sin límite diario
     elif mission_type in ["reel", "story", "content"]:
@@ -1564,6 +1568,14 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("✅ Review Store (+175 pts)", callback_data=f"approve_{uid}_review_store"),
             InlineKeyboardButton("✅ Review Trust (+175 pts)", callback_data=f"approve_{uid}_review_trust"),
+        ],
+        [
+            InlineKeyboardButton("💬 Comment IG (+5 pts)", callback_data=f"approve_{uid}_comment_ig"),
+            InlineKeyboardButton("💬 Ultimo IG (+30 pts)", callback_data=f"approve_{uid}_comment_ig_last"),
+        ],
+        [
+            InlineKeyboardButton("💬 Comment TT (+5 pts)", callback_data=f"approve_{uid}_comment_tt"),
+            InlineKeyboardButton("💬 Ultimo TT (+30 pts)", callback_data=f"approve_{uid}_comment_tt_last"),
         ],
         [
             InlineKeyboardButton("❌ Rechazar", callback_data=f"reject_{uid}"),
@@ -1623,7 +1635,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     target_uid = context.args[0]
     tipo       = context.args[1].lower()
-    pts_map    = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175}
+    pts_map    = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175, "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30}
 
     if tipo not in pts_map:
         await update.message.reply_text("Tipo inválido. Usá: reel, story o content")
@@ -1745,7 +1757,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mod_name = query.from_user.first_name or str(query.from_user.id)
 
         if action == "approve" and tipo:
-            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175}
+            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175, "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
 
             # Acciones especiales por tipo
@@ -1775,7 +1787,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             save_db(db)
 
-            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot"}
+            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot", "comment_ig": "Comentario IG", "comment_ig_last": "Comentario Ultimo Post IG", "comment_tt": "Comentario TikTok", "comment_tt_last": "Comentario Ultimo Video TikTok"}
             approve_text = (
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"
@@ -2645,7 +2657,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
         elif path == "/set_mission_type":
             uid = body.get("id")
             mission_type = body.get("type")  # reel | story | content | wallet_activate | review_store | review_trust
-            if not uid or mission_type not in ["reel", "story", "content", "wallet_activate", "review_store", "review_trust"]:
+            if not uid or mission_type not in ["reel", "story", "content", "wallet_activate", "review_store", "review_trust", "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last"]:
                 return self.send_json({"error": "Invalid params"}, 400)
             # Guardar en memoria del bot usando un dict global temporal
             PENDING_MISSIONS[uid] = mission_type

@@ -307,6 +307,55 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="mc" id="mc-follow-youtube" onclick="openFollowModal('youtube')"><div class="mic" style="background:#200000">▶️</div><div class="mb"><div class="mn">Suscribirse a Panther en YouTube</div><div class="ms" id="sub-follow-youtube">Toca para suscribirte y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-youtube">→</div></div>
   </div>
 
+  <!-- MISIONES DE COMENTARIOS -->
+  <div class="sec" style="margin-top:6px" id="sec-comment-missions">
+    <div class="stitle">COMENTARIOS</div>
+
+    <!-- Comentar IG ultimo post -->
+    <div class="mc" id="mc-comment-ig-last" onclick="openCommentMission('ig_last')" style="margin-bottom:8px">
+      <div class="mic" style="background:#1a0a1a">📸</div>
+      <div class="mb">
+        <div class="mn">Último post de Instagram</div>
+        <div class="ms">Comentá el último post/reel con +8 palabras</div>
+      </div>
+      <div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div>
+      <div class="marr">→</div>
+    </div>
+
+    <!-- Comentar IG cualquier post -->
+    <div class="mc" id="mc-comment-ig" onclick="openCommentMission('ig')" style="margin-bottom:8px">
+      <div class="mic" style="background:#1a0a1a">📷</div>
+      <div class="mb">
+        <div class="mn">Cualquier post de Instagram</div>
+        <div class="ms">Comentá cualquier post/reel con +8 palabras</div>
+      </div>
+      <div class="mr"><div class="mpts">+5</div><div class="mplab">PTS</div></div>
+      <div class="marr">→</div>
+    </div>
+
+    <!-- Comentar TikTok ultimo video -->
+    <div class="mc" id="mc-comment-tt-last" onclick="openCommentMission('tt_last')" style="margin-bottom:8px">
+      <div class="mic" style="background:#0a1a1a">🎵</div>
+      <div class="mb">
+        <div class="mn">Último video de TikTok</div>
+        <div class="ms">Comentá el último video con +8 palabras</div>
+      </div>
+      <div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div>
+      <div class="marr">→</div>
+    </div>
+
+    <!-- Comentar TikTok cualquier video -->
+    <div class="mc" id="mc-comment-tt" onclick="openCommentMission('tt')" style="margin-bottom:8px">
+      <div class="mic" style="background:#0a1a1a">🎶</div>
+      <div class="mb">
+        <div class="mn">Cualquier video de TikTok</div>
+        <div class="ms">Comentá cualquier video con +8 palabras</div>
+      </div>
+      <div class="mr"><div class="mpts">+5</div><div class="mplab">PTS</div></div>
+      <div class="marr">→</div>
+    </div>
+  </div>
+
   <!-- PANTHER WALLET MISIONES -->
   <div class="sec" style="margin-top:6px" id="sec-wallet-missions">
     <div class="stitle" id="stitle-wallet">PANTHER WALLET</div>
@@ -1464,6 +1513,51 @@ function getStoreUrl() {
   return 'https://play.google.com/store/search?q=panther+wallet';
 }
 
+function openCommentMission(type) {
+  const tg = window.Telegram && window.Telegram.WebApp;
+  const igUrl = 'https://www.instagram.com/panther.wallet/';
+  const ttUrl = 'https://www.tiktok.com/@panther_wallet?_r=1&_t=ZS-95yv5gmnMFF';
+
+  let title, steps, pts, missionType, url;
+
+  if(type === 'ig_last') {
+    title = '📸 Último post de Instagram';
+    steps = ['1️⃣ Abrí el perfil de Panther en Instagram', '2️⃣ Comentá el último post o reel con más de 8 palabras', '3️⃣ Tomá captura mostrando tu comentario publicado', '4️⃣ Volvé acá y subí la captura al bot'];
+    pts = '+30 pts';
+    missionType = 'comment_ig_last';
+    url = igUrl;
+  } else if(type === 'ig') {
+    title = '📷 Comentar en Instagram';
+    steps = ['1️⃣ Abrí el perfil de Panther en Instagram', '2️⃣ Comentá cualquier post o reel con más de 8 palabras', '3️⃣ Tomá captura mostrando tu comentario publicado', '4️⃣ Volvé acá y subí la captura al bot'];
+    pts = '+5 pts';
+    missionType = 'comment_ig';
+    url = igUrl;
+  } else if(type === 'tt_last') {
+    title = '🎵 Último video de TikTok';
+    steps = ['1️⃣ Abrí el perfil de Panther en TikTok', '2️⃣ Comentá el último video con más de 8 palabras', '3️⃣ Tomá captura mostrando tu comentario publicado', '4️⃣ Volvé acá y subí la captura al bot'];
+    pts = '+30 pts';
+    missionType = 'comment_tt_last';
+    url = ttUrl;
+  } else {
+    title = '🎶 Comentar en TikTok';
+    steps = ['1️⃣ Abrí el perfil de Panther en TikTok', '2️⃣ Comentá cualquier video con más de 8 palabras', '3️⃣ Tomá captura mostrando tu comentario publicado', '4️⃣ Volvé acá y subí la captura al bot'];
+    pts = '+5 pts';
+    missionType = 'comment_tt';
+    url = ttUrl;
+  }
+
+  window._walletMissionType = missionType;
+  document.getElementById('wm-title').textContent = title;
+  document.getElementById('wm-steps').innerHTML = steps.join('<br>');
+  document.getElementById('wm-pts').textContent = pts;
+
+  // Actualizar el link del botón IR A LA RED SOCIAL
+  const socialBtn = document.getElementById('wm-social-link');
+  if(socialBtn) { socialBtn.href = url; socialBtn.style.display = 'block'; }
+
+  document.getElementById('wallet-mission-modal').style.display = 'flex';
+}
+
 function openWalletMission(type) {
   if(!userData) {
     loadUserData().then(function() { openWalletMission(type); });
@@ -2174,6 +2268,9 @@ new MutationObserver(()=>{
       <span id="wm-pts" style="color:#FF5C1A;font-weight:700;font-size:16px"></span>
       <span style="color:#888;font-size:13px"> si se aprueba</span>
     </div>
+    <a id="wm-social-link" href="#" target="_blank" style="display:none;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:12px;padding:11px 0;width:100%;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;text-align:center;border:1px solid #333">
+      📲 IR A LA RED SOCIAL
+    </a>
     <a id="wm-bot-link" href="https://t.me/ManadaPantherBot?start=mission" target="_blank" style="display:block;background:#FF5C1A;color:#fff;text-decoration:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:center">
       🐆 IR AL BOT
     </a>

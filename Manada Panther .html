@@ -258,7 +258,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <div class="live-wrap"><span class="dot"></span><span>Manada activa</span></div>
   <div style="display:flex;align-items:center;gap:8px">
     <button id="sound-btn" onclick="toggleSound()" style="background:transparent;border:none;cursor:pointer;font-size:18px;padding:2px;line-height:1;color:#ff6b1a">🔊</button>
-    <span class="badge" id="level-badge">🐾 Lv.1</span>
+    <span class="badge" id="level-badge" onclick="openNiveles()" style="cursor:pointer">🐾 Lv.1</span>
   </div>
 </div>
 
@@ -1444,6 +1444,48 @@ const glossary = [
 
 let _glosarioCat = 'todos';
 
+// Niveles definidos (mismo orden que el bot)
+const NIVELES = [
+  {name:"🐾 Cachorro",       min:0,      max:149},
+  {name:"🔍 Rastreador",     min:150,    max:499},
+  {name:"🛡️ Guardián",      min:500,    max:999},
+  {name:"🧭 Explorador",     min:1000,   max:2999},
+  {name:"⚡ Embajador",      min:3000,   max:6999},
+  {name:"🦁 Leyenda",        min:7000,   max:14999},
+  {name:"🔥 Elite",          min:15000,  max:29999},
+  {name:"💎 Diamante",       min:30000,  max:59999},
+  {name:"👑 Rey de la Manada",min:60000, max:124999},
+  {name:"🌕 Lunar",          min:125000, max:249999},
+  {name:"⚡🐆 Panther Alpha", min:250000, max:499999},
+  {name:"🏆 Inmortal",       min:500000, max:999999},
+  {name:"🌟 Dios de la Manada",min:1000000,max:99999999},
+];
+
+function openNiveles() {
+  const pts = userData ? userData.points : 0;
+  const list = document.getElementById('niveles-list');
+  
+  list.innerHTML = NIVELES.map((lv, i) => {
+    const isCurrent = pts >= lv.min && pts <= lv.max;
+    const isDone = pts > lv.max;
+    const rangeText = lv.max >= 99999999 ? lv.min.toLocaleString() + '+ pts' : lv.min.toLocaleString() + ' – ' + lv.max.toLocaleString() + ' pts';
+    const ptsNeeded = isCurrent ? (lv.max - pts + 1) + ' pts para el siguiente' : isDone ? '✅ Completado' : (lv.min - pts) + ' pts para alcanzar';
+    
+    return `<div style="background:${isCurrent ? '#1f0a00' : '#111'};border:1px solid ${isCurrent ? '#FF5C1A' : '#1a1a1a'};border-radius:14px;padding:16px;position:relative">
+      ${isCurrent ? '<div style="position:absolute;top:12px;right:12px;background:#FF5C1A;color:#0a0a0a;font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px">TU NIVEL</div>' : ''}
+      <div style="font-size:18px;font-weight:700;color:${isCurrent ? '#FF5C1A' : isDone ? '#4ade80' : '#fff'};margin-bottom:4px">${lv.name}</div>
+      <div style="font-size:12px;color:#666;margin-bottom:6px">${rangeText}</div>
+      <div style="font-size:11px;color:${isCurrent ? '#FF5C1A' : isDone ? '#4ade80' : '#555'}">${ptsNeeded}</div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('niveles-screen').style.display = 'block';
+}
+
+function closeNiveles() {
+  document.getElementById('niveles-screen').style.display = 'none';
+}
+
 function openGlosario() {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById('s-glosario').classList.add('active');
@@ -2260,6 +2302,14 @@ new MutationObserver(()=>{
 
 // Telegram WebApp already initialized above
 </script>
+<div id="niveles-screen" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:9998;overflow-y:auto;padding:16px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-top:8px">
+    <button onclick="closeNiveles()" style="background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;cursor:pointer">← Volver</button>
+    <div style="font-size:16px;font-weight:700;color:#fff">🏅 Tabla de Niveles</div>
+  </div>
+  <div id="niveles-list" style="display:flex;flex-direction:column;gap:10px;padding-bottom:40px"></div>
+</div>
+
 <div id="wallet-mission-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px">
   <div style="background:#161616;border-radius:20px;padding:24px;width:100%;max-width:360px;border:1px solid #2a2a2a">
     <div id="wm-title" style="font-size:22px;font-weight:700;color:#fff;margin-bottom:16px"></div>

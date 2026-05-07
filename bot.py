@@ -57,13 +57,19 @@ PTS = {
 
 # ── Niveles actualizados ──────────────────────────────────────────────────────
 LEVELS = [
-    (0,     149,   "🐾 Cachorro"),
-    (150,   499,   "🔍 Rastreador"),
-    (500,   999,   "🛡️ Guardián"),
-    (1000,  1999,  "🧭 Explorador"),
-    (2000,  4999,  "⚡ Embajador"),
-    (5000,  9999,  "🐆 Alfa"),
-    (10000, 999999,"👑 Leyenda"),
+    (0,       149,     "🐾 Cachorro"),
+    (150,     499,     "🔍 Rastreador"),
+    (500,     999,     "🛡️ Guardián"),
+    (1000,    2999,    "🧭 Explorador"),
+    (3000,    6999,    "⚡ Embajador"),
+    (7000,    14999,   "🦁 Leyenda"),
+    (15000,   29999,   "🔥 Elite"),
+    (30000,   59999,   "💎 Diamante"),
+    (60000,   124999,  "👑 Rey de la Manada"),
+    (125000,  249999,  "🌕 Lunar"),
+    (250000,  499999,  "⚡🐆 Panther Alpha"),
+    (500000,  999999,  "🏆 Inmortal"),
+    (1000000, 99999999,"🌟 Dios de la Manada"),
 ]
 
 # ── Ruleta ────────────────────────────────────────────────────────────────────
@@ -2216,9 +2222,10 @@ async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "14 días seguidos → +150 pts bonus\n"
         "30 días seguidos → +500 pts bonus\n\n"
         "*Los niveles:*\n"
-        "🐾 Cachorro (0-149) → 🔍 Rastreador (150-499)\n"
-        "🛡️ Guardián (500-999) → 🧭 Explorador (1K-1.9K)\n"
-        "⚡ Embajador (2K-4.9K) → 🐆 Alfa (5K-9.9K) → 👑 Leyenda (10K+)\n\n"
+        "🐾 Cachorro → 🔍 Rastreador → 🛡️ Guardián\n"
+        "🧭 Explorador → ⚡ Embajador → 🦁 Leyenda\n"
+        "🔥 Elite → 💎 Diamante → 👑 Rey de la Manada\n"
+        "🌕 Lunar → ⚡🐆 Panther Alpha → 🏆 Inmortal → 🌟 Dios de la Manada\n\n"
         "*Premios mensuales ruleta:*\n"
         "💵 USDT: $5, $10 y $50\n"
         "🐾 PNT: 50, 100, 250 y 500 tokens\n"

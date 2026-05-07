@@ -865,14 +865,14 @@ function applyTranslations() {
       if(arr) { arr.textContent = '✅'; arr.style.color = '#4ade80'; }
     }
     // Review store
-    if(userData.review_store_done) {
+    if(userData.review_store_done && userData.review_store_done !== 0) {
       const el = document.getElementById('mc-wallet-review-store');
       const arr = document.getElementById('arr-wallet-review-store');
       if(el) { el.style.opacity = '0.6'; el.onclick = null; }
       if(arr) { arr.textContent = '✅'; arr.style.color = '#4ade80'; }
     }
     // Review trust
-    if(userData.review_trust_done) {
+    if(userData.review_trust_done && userData.review_trust_done !== 0) {
       const el = document.getElementById('mc-wallet-review-trust');
       const arr = document.getElementById('arr-wallet-review-trust');
       if(el) { el.style.opacity = '0.6'; el.onclick = null; }
@@ -1577,11 +1577,11 @@ function openWalletMission(type) {
     alert('✅ Ya completaste esta misión. Tu wallet está verificada.');
     return;
   }
-  if(type === 'review_store' && userData && userData.review_store_done) {
+  if(type === 'review_store' && userData && (userData.review_store_done === true || userData.review_store_done === 1)) {
     alert('✅ Ya dejaste tu review en la tienda. ¡Gracias!');
     return;
   }
-  if(type === 'review_trust' && userData && userData.review_trust_done) {
+  if(type === 'review_trust' && userData && (userData.review_trust_done === true || userData.review_trust_done === 1)) {
     alert('✅ Ya dejaste tu review en Trustpilot. ¡Gracias!');
     return;
   }

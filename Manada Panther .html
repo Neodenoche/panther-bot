@@ -481,7 +481,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
 <!-- RULETA -->
 <div class="screen" id="s-ruleta">
-  <div style="padding:12px 18px 0;font-size:12px;color:var(--t3)">Ruleta diaria · 1 giro disponible</div>
+
   <div class="wheel-section">
     <div class="wheel-container">
       <div class="wheel-ptr"></div>
@@ -502,6 +502,10 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <button class="spin-btn" id="spin-btn" onclick="doSpin()">GIRAR</button>
     <div class="spin-result" id="spin-result"></div>
     <div class="spin-note">Los puntos se acreditan automáticamente</div>
+    <div style="background:#1a0a00;border:1px solid #3a1500;border-radius:14px;padding:14px 16px;margin:12px 0 0;text-align:center">
+      <div style="font-size:13px;font-weight:700;color:#FF5C1A;margin-bottom:6px">🏆 ¿Ganaste USDT o PNT?</div>
+      <div style="font-size:12px;color:#aaa;line-height:1.6">Tomá captura del resultado y enviala al chat de la Manada para que un mod lo verifique.<br><br><span style="color:#FF5C1A;font-weight:600">Los premios se entregan en 5 días hábiles.</span></div>
+    </div>
   </div>
   <div class="sec"><div class="stitle">Posibles premios</div></div>
   <div class="prize-grid">
@@ -597,7 +601,7 @@ const T = {
     historialReciente: 'Historial reciente',
     sinActividad: 'Sin actividad reciente',
     spinBtn: 'GIRAR',
-    ruletaDiaria: 'Ruleta diaria · 1 giro disponible',
+    ruletaDiaria: '',
     posiblesPremios: 'POSIBLES PREMIOS',
     puntos: 'PUNTOS',
     tocaEntrar: 'TOCA PARA ENTRAR',

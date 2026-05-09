@@ -29,8 +29,43 @@ MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
 PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
 STAR_COOLDOWN: dict = {}    # uid -> list of timestamps (máx 5 por hora)
-CHAT_STARS: dict = {}       # uid -> {stars, awarded_pts, username, first_name}
-CHAT_AWARDS: dict = {}      # uid -> {pts, username, first_name, reasons}
+CHAT_STARS: dict = {}       # uid -> {stars, pts, username, first_name} — persistido en SQLite
+CHAT_AWARDS: dict = {}      # uid -> list of awards — persistido en SQLite
+
+def load_chat_stars():
+    """Carga CHAT_STARS y CHAT_AWARDS desde SQLite"""
+    global CHAT_STARS, CHAT_AWARDS
+    try:
+        import json as _json
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS chat_stars (uid TEXT PRIMARY KEY, data TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS chat_awards (uid TEXT PRIMARY KEY, data TEXT)")
+        conn.commit()
+        for row in cur.execute("SELECT uid, data FROM chat_stars"):
+            CHAT_STARS[row[0]] = _json.loads(row[1])
+        for row in cur.execute("SELECT uid, data FROM chat_awards"):
+            CHAT_AWARDS[row[0]] = _json.loads(row[1])
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error cargando chat_stars: {e}")
+
+def save_chat_stars():
+    """Persiste CHAT_STARS y CHAT_AWARDS en SQLite"""
+    try:
+        import json as _json
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("CREATE TABLE IF NOT EXISTS chat_stars (uid TEXT PRIMARY KEY, data TEXT)")
+        cur.execute("CREATE TABLE IF NOT EXISTS chat_awards (uid TEXT PRIMARY KEY, data TEXT)")
+        for uid, data in CHAT_STARS.items():
+            cur.execute("INSERT OR REPLACE INTO chat_stars (uid, data) VALUES (?, ?)", (uid, _json.dumps(data)))
+        for uid, data in CHAT_AWARDS.items():
+            cur.execute("INSERT OR REPLACE INTO chat_awards (uid, data) VALUES (?, ?)", (uid, _json.dumps(data)))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        logger.error(f"Error guardando chat_stars: {e}")
 
 # ── Puntos por acción ─────────────────────────────────────────────────────────
 PTS = {
@@ -2140,6 +2175,8 @@ async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid_found not in CHAT_AWARDS:
         CHAT_AWARDS[uid_found] = []
     CHAT_AWARDS[uid_found].append({"pts": amount, "reason": reason, "mod": mod_name})
+
+    save_chat_stars()
 
     await update.message.reply_text(
         "🏆 " + mod_name + " le otorgo +" + str(amount) + " pts a @" + username + "\n" +

@@ -2196,6 +2196,35 @@ async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Busca un usuario por username y devuelve su ID — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+    if not context.args:
+        await update.message.reply_text("Uso: /buscar @username o /buscar nombre")
+        return
+    query = context.args[0].lstrip("@").lower()
+    db = load_db()
+    found = []
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        username   = (data.get("username") or "").lower()
+        first_name = (data.get("first_name") or "").lower()
+        if query in username or query in first_name:
+            found.append(data)
+    if not found:
+        await update.message.reply_text("No se encontro ningun usuario con ese nombre.")
+        return
+    lines = ["Usuarios encontrados:\n"]
+    for u in found[:10]:
+        name = u.get("username") or u.get("first_name") or "?"
+        pts  = u.get("points", 0)
+        lines.append("@" + str(name) + " — ID: " + str(u.get("id", "?")) + " — " + str(pts) + " pts")
+    lines.append("\nUsa /dar_puntos ID cantidad motivo")
+    await update.message.reply_text("\n".join(lines))
+
 async def cmd_mis_estrellas(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
     if uid in CHAT_STARS:
@@ -2931,6 +2960,7 @@ def main():
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))
     app.add_handler(CommandHandler("mis_estrellas",  cmd_mis_estrellas))
+    app.add_handler(CommandHandler("buscar",          cmd_buscar))
     app.add_handler(CommandHandler("pingmods",   cmd_pingmods))
     app.add_handler(CommandHandler("mi_badge",   cmd_mi_badge))
     app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))

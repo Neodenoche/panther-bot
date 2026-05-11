@@ -2379,6 +2379,70 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             })
 
         # ── GET /ranking ──
+        elif path == "/stats":
+            db = load_db()
+            users = [v for v in db.values() if isinstance(v, dict) and "points" in v]
+
+            # Check-ins totales por usuario (contando historial)
+            checkin_counts = {}
+            for u in users:
+                uid = u.get("id", "")
+                count = sum(1 for h in u.get("history", []) if h.get("type") == "checkin")
+                checkin_counts[uid] = count
+
+            # Top 10 por puntos
+            top_pts = sorted(users, key=lambda x: x.get("points", 0), reverse=True)[:10]
+
+            # Top 10 por check-ins
+            top_checkins = sorted(users, key=lambda x: checkin_counts.get(x.get("id",""), 0), reverse=True)[:10]
+
+            # Ganadores de USDT y PNT
+            usdt_winners = [u for u in users if u.get("usdt_won_month")]
+            pnt_winners  = [u for u in users if u.get("pnt_won_month")]
+
+            # Usuarios que giraron la ruleta
+            spun = [u for u in users if u.get("spins_used", 0) > 0 or u.get("spins_used_this_event", 0) > 0]
+
+            # Misiones de wallet
+            wallet_activated = [u for u in users if u.get("wallet_activated")]
+            review_store     = [u for u in users if u.get("review_store_done")]
+            review_trust     = [u for u in users if u.get("review_trust_done")]
+
+            # Totales generales
+            total_pts = sum(u.get("points", 0) for u in users)
+            avg_pts   = round(total_pts / len(users)) if users else 0
+            max_streak = max((u.get("streak", 0) for u in users), default=0)
+
+            def fmt(u):
+                return {
+                    "id":         u.get("id"),
+                    "username":   u.get("username") or u.get("first_name", "?"),
+                    "points":     u.get("points", 0),
+                    "level":      u.get("level", get_level(u.get("points", 0))),
+                    "streak":     u.get("streak", 0),
+                    "checkins":   checkin_counts.get(u.get("id",""), 0),
+                }
+
+            return self.send_json({
+                "resumen": {
+                    "total_usuarios":      len(users),
+                    "total_puntos_emitidos": total_pts,
+                    "promedio_puntos":     avg_pts,
+                    "racha_maxima":        max_streak,
+                    "giraron_ruleta":      len(spun),
+                    "wallet_activadas":    len(wallet_activated),
+                    "reviews_store":       len(review_store),
+                    "reviews_trustpilot":  len(review_trust),
+                    "ganadores_usdt":      len(usdt_winners),
+                    "ganadores_pnt":       len(pnt_winners),
+                },
+                "top10_puntos":   [fmt(u) for u in top_pts],
+                "top10_checkins": [fmt(u) for u in top_checkins],
+                "ganadores_usdt": [fmt(u) for u in usdt_winners],
+                "ganadores_pnt":  [fmt(u) for u in pnt_winners],
+                "wallet_activadas": [{"id": u.get("id"), "username": u.get("username") or u.get("first_name","?")} for u in wallet_activated],
+            })
+
         elif path == "/ranking":
             db    = load_db()
             valid = [u for u in db.values() if isinstance(u, dict) and "points" in u]

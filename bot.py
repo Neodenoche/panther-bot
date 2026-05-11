@@ -2196,6 +2196,17 @@ async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def cmd_mis_estrellas(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = str(update.effective_user.id)
+    if uid in CHAT_STARS:
+        d = CHAT_STARS[uid]
+        stars = d.get("stars", 0)
+        pts   = d.get("pts", 0)
+        text  = "Tus estrellas en la Manada\n\nEstrellas: " + str(stars) + "\nPuntos del chat: " + str(pts) + "\n\nUsa /leaderboard para el ranking."
+        await update.message.reply_text(text)
+    else:
+        await update.message.reply_text("Todavia no tenes estrellas. Participa en el chat y otros pueden darte estrellas con /star.")
+
 async def cmd_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra el ranking del chat general por estrellas"""
     if not CHAT_STARS:
@@ -2918,7 +2929,8 @@ def main():
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
-    app.add_handler(CommandHandler("leaderboard",   cmd_leaderboard))
+    app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))
+    app.add_handler(CommandHandler("mis_estrellas",  cmd_mis_estrellas))
     app.add_handler(CommandHandler("pingmods",   cmd_pingmods))
     app.add_handler(CommandHandler("mi_badge",   cmd_mi_badge))
     app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))

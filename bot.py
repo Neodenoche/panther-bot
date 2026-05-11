@@ -491,7 +491,18 @@ def escape_md(text: str) -> str:
         text = text.replace(ch, f'\\{ch}')
     return text
 
-def sanitize_name(name: str) -> str:
+async def notify_mods(app, msg: str):
+    """Envía un mensaje al grupo de mods"""
+    try:
+        await app.bot.send_message(
+            chat_id=MOD_GROUP_ID,
+            text=msg,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Error notificando mods: {e}")
+
+
     """Limpia nombres con caracteres especiales para SQLite"""
     if not name:
         return ""
@@ -2541,12 +2552,15 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             # Notify mods if economic prize
             if prize_type and CombinedHandler.tg_app:
                 username = data.get("username") or data.get("first_name") or uid
+                from datetime import datetime as dt
+                now_str = dt.now().strftime("%d/%m/%Y %H:%M")
                 msg = (
-                    f"🎰 *Premio de Ruleta*\n\n"
-                    f"👤 Usuario: {username} (ID: {uid})\n"
+                    f"🎰 *PREMIO DE RULETA*\n\n"
+                    f"👤 Usuario: @{username} (ID: `{uid}`)\n"
                     f"🏆 Premio: *{prize_amount} {prize_type}*\n"
-                    f"📅 Fecha: {today}\n\n"
-                    f"_Verificar y procesar el pago_"
+                    f"⭐ Puntos actuales: *{data['points']}*\n"
+                    f"📅 Fecha/Hora: {now_str}\n\n"
+                    f"⚠️ _El usuario debe enviar captura de pantalla al chat para verificar. Plazo de entrega: 5 dias habiles._"
                 )
                 asyncio.run_coroutine_threadsafe(
                     notify_mods(CombinedHandler.tg_app, msg),

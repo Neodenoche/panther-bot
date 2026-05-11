@@ -469,6 +469,10 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <div id="hist-container">
     <div class="hist-row"><div class="hist-ic">🔥</div><div class="hist-body"><div class="hist-desc">Check-in diario</div><div class="hist-time">Hoy</div></div><div class="hist-pts">+5</div></div>
   </div>
+  <div class="hist-title" style="margin-top:14px">Premios ganados</div>
+  <div id="premios-list" style="padding:0 14px 80px">
+    <div style="text-align:center;color:#555;font-size:13px;padding:16px">Cargando...</div>
+  </div>
 </div>
 
 <!-- RANKING -->
@@ -1465,6 +1469,32 @@ const NIVELES = [
   {name:"🌟 Dios de la Manada",min:1000000,max:99999999},
 ];
 
+function loadPremiosHistorial() {
+  if(!userData || !userData.history) return;
+  const list = document.getElementById('premios-list');
+  if(!list) return;
+
+  const premios = userData.history.filter(h =>
+    h.type === 'ruleta' || h.prize || h.type === 'bonus'
+  );
+
+  if(premios.length === 0) {
+    list.innerHTML = '<div style="text-align:center;color:#555;font-size:13px;padding:16px">Aun no tenes premios. Participa en la ruleta cuando este activa.</div>';
+    return;
+  }
+
+  list.innerHTML = premios.map(h => {
+    const icon = h.prize === 'USDT' ? '💵' : h.prize === 'PNT' ? '🐾' : h.type === 'bonus' ? '🎁' : '🎰';
+    const label = h.prize || (h.pts > 0 ? '+' + h.pts + ' pts' : 'Premio');
+    return '<div style="background:#111;border:1px solid #1a1a1a;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px">' +
+      '<span style="font-size:22px">' + icon + '</span>' +
+      '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:#fff">' + label + '</div>' +
+      '<div style="font-size:11px;color:#555">' + h.date + ' · ' + (h.time || '') + '</div></div>' +
+      (h.pts > 0 ? '<div style="color:#FF5C1A;font-weight:700;font-size:14px">+' + h.pts + ' pts</div>' : '') +
+      '</div>';
+  }).join('');
+}
+
 function openNiveles() {
   const pts = userData ? userData.points : 0;
   const list = document.getElementById('niveles-list');
@@ -1889,6 +1919,7 @@ function goTo(n){
   originalGoTo(n);
   if(n === 'ranking') loadRanking();
   if(n === 'misiones') loadUserData();
+  if(n === 'mis-pts') loadPremiosHistorial();
 }
 
 async function loadRanking() {
@@ -2019,8 +2050,15 @@ async function doSpin(){
   
   // Check ruleta availability from userData
   if(userData) {
+    if(!userData.ruleta_active) {
+      document.getElementById('spin-result').textContent = '🔒 La ruleta está cerrada. El próximo evento se anunciará en el canal oficial.';
+      document.getElementById('spin-result').style.color = '#888';
+      return;
+    }
     if(!userData.ruleta_access) {
-      alert('⚠️ Necesitás 3 días de check-in seguidos para acceder a la ruleta.\n\nTu racha actual: ' + (userData ? userData.streak : 0) + ' días.');
+      const streak = userData ? userData.streak : 0;
+      document.getElementById('spin-result').textContent = '⚠️ Necesitás 3 días de check-in seguidos. Tu racha: ' + streak + ' días.';
+      document.getElementById('spin-result').style.color = '#888';
       return;
     }
     if((userData.spins_used || 0) >= (userData.spins_available || 1)) {

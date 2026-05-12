@@ -482,6 +482,15 @@ def get_user(db, uid: str, user=None):
         db[uid]["referrals"] = []
     return db[uid]
 
+def sanitize_name(name: str) -> str:
+    """Limpia nombres con caracteres especiales para SQLite"""
+    if not name:
+        return ""
+    try:
+        return name.encode('utf-8', errors='ignore').decode('utf-8')
+    except Exception:
+        return "Usuario"
+
 def escape_md(text: str) -> str:
     """Escapa caracteres especiales de Markdown para Telegram"""
     if not text:

@@ -2205,6 +2205,40 @@ async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def cmd_recompensa_todos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Da puntos a todos los usuarios registrados — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+    if not context.args:
+        await update.message.reply_text("Uso: /recompensa_todos cantidad motivo")
+        return
+    try:
+        amount = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("La cantidad debe ser un numero.")
+        return
+    if amount <= 0 or amount > 10000:
+        await update.message.reply_text("La cantidad debe ser entre 1 y 10000.")
+        return
+    motivo = " ".join(context.args[1:]) if len(context.args) > 1 else "Recompensa especial"
+    db = load_db()
+    count = 0
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict) or "points" not in data:
+            continue
+        add_points(data, amount)
+        count += 1
+        try:
+            await context.bot.send_message(
+                chat_id=int(uid),
+                text="Recompensa especial!\n\n+" + str(amount) + " puntos acreditados\nMotivo: " + motivo + "\n\nTotal: " + str(data["points"]) + " puntos"
+            )
+        except Exception:
+            pass
+    save_db(db)
+    await update.message.reply_text("✅ +" + str(amount) + " pts acreditados a " + str(count) + " usuarios. Motivo: " + motivo)
+
 async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Busca un usuario por username y devuelve su ID — solo mods"""
     if update.effective_user.id not in MOD_IDS:
@@ -2969,7 +3003,8 @@ def main():
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))
     app.add_handler(CommandHandler("mis_estrellas",  cmd_mis_estrellas))
-    app.add_handler(CommandHandler("buscar",          cmd_buscar))
+    app.add_handler(CommandHandler("buscar",           cmd_buscar))
+    app.add_handler(CommandHandler("recompensa_todos", cmd_recompensa_todos))
     app.add_handler(CommandHandler("pingmods",   cmd_pingmods))
     app.add_handler(CommandHandler("mi_badge",   cmd_mi_badge))
     app.add_handler(CommandHandler("enviar_badges", cmd_enviar_badges))

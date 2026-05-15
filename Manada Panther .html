@@ -1653,12 +1653,13 @@ function openWalletMission(type) {
     alert('✅ Ya completaste esta misión. Tu wallet está verificada.');
     return;
   }
-  if(type === 'review_store' && userData && (userData.review_store_done === true || userData.review_store_done === 1)) {
-    alert('✅ Ya dejaste tu review en la tienda. ¡Gracias!');
+  // Misiones de reviews cerradas temporalmente
+  if(type === 'review_store') {
+    alert('🔒 Esta misión está temporalmente cerrada. Pronto vuelve con novedades.');
     return;
   }
-  if(type === 'review_trust' && userData && (userData.review_trust_done === true || userData.review_trust_done === 1)) {
-    alert('✅ Ya dejaste tu review en Trustpilot. ¡Gracias!');
+  if(type === 'review_trust') {
+    alert('🔒 Esta misión está temporalmente cerrada. Pronto vuelve con novedades.');
     return;
   }
 
@@ -2050,11 +2051,7 @@ async function doSpin(){
   
   // Check ruleta availability from userData
   if(userData) {
-    if(!userData.ruleta_active) {
-      document.getElementById('spin-result').textContent = '🔒 La ruleta está cerrada. El próximo evento se anunciará en el canal oficial.';
-      document.getElementById('spin-result').style.color = '#888';
-      return;
-    }
+
     if(!userData.ruleta_access) {
       const streak = userData ? userData.streak : 0;
       document.getElementById('spin-result').textContent = '⚠️ Necesitás 3 días de check-in seguidos. Tu racha: ' + streak + ' días.';

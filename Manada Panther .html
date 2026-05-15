@@ -2070,23 +2070,19 @@ const SEGMENTS = [
 ];
 
 async function doSpin(){
-  if(spinning)return;
-  
-  // Check ruleta availability from userData
-  if(userData) {
+  if(spinning) return;
 
-
-    if((userData.spins_used || 0) >= (userData.spins_available || 3)) {
-      alert('🎰 Ya usaste todos tus giros disponibles');
-      return;
-    }
+  // Chequeo local rápido
+  if(userData && (userData.spins_used || 0) >= (userData.spins_available || 3)) {
+    alert('🎰 Ya usaste todos tus giros disponibles');
+    return;
   }
-  
-  spinning=true;
-  const btn=document.getElementById('spin-btn');
-  btn.disabled=true;
-  document.getElementById('spin-result').textContent='🎰 Girando...';
-  document.getElementById('spin-result').style.color='#888';
+
+  spinning = true;
+  const btn = document.getElementById('spin-btn');
+  btn.disabled = true;
+  document.getElementById('spin-result').textContent = '🎰 Girando...';
+  document.getElementById('spin-result').style.color = '#888';
 
   // 1. Llamar al backend PRIMERO
   let backendData = null;
@@ -2094,54 +2090,66 @@ async function doSpin(){
     try {
       const res = await fetch(`${API_BASE}/ruleta?id=${USER_ID}`, { method: 'GET' });
       backendData = await res.json();
-    } catch(e) { console.error('Ruleta API error:', e); }
-  }
-
-  // 2. Determinar segmento visual según resultado real del backend
-  let chosen;
-  if(backendData && !backendData.already_done && !backendData.error && backendData.status === 'ok') {
-    if(backendData.prize_type === 'USDT') {
-      chosen = SEGMENTS.find(s => s.type === 'usdt') || SEGMENTS[1];
-    } else if(backendData.prize_type === 'PNT') {
-      chosen = SEGMENTS.find(s => s.type === 'pnt') || SEGMENTS[5];
-    } else {
-      const pts = backendData.pts_gained ?? backendData.points ?? backendData.pts ?? backendData.gained ?? 0;
-      if(pts >= 150) chosen = SEGMENTS.find(s => s.label.includes('200')) || SEGMENTS[6];
-      else if(pts >= 75) chosen = SEGMENTS.find(s => s.label.includes('100')) || SEGMENTS[2];
-      else if(pts >= 30) chosen = SEGMENTS.find(s => s.label.includes('50')) || SEGMENTS[0];
-      else chosen = SEGMENTS.find(s => s.label.includes('15')) || SEGMENTS[4];
+    } catch(e) {
+      console.error('Ruleta API error:', e);
     }
-  } else {
-    chosen = SEGMENTS[Math.floor(Math.random() * SEGMENTS.length)];
   }
 
-  // 3. Animar la rueda al segmento correcto
+  // 2. Si el backend bloqueó el giro, mostrar mensaje sin animar
+  if(!backendData || backendData.available === false || backendData.already_done) {
+    let msg = '🎰 No podés girar en este momento';
+    if(backendData) {
+      if(backendData.already_done) msg = '✅ Ya usaste todos tus giros de este evento';
+      else if(backendData.reason === 'dates') msg = '🔒 Ruleta cerrada · volvé el próximo evento';
+      else if(backendData.reason === 'missions') msg = backendData.message || '⚠️ Completá las misiones para desbloquear';
+    }
+    document.getElementById('spin-result').textContent = msg;
+    document.getElementById('spin-result').style.color = '#888';
+    await loadUserData();
+    spinning = false;
+    return;
+  }
+
+  // 3. Determinar segmento visual según resultado real del backend
+  let chosen;
+  if(backendData.prize_type === 'USDT') {
+    chosen = SEGMENTS.find(s => s.type === 'usdt') || SEGMENTS[1];
+  } else if(backendData.prize_type === 'PNT') {
+    chosen = SEGMENTS.find(s => s.type === 'pnt') || SEGMENTS[5];
+  } else {
+    const pts = backendData.pts_gained || 0;
+    if(pts >= 150) chosen = SEGMENTS.find(s => s.label.includes('200')) || SEGMENTS[6];
+    else if(pts >= 75) chosen = SEGMENTS.find(s => s.label.includes('100')) || SEGMENTS[2];
+    else if(pts >= 30) chosen = SEGMENTS.find(s => s.label.includes('50')) || SEGMENTS[0];
+    else chosen = SEGMENTS.find(s => s.label.includes('15')) || SEGMENTS[4];
+  }
+
+  // 4. Animar la rueda
   const offset = (Math.random()-0.5)*20;
   const targetAngle = (360 - chosen.angle + offset + 360) % 360;
   totalDeg = totalDeg + 6*360 + targetAngle;
-  document.getElementById('wheel').style.transform=`rotate(${totalDeg}deg)`;
+  document.getElementById('wheel').style.transform = `rotate(${totalDeg}deg)`;
 
+  // 5. Mostrar resultado después de la animación
   setTimeout(async () => {
-    let resultText = chosen.label;
+    let resultText = '';
     let resultColor = '#ff8c42';
 
-    if(backendData) {
-      if(backendData.already_done) {
-        resultText = '🎰 Ya usaste todos tus giros · volvé al próximo evento';
-        resultColor = '#888';
-      } else if(backendData.prize_type === 'USDT') {
-        const amt = backendData.prize_amount || '?';
-        resultText = `🎉 ¡Ganaste ${amt} USDT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
-        resultColor = '#4ade80';
-      } else if(backendData.prize_type === 'PNT') {
-        const amt = backendData.prize_amount || '?';
-        resultText = `🐾 ¡Ganaste ${amt} PNT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
-        resultColor = '#cc88ff';
-      } else {
-        const pts = backendData.pts_gained ?? 0;
-        resultText = `✅ +${pts} pts ganados!`;
-        resultColor = '#ff8c42';
-      }
+    if(backendData.prize_type === 'USDT') {
+      const amt = backendData.prize_amount || '?';
+      resultText = `🎉 ¡Ganaste ${amt} USDT!\n\n📸 Tomá captura y enviala al chat o al bot. Un mod lo verificará y recibirás tu premio en 5 días hábiles.`;
+      resultColor = '#4ade80';
+    } else if(backendData.prize_type === 'PNT') {
+      const amt = backendData.prize_amount || '?';
+      resultText = `🐾 ¡Ganaste ${amt} PNT!\n\n📸 Tomá captura y enviala al chat o al bot. Un mod lo verificará y recibirás tus tokens en 5 días hábiles.`;
+      resultColor = '#cc88ff';
+    } else if(backendData.prize_type === 'x2') {
+      resultText = `⚡ ¡PUNTOS DOBLES POR 24 HORAS!\n\nTodas tus acciones de hoy valen el doble 🔥`;
+      resultColor = '#FFD700';
+    } else {
+      const pts = backendData.pts_gained || 0;
+      resultText = `✅ +${pts} puntos ganados!`;
+      resultColor = '#ff8c42';
     }
 
     await loadUserData();

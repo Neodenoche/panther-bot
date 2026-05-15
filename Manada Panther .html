@@ -505,6 +505,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     </div>
     <button class="spin-btn" id="spin-btn" onclick="doSpin()">GIRAR</button>
     <div class="spin-result" id="spin-result"></div>
+    <div id="giros-disponibles" style="font-size:14px;font-weight:700;text-align:center;margin-bottom:6px">🎰 Cargando...</div>
     <div class="spin-note">Los puntos se acreditan automáticamente</div>
     <div style="background:#1a0a00;border:1px solid #3a1500;border-radius:14px;padding:14px 16px;margin:12px 0 0;text-align:center">
       <div style="font-size:13px;font-weight:700;color:#FF5C1A;margin-bottom:6px">🏆 ¿Ganaste USDT o PNT?</div>
@@ -857,6 +858,22 @@ function applyTranslations() {
   if(wmStoreTitle) {
     const store = getStoreName();
     wmStoreTitle.textContent = 'Review en ' + store;
+  }
+
+  // Mostrar giros disponibles en ruleta
+  const girosEl = document.getElementById('giros-disponibles');
+  if(girosEl && userData) {
+    const disponibles = (userData.spins_available || 3) - (userData.spins_used || 0);
+    if(userData.ruleta_active && disponibles > 0) {
+      girosEl.textContent = '🎰 ' + disponibles + ' giro' + (disponibles > 1 ? 's' : '') + ' disponible' + (disponibles > 1 ? 's' : '');
+      girosEl.style.color = '#FF5C1A';
+    } else if(userData.ruleta_active && disponibles <= 0) {
+      girosEl.textContent = '✅ Ya usaste todos tus giros de este evento';
+      girosEl.style.color = '#666';
+    } else {
+      girosEl.textContent = '🔒 Ruleta cerrada';
+      girosEl.style.color = '#666';
+    }
   }
 
   // Habilitar sección wallet ahora que userData cargó
@@ -2052,12 +2069,7 @@ async function doSpin(){
   // Check ruleta availability from userData
   if(userData) {
 
-    if(!userData.ruleta_access) {
-      const streak = userData ? userData.streak : 0;
-      document.getElementById('spin-result').textContent = '⚠️ Necesitás 3 días de check-in seguidos. Tu racha: ' + streak + ' días.';
-      document.getElementById('spin-result').style.color = '#888';
-      return;
-    }
+
     if((userData.spins_used || 0) >= (userData.spins_available || 1)) {
       alert('🎰 Ya usaste todos tus giros disponibles');
       return;
@@ -2112,10 +2124,10 @@ async function doSpin(){
         resultText = '🎰 Ya giraste hoy · volvé mañana';
         resultColor = '#888';
       } else if(backendData.prize_type === 'USDT') {
-        resultText = `🎉 ¡Ganaste ${backendData.prize_amount} USDT! El equipo Panther te contactará.`;
+        resultText = `🎉 ¡Ganaste ${backendData.prize_amount} USDT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
         resultColor = '#4ade80';
       } else if(backendData.prize_type === 'PNT') {
-        resultText = `🐾 ¡Ganaste ${backendData.prize_amount} PNT! Se acreditarán en tu wallet.`;
+        resultText = `🐾 ¡Ganaste ${backendData.prize_amount} PNT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
         resultColor = '#cc88ff';
       } else {
         resultText = `✅ +${backendData.pts_gained} pts ganados!`;

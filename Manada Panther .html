@@ -2127,16 +2127,18 @@ async function doSpin(){
 
     if(backendData) {
       if(backendData.already_done) {
-        resultText = '🎰 Ya giraste hoy · volvé mañana';
+        resultText = '🎰 Ya usaste todos tus giros · volvé al próximo evento';
         resultColor = '#888';
       } else if(backendData.prize_type === 'USDT') {
-        resultText = `🎉 ¡Ganaste ${backendData.prize_amount} USDT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
+        const amt = backendData.prize_amount || '?';
+        resultText = `🎉 ¡Ganaste ${amt} USDT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
         resultColor = '#4ade80';
       } else if(backendData.prize_type === 'PNT') {
-        resultText = `🐾 ¡Ganaste ${backendData.prize_amount} PNT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
+        const amt = backendData.prize_amount || '?';
+        resultText = `🐾 ¡Ganaste ${amt} PNT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
         resultColor = '#cc88ff';
       } else {
-        const pts = backendData.pts_gained ?? backendData.points ?? backendData.pts ?? backendData.gained ?? 0;
+        const pts = backendData.pts_gained ?? 0;
         resultText = `✅ +${pts} pts ganados!`;
         resultColor = '#ff8c42';
       }

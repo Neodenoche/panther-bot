@@ -291,7 +291,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <div class="sec">
     <div class="stitle">Diarias</div>
     <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
-    <div class="mc" id="mc-ruleta" onclick="goTo('ruleta')"><div class="mic i2">🎰</div><div class="mb"><div class="mn">Ruleta diaria</div><div class="ms">Pts, ×2 o premios en USDT</div></div><div class="mr"><div class="mpts">?</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" id="mc-ruleta" onclick="goTo('ruleta')"><div class="mic i2">🎰</div><div class="mb"><div class="mn">Ruleta diaria</div><div class="ms" id="ruleta-sub">Pts, ×2 o premios en USDT</div></div><div class="mr"><div class="mpts" id="ruleta-mpts">?</div><div class="mplab">PTS</div></div><div class="marr" id="ruleta-arr">→</div></div>
   </div>
   <div class="sec">
     <div class="stitle">Sociales</div>
@@ -1072,10 +1072,41 @@ function updateUI() {
 
   const mcRuleta = document.getElementById('mc-ruleta');
   if (mcRuleta) {
+    const ruletaMpts = document.getElementById('ruleta-mpts');
+    const ruletaSub  = document.getElementById('ruleta-sub');
+    const ruletaArr  = document.getElementById('ruleta-arr');
     if (ruletaDone) {
       mcRuleta.classList.add('done');
-      const arr = mcRuleta.querySelector('.marr');
-      if (arr) { arr.classList.add('ok'); arr.textContent = '✓'; }
+      if (ruletaArr) { ruletaArr.classList.add('ok'); ruletaArr.textContent = '✓'; }
+      // Buscar pts ganados en historial
+      const hist = userData.history || [];
+      const lastSpin = [...hist].reverse().find(h => h.type === 'ruleta');
+      if (lastSpin && ruletaMpts) {
+        if (lastSpin.prize === 'USDT') {
+          ruletaMpts.textContent = 'USDT';
+          if (ruletaSub) ruletaSub.textContent = '🎉 ¡Ganaste USDT! Revisá la pantalla de ruleta';
+        } else if (lastSpin.prize === 'PNT') {
+          ruletaMpts.textContent = 'PNT';
+          if (ruletaSub) ruletaSub.textContent = '🐾 ¡Ganaste PNT! Revisá la pantalla de ruleta';
+        } else if (lastSpin.pts > 0) {
+          ruletaMpts.textContent = '+' + lastSpin.pts;
+          if (ruletaSub) ruletaSub.textContent = '✅ Completado hoy';
+        } else {
+          ruletaMpts.textContent = 'x2';
+          if (ruletaSub) ruletaSub.textContent = '⚡ Puntos dobles activos por 24h';
+        }
+      } else if (ruletaMpts) {
+        ruletaMpts.textContent = '✓';
+        if (ruletaSub) ruletaSub.textContent = '✅ Completado hoy';
+      }
+    } else {
+      // Mostrar giros disponibles si la ruleta está activa
+      if (userData.ruleta_active && ruletaSub) {
+        const spinsLeft = (userData.spins_available || 3) - (userData.spins_used || 0);
+        ruletaSub.textContent = spinsLeft > 0
+          ? `🎰 ${spinsLeft} giro${spinsLeft !== 1 ? 's' : ''} disponible${spinsLeft !== 1 ? 's' : ''}`
+          : 'Pts, ×2 o premios en USDT';
+      }
     }
   }
 

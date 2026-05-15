@@ -2599,31 +2599,42 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             prize_amount = None
 
             if special == "usdt":
-                if data.get("usdt_won_month"):
-                    # Ya ganó USDT este mes → puntos en su lugar
-                    pts_gain = 50
-                    result_label = f"🎰 {result_label} → +{pts_gain} pts"
-                    special = None
-                else:
-                    data["usdt_won_month"] = True
-                    prize_type = "USDT"
-                    prize_amount = get_usdt_prize()
 
-if not prize_amount:
-    prize_amount = 5
+    if data.get("usdt_won_month"):
+
+        pts_gain = 50
+        result_label = f"🎰 USDT → +{pts_gain} pts"
+        special = None
+
+    else:
+
+        data["usdt_won_month"] = True
+
+        prize_type = "USDT"
+
+        prize_amount = get_usdt_prize()
+
+        if not prize_amount:
+            prize_amount = 5
+
 elif special == "pnt":
-                if data.get("pnt_won_month"):
-                    pts_gain = 30
-                    result_label = f"🎰 {result_label} → +{pts_gain} pts"
-                    special = None
-                else:
-                    data["pnt_won_month"] = True
-                    prize_type = "PNT"
-                    prize_amount = get_pnt_prize()
 
-if not prize_amount:
-    prize_amount = 50
+    if data.get("pnt_won_month"):
 
+        pts_gain = 30
+        result_label = f"🎰 PNT → +{pts_gain} pts"
+        special = None
+
+    else:
+
+        data["pnt_won_month"] = True
+
+        prize_type = "PNT"
+
+        prize_amount = get_pnt_prize()
+
+        if not prize_amount:
+            prize_amount = 50
             earned = add_points(data, pts_gain)
 
             if "history" not in data:

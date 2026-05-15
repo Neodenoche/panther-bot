@@ -574,16 +574,12 @@ def is_ruleta_active():
     return date.today().day in [15, 30]
 
 def can_access_ruleta(data):
-    # Condición de lanzamiento: 3 días de check-in seguidos
-    return data.get("streak", 0) >= 3
+    # Sin requisito de racha durante el evento
+    return True
 
 def get_available_spins(data):
-    base = 1
-    bonus = 0
-    if data.get("has_virtual_card"): bonus += 2
-    if data.get("has_physical_card"): bonus += 3
-    if data.get("big_transaction"): bonus += 4
-    return min(base + bonus, 3)
+    # Evento especial: 3 giros base para todos
+    return 3
 
 def get_monthly_pnt_pool():
     BUDGET_USD = 1050
@@ -2623,6 +2619,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                     prize_amount = get_pnt_prize()
                     if not prize_amount:
                         prize_amount = 50
+                    prize_amount = str(prize_amount)  # siempre string
 
             earned = add_points(data, pts_gain)
 

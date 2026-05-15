@@ -2607,7 +2607,10 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 else:
                     data["usdt_won_month"] = True
                     prize_type = "USDT"
-                    prize_amount = result_label
+                    prize_amount = get_usdt_prize()
+
+if not prize_amount:
+    prize_amount = 5
             elif special == "pnt":
                 if data.get("pnt_won_month"):
                     pts_gain = 30
@@ -2616,7 +2619,10 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 else:
                     data["pnt_won_month"] = True
                     prize_type = "PNT"
-                    prize_amount = result_label
+                    prize_amount = get_pnt_prize()
+
+if not prize_amount:
+    prize_amount = 50
 
             earned = add_points(data, pts_gain)
 

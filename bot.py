@@ -2072,9 +2072,10 @@ async def cmd_reset_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if uid.startswith("_") or not isinstance(data, dict):
             continue
         data["spins_used_this_event"] = 0
+        data["spins_available"] = 3
         count += 1
     save_db(db)
-    await update.message.reply_text(f"Giros reseteados para {count} usuarios. Listos para la ruleta!")
+    await update.message.reply_text("Giros reseteados para " + str(count) + " usuarios. Cada uno tiene 3 giros. Listos para la ruleta!")
 
 async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Dar una estrella a un usuario respondiendo su mensaje"""

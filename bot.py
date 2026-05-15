@@ -1180,94 +1180,59 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     result_label, pts_gain, special, _ = spin_ruleta()
     data["last_ruleta"] = today
 
-    msg = f"🎰 *¡GIRASTE LA RULETA!*\n\n"
+    msg = "🎰 *¡GIRASTE LA RULETA!*\n\n"
 
-if pts_gain > 0:
-
-    earned = add_points(data, pts_gain)
-
-    msg += (
-        f"🎊 Resultado: {result_label}\n"
-        f"➕ Ganaste: +{earned} puntos\n"
-        f"⭐ Total: {data['points']} puntos"
-    )
-
-elif special == "x2":
-
-    until = datetime.now() + timedelta(hours=24)
-
-    data["double_pts_until"] = until.isoformat()
-
-    msg += (
-        "⚡ ¡PUNTOS DOBLES POR 24 HORAS!\n\n"
-        "Todas tus acciones valen el doble 🔥"
-    )
-
-elif special == "usdt":
-
-    if data.get("usdt_won_month"):
-
-        earned = add_points(data, 50)
-
+    if pts_gain > 0:
+        earned = add_points(data, pts_gain)
         msg += (
-            f"⭐ +{earned} puntos\n"
-            f"⭐ Total: {data['points']} puntos"
+            f"🎊 Resultado: *{result_label}*\n"
+            f"➕ Ganaste: *+{earned} puntos*\n"
+            f"⭐ Total: *{data['points']} puntos*"
         )
 
-    else:
-
-        data["usdt_won_month"] = True
-
-        prize_amount = get_usdt_prize()
-
-        if not prize_amount:
-            prize_amount = 5
-
+    elif special == "x2":
+        until = datetime.now() + timedelta(hours=24)
+        data["double_pts_until"] = until.isoformat()
         msg += (
-            f"💵 ¡Ganaste {prize_amount} USDT!\n\n"
-            "Guardá captura como comprobante 🎉"
+            "⚡ *¡PUNTOS DOBLES POR 24 HORAS!*\n"
+            "Todas tus acciones de hoy valen el doble 🔥\n"
+            f"⭐ Puntos actuales: *{data['points']}*"
         )
 
-elif special == "pnt":
-
-    if data.get("pnt_won_month"):
-
-        earned = add_points(data, 30)
-
-        msg += (
-            f"⭐ +{earned} puntos\n"
-            f"⭐ Total: {data['points']} puntos"
-        )
-
-    else:
-
-        data["pnt_won_month"] = True
-
-        prize_amount = get_pnt_prize()
-
-        if not prize_amount:
-            prize_amount = 50
-
-        msg += (
-            f"🐾 ¡Ganaste {prize_amount} PNT!\n\n"
-            "Guardá captura como comprobante 🎉"
-        )                # Notificar a moderadores
-                for mod_id in MOD_IDS:
-                    try:
-                        name = user.username or user.first_name
-                        await context.bot.send_message(
-                            chat_id=mod_id,
-                            text=f"💵 *Premio USDT ganado*\n\n"
-                                 f"Usuario: @{name} (ID: {uid})\n"
-                                 f"Premio: *{prize} USDT*\n"
-                                 f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e:
-                        logger.warning(f"No se pudo notificar mod {mod_id}: {e}")
-            else:
-                earned = add_points(data, 50)
-                msg += f"⭐ *+{earned} puntos*\n⭐ Total: *{data['points']} puntos*"
+    elif special == "usdt":
+        if has_won_this_month(data, "usdt"):
+            earned = add_points(data, 50)
+            msg += (
+                f"⭐ *+{earned} puntos*\n"
+                f"⭐ Total: *{data['points']} puntos*"
+            )
+        else:
+            prize_amount = get_usdt_prize()
+            if not prize_amount:
+                prize_amount = "$5"
+            mark_won_month(data, "usdt")
+            msg += (
+                f"💵 *¡PREMIO EN EFECTIVO!*\n\n"
+                f"Ganaste: *{prize_amount} USDT*\n\n"
+                f"📸 Tomá captura de esta pantalla y enviala al chat general "
+                f"o al bot en privado. Un moderador te contactará para coordinar el pago.\n\n"
+                f"_⚠️ Solo podés ganar USDT una vez por mes._"
+            )
+            name = user.username or user.first_name
+            for mod_id in MOD_IDS:
+                try:
+                    await context.bot.send_message(
+                        chat_id=mod_id,
+                        text=(
+                            f"💵 *Premio USDT ganado*\n\n"
+                            f"Usuario: @{name} (ID: `{uid}`)\n"
+                            f"Premio: *{prize_amount} USDT*\n"
+                            f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+                        ),
+                        parse_mode="Markdown"
+                    )
+                except Exception as e:
+                    logger.warning(f"No se pudo notificar mod {mod_id}: {e}")
 
     elif special == "pnt":
         if has_won_this_month(data, "pnt"):
@@ -1282,28 +1247,23 @@ elif special == "pnt":
             msg += (
                 f"🐾 *¡PREMIO PNT!*\n\n"
                 f"Ganaste: *{pnt_amount} PNT*\n\n"
-                f"Los tokens serán acreditados en tu Panther Wallet. "
-                f"El equipo te contactará para confirmar 🎉\n\n"
+                f"📸 Tomá captura de esta pantalla y enviala al chat general "
+                f"o al bot en privado. Los tokens serán acreditados en tu Panther Wallet.\n\n"
                 f"_⚠️ Solo podés ganar PNT una vez por mes._"
             )
+            name = user.username or user.first_name
             for mod_id in MOD_IDS:
-
-    try:
-
-        name = user.username or user.first_name
-
-        await context.bot.send_message(
-            chat_id=mod_id,
-            text=(
-                f"💵 Premio ganado\n\n"
-                f"Usuario: @{name}\n"
-                f"ID: {uid}\n"
-                f"Premio: {prize_amount} USDT"
-            )
-
-    except Exception as e:
-
-        logger.warning(f"Error notificando mod: {e}")
+                try:
+                    await context.bot.send_message(
+                        chat_id=mod_id,
+                        text=(
+                            f"🐾 *Premio PNT ganado*\n\n"
+                            f"Usuario: @{name} (ID: `{uid}`)\n"
+                            f"Premio: *{pnt_amount} PNT*\n"
+                            f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+                        ),
+                        parse_mode="Markdown"
+                    )
                 except Exception as e:
                     logger.warning(f"No se pudo notificar mod {mod_id}: {e}")
 
@@ -2641,42 +2601,29 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             prize_amount = None
 
             if special == "usdt":
+                if has_won_this_month(data, "usdt"):
+                    pts_gain = 50
+                    result_label = f"🎰 USDT → +{pts_gain} pts"
+                    special = None
+                else:
+                    mark_won_month(data, "usdt")
+                    prize_type = "USDT"
+                    prize_amount = get_usdt_prize()
+                    if not prize_amount:
+                        prize_amount = "$5"
 
-    if data.get("usdt_won_month"):
+            elif special == "pnt":
+                if has_won_this_month(data, "pnt"):
+                    pts_gain = 30
+                    result_label = f"🎰 PNT → +{pts_gain} pts"
+                    special = None
+                else:
+                    mark_won_month(data, "pnt")
+                    prize_type = "PNT"
+                    prize_amount = get_pnt_prize()
+                    if not prize_amount:
+                        prize_amount = 50
 
-        pts_gain = 50
-        result_label = f"🎰 USDT → +{pts_gain} pts"
-        special = None
-
-    else:
-
-        data["usdt_won_month"] = True
-
-        prize_type = "USDT"
-
-        prize_amount = get_usdt_prize()
-
-        if not prize_amount:
-            prize_amount = 5
-
-elif special == "pnt":
-
-    if data.get("pnt_won_month"):
-
-        pts_gain = 30
-        result_label = f"🎰 PNT → +{pts_gain} pts"
-        special = None
-
-    else:
-
-        data["pnt_won_month"] = True
-
-        prize_type = "PNT"
-
-        prize_amount = get_pnt_prize()
-
-        if not prize_amount:
-            prize_amount = 50
             earned = add_points(data, pts_gain)
 
             if "history" not in data:

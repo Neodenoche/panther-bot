@@ -1182,41 +1182,76 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     msg = f"🎰 *¡GIRASTE LA RULETA!*\n\n"
 
-    if pts_gain > 0:
-        earned = add_points(data, pts_gain)
+if pts_gain > 0:
+
+    earned = add_points(data, pts_gain)
+
+    msg += (
+        f"🎊 Resultado: {result_label}\n"
+        f"➕ Ganaste: +{earned} puntos\n"
+        f"⭐ Total: {data['points']} puntos"
+    )
+
+elif special == "x2":
+
+    until = datetime.now() + timedelta(hours=24)
+
+    data["double_pts_until"] = until.isoformat()
+
+    msg += (
+        "⚡ ¡PUNTOS DOBLES POR 24 HORAS!\n\n"
+        "Todas tus acciones valen el doble 🔥"
+    )
+
+elif special == "usdt":
+
+    if data.get("usdt_won_month"):
+
+        earned = add_points(data, 50)
+
         msg += (
-            f"🎊 Resultado: *{result_label}*\n"
-            f"➕ Ganaste: *+{earned} puntos*\n"
-            f"⭐ Total: *{data['points']} puntos*"
+            f"⭐ +{earned} puntos\n"
+            f"⭐ Total: {data['points']} puntos"
         )
-    elif special == "x2":
-        until = datetime.now() + timedelta(hours=24)
-        data["double_pts_until"] = until.isoformat()
+
+    else:
+
+        data["usdt_won_month"] = True
+
+        prize_amount = get_usdt_prize()
+
+        if not prize_amount:
+            prize_amount = 5
+
         msg += (
-            f"⚡ *¡PUNTOS DOBLES POR 24 HORAS!*\n"
-            f"Todas tus acciones de hoy valen el doble 🔥\n"
-            f"⭐ Puntos actuales: *{data['points']}*"
+            f"💵 ¡Ganaste {prize_amount} USDT!\n\n"
+            "Guardá captura como comprobante 🎉"
         )
-    elif special == "usdt":
-        if has_won_this_month(data, "usdt"):
-            # Ya ganó USDT este mes — dar puntos en su lugar
-            earned = add_points(data, 50)
-            msg += (
-                f"⭐ *+{earned} puntos*\n"
-                f"⭐ Total: *{data['points']} puntos*"
-            )
-        else:
-            prize = get_usdt_prize()
-            if prize:
-                mark_won_month(data, "usdt")
-                msg += (
-                    f"💵 *¡PREMIO EN EFECTIVO!*\n\n"
-                    f"Ganaste: *{prize} USDT*\n\n"
-                    f"El equipo de Panther te va a contactar para coordinar el pago.\n"
-                    f"Guardá este mensaje como comprobante 🎉\n\n"
-                    f"_⚠️ Solo podés ganar USDT una vez por mes._"
-                )
-                # Notificar a moderadores
+
+elif special == "pnt":
+
+    if data.get("pnt_won_month"):
+
+        earned = add_points(data, 30)
+
+        msg += (
+            f"⭐ +{earned} puntos\n"
+            f"⭐ Total: {data['points']} puntos"
+        )
+
+    else:
+
+        data["pnt_won_month"] = True
+
+        prize_amount = get_pnt_prize()
+
+        if not prize_amount:
+            prize_amount = 50
+
+        msg += (
+            f"🐾 ¡Ganaste {prize_amount} PNT!\n\n"
+            "Guardá captura como comprobante 🎉"
+        )                # Notificar a moderadores
                 for mod_id in MOD_IDS:
                     try:
                         name = user.username or user.first_name

@@ -2611,7 +2611,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
 if not prize_amount:
     prize_amount = 5
-            elif special == "pnt":
+elif special == "pnt":
                 if data.get("pnt_won_month"):
                     pts_gain = 30
                     result_label = f"🎰 {result_label} → +{pts_gain} pts"

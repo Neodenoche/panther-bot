@@ -2596,7 +2596,13 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             prize_type = None
             prize_amount = None
 
-            if special == "usdt":
+            if special == "x2":
+                until = datetime.now() + timedelta(hours=24)
+                data["double_pts_until"] = until.isoformat()
+                prize_type = "x2"
+                prize_amount = "x2"
+
+            elif special == "usdt":
                 if has_won_this_month(data, "usdt"):
                     pts_gain = 50
                     result_label = f"🎰 USDT → +{pts_gain} pts"

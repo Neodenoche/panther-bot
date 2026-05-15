@@ -1094,24 +1094,30 @@ function updateUI() {
 
   // Update ruleta screen status
   const ruletaStatus = document.getElementById('ruleta-status');
+  const spinBtnEl = document.getElementById('spin-btn');
   if(ruletaStatus && userData) {
     if(!userData.ruleta_active) {
-      ruletaStatus.textContent = '🎰 La ruleta está disponible';
+      ruletaStatus.textContent = '🔒 Ruleta cerrada · volvé el próximo evento';
       ruletaStatus.style.color = '#888';
-      const spinBtn = document.getElementById('spin-btn');
-      if(spinBtn) spinBtn.disabled = true;
+      if(spinBtnEl) spinBtnEl.disabled = true;
     } else if(!userData.ruleta_access) {
       const streak = userData.streak || 0;
       ruletaStatus.textContent = streak < 3
         ? `⚠️ Necesitás racha de 3 días (tenés ${streak})`
         : '⚠️ Completá el check-in para desbloquear';
       ruletaStatus.style.color = '#ff6b1a';
-      const spinBtn = document.getElementById('spin-btn');
-      if(spinBtn) spinBtn.disabled = true;
+      if(spinBtnEl) spinBtnEl.disabled = true;
     } else {
-      const spinsLeft = (userData.spins_available || 1) - (userData.spins_used || 0);
-      ruletaStatus.textContent = `🎰 Ruleta activa · ${spinsLeft} giro${spinsLeft !== 1 ? 's' : ''} disponible${spinsLeft !== 1 ? 's' : ''}`;
-      ruletaStatus.style.color = '#4ade80';
+      const spinsLeft = (userData.spins_available || 3) - (userData.spins_used || 0);
+      if(spinsLeft <= 0) {
+        ruletaStatus.textContent = '✅ Ya usaste todos tus giros de este evento';
+        ruletaStatus.style.color = '#666';
+        if(spinBtnEl) spinBtnEl.disabled = true;
+      } else {
+        ruletaStatus.textContent = `🎰 Ruleta activa · ${spinsLeft} giro${spinsLeft !== 1 ? 's' : ''} disponible${spinsLeft !== 1 ? 's' : ''}`;
+        ruletaStatus.style.color = '#4ade80';
+        if(spinBtnEl && !spinning) spinBtnEl.disabled = false;
+      }
     }
   }
 
@@ -2070,7 +2076,7 @@ async function doSpin(){
   if(userData) {
 
 
-    if((userData.spins_used || 0) >= (userData.spins_available || 1)) {
+    if((userData.spins_used || 0) >= (userData.spins_available || 3)) {
       alert('🎰 Ya usaste todos tus giros disponibles');
       return;
     }
@@ -2099,12 +2105,7 @@ async function doSpin(){
     } else if(backendData.prize_type === 'PNT') {
       chosen = SEGMENTS.find(s => s.type === 'pnt') || SEGMENTS[5];
     } else {
-      const pts =
-  backendData.pts_gained ??
-  backendData.points ??
-  backendData.pts ??
-  backendData.gained ??
-  0;
+      const pts = backendData.pts_gained ?? backendData.points ?? backendData.pts ?? backendData.gained ?? 0;
       if(pts >= 150) chosen = SEGMENTS.find(s => s.label.includes('200')) || SEGMENTS[6];
       else if(pts >= 75) chosen = SEGMENTS.find(s => s.label.includes('100')) || SEGMENTS[2];
       else if(pts >= 30) chosen = SEGMENTS.find(s => s.label.includes('50')) || SEGMENTS[0];
@@ -2135,14 +2136,8 @@ async function doSpin(){
         resultText = `🐾 ¡Ganaste ${backendData.prize_amount} PNT!\n\n📸 Tomá captura de esta pantalla y enviala al chat general o al bot en privado. Un mod lo verificará y recibirás tu premio en wallet en un plazo de 5 días hábiles.`;
         resultColor = '#cc88ff';
       } else {
-        const pts =
-  backendData.pts_gained ??
-  backendData.points ??
-  backendData.pts ??
-  backendData.gained ??
-  0;
-
-resultText = `✅ +${pts} pts ganados!`;
+        const pts = backendData.pts_gained ?? backendData.points ?? backendData.pts ?? backendData.gained ?? 0;
+        resultText = `✅ +${pts} pts ganados!`;
         resultColor = '#ff8c42';
       }
     }

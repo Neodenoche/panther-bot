@@ -1287,16 +1287,23 @@ elif special == "pnt":
                 f"_⚠️ Solo podés ganar PNT una vez por mes._"
             )
             for mod_id in MOD_IDS:
-                try:
-                    name = user.username or user.first_name
-                    await context.bot.send_message(
-                        chat_id=mod_id,
-                        text=f"🐾 *Premio PNT ganado*\n\n"
-                             f"Usuario: @{name} (ID: {uid})\n"
-                             f"Premio: *{pnt_amount} PNT*\n"
-                             f"Fecha: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-                        parse_mode="Markdown"
-                    )
+
+    try:
+
+        name = user.username or user.first_name
+
+        await context.bot.send_message(
+            chat_id=mod_id,
+            text=(
+                f"💵 Premio ganado\n\n"
+                f"Usuario: @{name}\n"
+                f"ID: {uid}\n"
+                f"Premio: {prize_amount} USDT"
+            )
+
+    except Exception as e:
+
+        logger.warning(f"Error notificando mod: {e}")
                 except Exception as e:
                     logger.warning(f"No se pudo notificar mod {mod_id}: {e}")
 

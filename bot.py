@@ -2075,6 +2075,53 @@ async def cmd_reset_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db(db)
     await update.message.reply_text("Giros reseteados para " + str(count) + " usuarios. Cada uno tiene 3 giros. Listos para la ruleta!")
 
+async def cmd_ganadores_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra ganadores de USDT y PNT en la ruleta — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    db = load_db()
+    usdt_winners = []
+    pnt_winners  = []
+
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        history = data.get("history", [])
+        for h in history:
+            if h.get("type") != "ruleta":
+                continue
+            if h.get("date") != "2026-05-15":
+                continue
+            prize = h.get("prize")
+            if prize not in ("USDT", "PNT"):
+                continue
+            nombre = data.get("username") or data.get("first_name") or uid
+            hora   = h.get("time", "??:??")
+            entry  = f"• {nombre} (ID: {uid}) — {hora}"
+            if prize == "USDT":
+                usdt_winners.append(entry)
+            else:
+                pnt_winners.append(entry)
+
+    lineas = ["🎰 *Ganadores de la Ruleta — 15 mayo 2026*\n"]
+
+    lineas.append(f"💵 *USDT* ({len(usdt_winners)} ganador{'es' if len(usdt_winners) != 1 else ''})")
+    if usdt_winners:
+        lineas.extend(usdt_winners)
+    else:
+        lineas.append("• Ninguno registrado")
+
+    lineas.append(f"\n🐾 *PNT* ({len(pnt_winners)} ganador{'es' if len(pnt_winners) != 1 else ''})")
+    if pnt_winners:
+        lineas.extend(pnt_winners)
+    else:
+        lineas.append("• Ninguno registrado")
+
+    await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
+
+
 async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Dar una estrella a un usuario respondiendo su mensaje"""
     if not update.message.reply_to_message:
@@ -3009,6 +3056,7 @@ def main():
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CommandHandler("dar_puntos", cmd_dar_puntos))
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
+    app.add_handler(CommandHandler("ganadores_ruleta", cmd_ganadores_ruleta))
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))

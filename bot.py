@@ -2603,6 +2603,103 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 for i, u in enumerate(top20)
             ])
 
+        # ── GET /admin/ganadores?key=panther2026 ──
+        elif path == "/admin/ganadores":
+            key = params.get("key", [None])[0]
+            if key != "panther2026":
+                self.send_response(403)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"<h2>Acceso denegado</h2>")
+                return
+
+            db = load_db()
+            usdt_winners = []
+            pnt_winners  = []
+            total_spins  = 0
+            all_spins    = []
+
+            for uid, data in db.items():
+                if uid.startswith("_") or not isinstance(data, dict):
+                    continue
+                nombre = str(data.get("username") or data.get("first_name") or uid)
+                history = data.get("history", [])
+                for h in history:
+                    if h.get("type") != "ruleta":
+                        continue
+                    if h.get("date") == "2026-05-15":
+                        total_spins += 1
+                        all_spins.append({
+                            "nombre": nombre,
+                            "uid": uid,
+                            "hora": h.get("time", "??:??"),
+                            "pts": h.get("pts", 0),
+                            "prize": h.get("prize") or "pts"
+                        })
+                    prize = (h.get("prize") or "").upper()
+                    if prize == "USDT" and h.get("date") == "2026-05-15":
+                        usdt_winners.append({"nombre": nombre, "uid": uid, "hora": h.get("time", "??:??"), "monto": h.get("prize_amount") or "?"})
+                    elif prize == "PNT" and h.get("date") == "2026-05-15":
+                        pnt_winners.append({"nombre": nombre, "uid": uid, "hora": h.get("time", "??:??"), "monto": h.get("prize_amount") or "?"})
+                # Fallback flags
+                if data.get("usdt_won_month") and not any(w["uid"] == uid for w in usdt_winners):
+                    usdt_winners.append({"nombre": nombre, "uid": uid, "hora": "desconocida", "monto": "?"})
+                if data.get("pnt_won_month") and not any(w["uid"] == uid for w in pnt_winners):
+                    pnt_winners.append({"nombre": nombre, "uid": uid, "hora": "desconocida", "monto": "?"})
+
+            def rows(items, cols=["nombre", "uid", "hora"]):
+                if not items:
+                    return "<tr><td colspan='3' style='color:#888;text-align:center'>Ninguno registrado</td></tr>"
+                out = ""
+                for r in items:
+                    cells = "".join(f"<td style='padding:6px 12px;border-bottom:1px solid #1e1e1e'>{str(r.get(c, '-'))}</td>" for c in cols)
+                    out += f"<tr>{cells}</tr>"
+                return out
+
+            def spin_rows(items):
+                if not items:
+                    return "<tr><td colspan='5' style='color:#888;text-align:center'>Sin giros registrados</td></tr>"
+                return "".join(
+                    f"<tr><td>{r['nombre']}</td><td>{r['uid']}</td><td>{r['hora']}</td><td>{r['pts']}</td><td>{r['prize']}</td></tr>"
+                    for r in sorted(items, key=lambda x: x['hora'])
+                )
+
+            th = "<th style='text-align:left;padding:8px 12px;border-bottom:1px solid #333'>%s</th>"
+            td_style = "style='padding:6px 12px;border-bottom:1px solid #222'"
+
+            html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+            <title>Ganadores Ruleta 15/05</title>
+            <style>
+              body{{background:#0a0a0a;color:#eee;font-family:sans-serif;padding:24px;}}
+              h1{{color:#ff6b1a}}h2{{color:#aaa;font-size:16px;margin-top:28px}}
+              table{{border-collapse:collapse;width:100%;max-width:700px;margin-bottom:24px}}
+              th{{background:#1a1a1a;color:#ff6b1a;padding:8px 12px;text-align:left;border-bottom:1px solid #333}}
+              td{{padding:6px 12px;border-bottom:1px solid #1e1e1e;font-size:14px}}
+              .badge{{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700}}
+              .usdt{{background:#1a3a1a;color:#4ade80}}.pnt{{background:#1a0a2a;color:#cc88ff}}
+              .stat{{font-size:28px;font-weight:700;color:#ff6b1a}}
+            </style></head><body>
+            <h1>🎰 Ruleta — 15 de mayo 2026</h1>
+            <p>Total de giros registrados ese día: <span class='stat'>{total_spins}</span></p>
+
+            <h2>💵 USDT — {len(usdt_winners)} ganador(es)</h2>
+            <table><tr>{th%'Usuario'}{th%'ID'}{th%'Hora'}{th%'Monto'}</tr>{rows(usdt_winners, ['nombre','uid','hora','monto'])}</table>
+
+            <h2>🐾 PNT — {len(pnt_winners)} ganador(es)</h2>
+            <table><tr>{th%'Usuario'}{th%'ID'}{th%'Hora'}{th%'Monto'}</tr>{rows(pnt_winners, ['nombre','uid','hora','monto'])}</table>
+
+            <h2>📋 Todos los giros del 15 mayo</h2>
+            <table><tr>{th%'Usuario'}{th%'ID'}{th%'Hora'}{th%'Pts'}{th%'Premio'}</tr>{spin_rows(all_spins)}</table>
+            </body></html>"""
+
+            html_bytes = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
         # ── GET /missions?id=123456 ──
         elif path == "/ruleta":
             uid = params.get("id", [None])[0]
@@ -2687,7 +2784,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "pts": earned,
                 "date": today,
                 "time": datetime.now().strftime("%H:%M"),
-                "prize": prize_type
+                "prize": prize_type,
+                "prize_amount": prize_amount
             })
 
             db[uid] = data

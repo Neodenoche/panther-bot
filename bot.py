@@ -2084,42 +2084,46 @@ async def cmd_ganadores_ruleta(update: Update, context: ContextTypes.DEFAULT_TYP
     db = load_db()
     usdt_winners = []
     pnt_winners  = []
+    total_spins  = 0
 
     for uid, data in db.items():
         if uid.startswith("_") or not isinstance(data, dict):
             continue
+
+        nombre = (data.get("username") or data.get("first_name") or uid)
+        # Limpiar caracteres que rompen Markdown
+        nombre = str(nombre).replace("_", " ").replace("*", "").replace("`", "").replace("[", "").replace("]", "")
+
         history = data.get("history", [])
         for h in history:
             if h.get("type") != "ruleta":
                 continue
-            if h.get("date") != "2026-05-15":
-                continue
-            prize = h.get("prize")
-            if prize not in ("USDT", "PNT"):
-                continue
-            nombre = data.get("username") or data.get("first_name") or uid
-            hora   = h.get("time", "??:??")
-            entry  = f"• {nombre} (ID: {uid}) — {hora}"
-            if prize == "USDT":
-                usdt_winners.append(entry)
-            else:
-                pnt_winners.append(entry)
+            if h.get("date") == "2026-05-15":
+                total_spins += 1
+            prize = (h.get("prize") or "").upper()
+            if prize == "USDT" and h.get("date") == "2026-05-15":
+                usdt_winners.append(f"- {nombre} (ID: {uid}) a las {h.get('time', '??:??')}")
+            elif prize == "PNT" and h.get("date") == "2026-05-15":
+                pnt_winners.append(f"- {nombre} (ID: {uid}) a las {h.get('time', '??:??')}")
 
-    lineas = ["🎰 *Ganadores de la Ruleta — 15 mayo 2026*\n"]
+        # Fallback: flags directos
+        if data.get("usdt_won_month") and not any(uid in w for w in usdt_winners):
+            usdt_winners.append(f"- {nombre} (ID: {uid}) hora desconocida")
+        if data.get("pnt_won_month") and not any(uid in w for w in pnt_winners):
+            pnt_winners.append(f"- {nombre} (ID: {uid}) hora desconocida")
 
-    lineas.append(f"💵 *USDT* ({len(usdt_winners)} ganador{'es' if len(usdt_winners) != 1 else ''})")
-    if usdt_winners:
-        lineas.extend(usdt_winners)
-    else:
-        lineas.append("• Ninguno registrado")
+    lineas = [
+        f"Ganadores Ruleta 15 mayo 2026",
+        f"Total giros ese dia: {total_spins}",
+        "",
+        f"USDT — {len(usdt_winners)} ganador(es)",
+    ]
+    lineas.extend(usdt_winners if usdt_winners else ["- Ninguno registrado"])
+    lineas.append("")
+    lineas.append(f"PNT — {len(pnt_winners)} ganador(es)")
+    lineas.extend(pnt_winners if pnt_winners else ["- Ninguno registrado"])
 
-    lineas.append(f"\n🐾 *PNT* ({len(pnt_winners)} ganador{'es' if len(pnt_winners) != 1 else ''})")
-    if pnt_winners:
-        lineas.extend(pnt_winners)
-    else:
-        lineas.append("• Ninguno registrado")
-
-    await update.message.reply_text("\n".join(lineas), parse_mode="Markdown")
+    await update.message.reply_text("\n".join(lineas))
 
 
 async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):

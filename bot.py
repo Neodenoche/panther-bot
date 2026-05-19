@@ -1920,6 +1920,11 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Función genérica de redirect a la mini app
     async def redirect_to_app(upd, ctx):
         uid = str(upd.effective_user.id)
+        db  = load_db()
+        # Registrar usuario si no existe
+        if uid not in db:
+            db[uid] = get_user(db, uid, upd.effective_user)
+            save_db(db)
         app_url = f"https://go.mypanther.io/app?id={uid}&v=3"
         from telegram import WebAppInfo
         kb = InlineKeyboardMarkup([[

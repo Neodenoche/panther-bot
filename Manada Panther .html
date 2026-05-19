@@ -984,7 +984,20 @@ async function loadUserData() {
   }
   try {
     const res = await fetch(`${API_BASE}/user?id=${USER_ID}`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      // Usuario no registrado — bloquear toda la app
+      document.body.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;background:#0a0a0a;padding:24px;text-align:center">
+          <div style="font-size:56px;margin-bottom:16px">🐆</div>
+          <div style="font-size:18px;font-weight:700;color:#fff;margin-bottom:8px">¡Bienvenido a la Manada!</div>
+          <div style="font-size:13px;color:#888;margin-bottom:24px;max-width:260px">Primero tenés que registrarte en el bot. Escribile <b style="color:#ff6b1a">/start</b> al bot y luego abrí la mini app.</div>
+          <a href="https://t.me/ManadaPantherBot?start=open" target="_blank"
+            style="display:block;background:#ff6b1a;color:#fff;border:none;border-radius:14px;padding:14px 32px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:1px;text-decoration:none">
+            🐆 IR AL BOT
+          </a>
+        </div>`;
+      return;
+    }
     userData = await res.json();
     updateUI();
   } catch(e) {

@@ -2675,9 +2675,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
             th = "<th style='text-align:left;padding:10px 14px;border-bottom:1px solid #222;color:#FF6B1A;font-size:13px;font-weight:600;letter-spacing:1px'>%s</th>"
 
-            def td(val, bold=False, color="#CCCCCC"):
+            def td(val, bold=False, color="#333333"):
                 s = "font-weight:700" if bold else "font-weight:400"
-                return f"<td style='padding:8px 14px;border-bottom:1px solid #111;font-size:14px;{s};color:{color}'>{val}</td>"
+                return f"<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;{s};color:{color}'>{val}</td>"
 
             def ref_rows():
                 out = ""
@@ -2686,22 +2686,19 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                     refs    = len(d.get("referrals", []))
                     activos = d.get("referrals_active", 0)
                     pts     = d.get("points", 0)
-                    bg = "#0D0D0D" if i % 2 == 0 else "#000"
-                    out += f"<tr style='background:{bg}'>{td(f'#{i+1}',color='#444')}{td(nombre,bold=True)}{td(str(refs),bold=True,color='#FF6B1A')}{td(str(activos),color='#4ade80')}{td(str(pts))}</tr>"
-                return out or "<tr><td colspan='5' style='padding:12px;color:#444;text-align:center'>Sin datos</td></tr>"
+                    out += f"<tr>{td(f'#{i+1}',color='#CCC')}{td(nombre,bold=True,color='#111')}{td(str(refs),bold=True,color='#FF5A0E')}{td(str(activos),color='#16a34a')}{td(str(pts),color='#666')}</tr>"
+                return out or "<tr><td colspan='5' style='padding:14px;color:#CCC;text-align:center'>Sin datos</td></tr>"
 
             def recent_rows():
                 out = ""
                 for i, (uid, d) in enumerate(recientes):
                     nombre  = str(d.get("username") or d.get("first_name") or uid)
-                    wallet  = "✅" if d.get("wallet_activated") else "—"
-                    ref_by  = "Referido" if d.get("referred_by") else "Directo"
-                    ref_col = "#4ade80" if d.get("referred_by") else "#666"
+                    wallet  = "<span class='badge badge-ok'>✅ Activa</span>" if d.get("wallet_activated") else "<span style='color:#CCC'>—</span>"
+                    ref_by  = "<span class='badge badge-ref'>Referido</span>" if d.get("referred_by") else "<span class='badge badge-dir'>Directo</span>"
                     last    = d["history"][-1]
                     fecha   = f"{last.get('date','')} {last.get('time','')}"
-                    bg = "#0D0D0D" if i % 2 == 0 else "#000"
-                    out += f"<tr style='background:{bg}'>{td(nombre,bold=True)}{td(wallet,color='#4ade80')}{td(ref_by,color=ref_col)}{td(fecha,color='#555')}</tr>"
-                return out or "<tr><td colspan='4' style='padding:12px;color:#444;text-align:center'>Sin datos</td></tr>"
+                    out += f"<tr>{td(nombre,bold=True,color='#111')}<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7'>{wallet}</td><td style='padding:10px 16px;border-bottom:1px solid #F7F7F7'>{ref_by}</td>{td(fecha,color='#999')}</tr>"
+                return out or "<tr><td colspan='4' style='padding:14px;color:#CCC;text-align:center'>Sin datos</td></tr>"
 
             pct_wallet = round(con_wallet / total * 100) if total else 0
             pct_ref    = round(por_referido / total * 100) if total else 0
@@ -2711,62 +2708,73 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             <title>Manada Panther — Stats</title>
             <style>
               *{{box-sizing:border-box;margin:0;padding:0}}
-              body{{background:#000;color:#ccc;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 24px;max-width:900px;margin:0 auto}}
-              h1{{color:#FF6B1A;font-size:22px;font-weight:700;margin-bottom:4px;letter-spacing:1px}}
-              .sub{{color:#333;font-size:12px;letter-spacing:2px;margin-bottom:32px}}
+              body{{background:#F5F5F5;color:#111;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 24px;max-width:960px;margin:0 auto}}
+              h1{{color:#FF5A0E;font-size:24px;font-weight:800;margin-bottom:4px;letter-spacing:1px}}
+              .sub{{color:#AAA;font-size:11px;letter-spacing:2px;margin-bottom:32px;text-transform:uppercase}}
               .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:36px}}
-              .card{{background:#0A0A0A;border:1px solid #1A1A1A;border-radius:12px;padding:20px 16px}}
-              .card-val{{font-size:42px;font-weight:800;color:#FF6B1A;line-height:1}}
-              .card-lbl{{font-size:11px;color:#444;letter-spacing:2px;margin-top:6px}}
-              .card-sub{{font-size:12px;color:#2A2A2A;margin-top:4px}}
-              h2{{font-size:13px;letter-spacing:2px;color:#444;margin-bottom:12px;margin-top:32px}}
-              table{{width:100%;border-collapse:collapse;background:#000;border-radius:8px;overflow:hidden;border:1px solid #111}}
-              .bar-bg{{background:#111;border-radius:4px;height:6px;margin-top:8px}}
-              .bar-fill{{height:6px;border-radius:4px;background:#FF6B1A}}
+              .card{{background:#FFF;border:1px solid #E8E8E8;border-radius:14px;padding:22px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}}
+              .card-val{{font-size:44px;font-weight:800;color:#FF5A0E;line-height:1}}
+              .card-lbl{{font-size:10px;color:#AAA;letter-spacing:2px;margin-top:6px;text-transform:uppercase}}
+              .card-sub{{font-size:12px;color:#BBB;margin-top:5px}}
+              .card-val.green{{color:#16a34a}}
+              .card-val.gray{{color:#CCC}}
+              h2{{font-size:11px;letter-spacing:2px;color:#AAA;margin-bottom:10px;margin-top:32px;text-transform:uppercase}}
+              table{{width:100%;border-collapse:collapse;background:#FFF;border-radius:12px;overflow:hidden;border:1px solid #EEEEEE;box-shadow:0 2px 8px rgba(0,0,0,0.04)}}
+              th{{text-align:left;padding:12px 16px;border-bottom:1px solid #F0F0F0;color:#AAA;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:#FAFAFA}}
+              td{{padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;color:#333}}
+              tr:last-child td{{border-bottom:none}}
+              tr:hover td{{background:#FFF8F5}}
+              .bar-bg{{background:#F0F0F0;border-radius:4px;height:5px;margin-top:8px}}
+              .bar-fill{{height:5px;border-radius:4px}}
+              .badge{{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}}
+              .badge-ref{{background:#FFF3EE;color:#FF5A0E}}
+              .badge-dir{{background:#F5F5F5;color:#999}}
+              .badge-ok{{background:#F0FDF4;color:#16a34a}}
+              footer{{margin-top:48px;font-size:11px;color:#CCC;text-align:center;letter-spacing:2px;text-transform:uppercase}}
             </style></head><body>
             <h1>MANADA PANTHER</h1>
-            <div class='sub'>COMMUNITY STATS · PANTHER WALLET</div>
+            <div class='sub'>Community Stats · Panther Wallet</div>
 
             <div class='grid'>
               <div class='card'>
                 <div class='card-val'>{total}</div>
-                <div class='card-lbl'>MIEMBROS TOTALES</div>
+                <div class='card-lbl'>Miembros totales</div>
               </div>
               <div class='card'>
-                <div class='card-val' style='color:#4ade80'>{con_wallet}</div>
-                <div class='card-lbl'>CON WALLET ACTIVA</div>
-                <div class='bar-bg'><div class='bar-fill' style='width:{pct_wallet}%;background:#4ade80'></div></div>
+                <div class='card-val green'>{con_wallet}</div>
+                <div class='card-lbl'>Con wallet activa</div>
+                <div class='bar-bg'><div class='bar-fill' style='width:{pct_wallet}%;background:#16a34a'></div></div>
                 <div class='card-sub'>{pct_wallet}% del total</div>
               </div>
               <div class='card'>
-                <div class='card-val' style='color:#fff'>{sin_wallet}</div>
-                <div class='card-lbl'>SIN WALLET AÚN</div>
+                <div class='card-val gray'>{sin_wallet}</div>
+                <div class='card-lbl'>Sin wallet aún</div>
               </div>
               <div class='card'>
                 <div class='card-val'>{por_referido}</div>
-                <div class='card-lbl'>VÍA REFERIDO</div>
-                <div class='bar-bg'><div class='bar-fill' style='width:{pct_ref}%'></div></div>
+                <div class='card-lbl'>Vía referido</div>
+                <div class='bar-bg'><div class='bar-fill' style='width:{pct_ref}%;background:#FF5A0E'></div></div>
                 <div class='card-sub'>{pct_ref}% del total</div>
               </div>
               <div class='card'>
-                <div class='card-val' style='color:#555'>{directo}</div>
-                <div class='card-lbl'>ACCESO DIRECTO</div>
+                <div class='card-val gray'>{directo}</div>
+                <div class='card-lbl'>Acceso directo</div>
               </div>
             </div>
 
-            <h2>TOP REFERIDORES</h2>
+            <h2>Top Referidores</h2>
             <table>
-              <tr style='background:#0A0A0A'>{th%'#'}{th%'USUARIO'}{th%'REFERIDOS'}{th%'CON WALLET'}{th%'PUNTOS'}</tr>
+              <tr><th>#</th><th>Usuario</th><th>Referidos</th><th>Con Wallet</th><th>Puntos</th></tr>
               {ref_rows()}
             </table>
 
-            <h2>ACTIVIDAD RECIENTE</h2>
+            <h2>Actividad Reciente</h2>
             <table>
-              <tr style='background:#0A0A0A'>{th%'USUARIO'}{th%'WALLET'}{th%'ORIGEN'}{th%'ÚLTIMA ACCIÓN'}</tr>
+              <tr><th>Usuario</th><th>Wallet</th><th>Origen</th><th>Última acción</th></tr>
               {recent_rows()}
             </table>
 
-            <div style='margin-top:40px;font-size:11px;color:#1A1A1A;text-align:center;letter-spacing:2px'>MANADA PANTHER · PEGANDO LA VUELTA</div>
+            <footer>Manada Panther · Pegando La Vuelta</footer>
             </body></html>"""
 
             html_bytes = html.encode("utf-8")

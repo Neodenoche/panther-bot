@@ -27,6 +27,13 @@ SQLITE_FILE = "/data/panther.db"
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
+
+# Links de campaña — prefijos reconocidos como fuentes externas
+CAMPAIGN_SOURCES = {
+    "camp_ig":   "Instagram",
+    "camp_mail": "Email",
+    "camp_tk":   "TikTok",
+}
 PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
 STAR_COOLDOWN: dict = {}    # uid -> list of timestamps (máx 5 por hora)
 CHAT_STARS: dict = {}       # uid -> {stars, pts, username, first_name} — persistido en SQLite
@@ -775,32 +782,32 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if context.args and is_new:
         ref_code = context.args[0]
-        # Match both numeric code and full PANTH-XXXXXX format
-        for rid, rdata in db.items():
-            r_code = rdata.get("referral_code", "")
-            if (r_code == ref_code or r_code == f"PANTH-{ref_code}") and rid != uid:
-                data["referred_by"] = rid
-                if uid not in rdata["referrals"]:
-                    rdata["referrals"].append(uid)
-                    earned = add_points(rdata, PTS["referral_join"])
-                    db[rid] = rdata
 
-                    # Notify referrer
-                    try:
-                        await context.bot.send_message(
-                            chat_id=int(rid),
-                            text=f"🎉 *¡Nuevo miembro en la Manada!*\n\n"
-                                 f"*{user.first_name}* se unió con tu código 🐆\n"
-                                 f"*+{earned} puntos* acreditados 🐾",
-                            parse_mode="Markdown"
-                        )
-                    except Exception:
-                        pass
-
-                    # Check milestone and notify group
-                    total = len([u for u in db.values() if isinstance(u, dict) and "points" in u])
-                    # milestone check removed
-                break
+        # ── Campaña externa (IG, mail, TikTok) ──
+        if ref_code in CAMPAIGN_SOURCES:
+            data["source"] = ref_code
+        else:
+            # ── Link de referido de usuario ──
+            data["source"] = "referral"
+            for rid, rdata in db.items():
+                r_code = rdata.get("referral_code", "")
+                if (r_code == ref_code or r_code == f"PANTH-{ref_code}") and rid != uid:
+                    data["referred_by"] = rid
+                    if uid not in rdata["referrals"]:
+                        rdata["referrals"].append(uid)
+                        earned = add_points(rdata, PTS["referral_join"])
+                        db[rid] = rdata
+                        try:
+                            await context.bot.send_message(
+                                chat_id=int(rid),
+                                text=f"🎉 *¡Nuevo miembro en la Manada!*\n\n"
+                                     f"*{user.first_name}* se unió con tu código 🐆\n"
+                                     f"*+{earned} puntos* acreditados 🐾",
+                                parse_mode="Markdown"
+                            )
+                        except Exception:
+                            pass
+                    break
 
     # Asignar número de fundador si es nuevo y hay cupos
     if is_new:
@@ -2167,6 +2174,213 @@ async def cmd_stats_referidos(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text("\n".join(lineas))
 
 
+
+async def cmd_links_campana(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra los links de campaña — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+    base = "https://t.me/ManadaPantherBot?start="
+    lineas = [
+        "Links de campana - Operacion 1000:",
+        "",
+        "Instagram:",
+        base + "camp_ig",
+        "",
+        "Email:",
+        base + "camp_mail",
+        "",
+        "TikTok:",
+        base + "camp_tk",
+        "",
+        "Los links de usuarios siguen siendo sus codigos PANTH-XXXXXX de siempre.",
+    ]
+    msg = "\n".join(lineas)
+    await update.message.reply_text(msg)
+
+
+async def handle_nuevo_cazador(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Detecta #NuevoCazador con foto en el grupo y notifica a mods"""
+    msg = update.message
+    if not msg or not msg.photo:
+        return
+    if update.effective_chat.type not in ("group", "supergroup"):
+        return
+
+    caption = (msg.caption or "").lower()
+    if "#nuevocazador" not in caption:
+        return
+
+    user = update.effective_user
+    uid  = str(user.id)
+    db   = load_db()
+    data = get_user(db, uid, user)
+    nombre = f"@{user.username}" if user.username else user.first_name
+
+    # Ya verificado
+    if data.get("cazador_verificado"):
+        try:
+            await msg.reply_text(f"🐆 {nombre}, tu ritual ya fue verificado anteriormente.")
+        except Exception:
+            pass
+        return
+
+    referred_by = data.get("referred_by")
+    source      = data.get("source", "directo")
+
+    if referred_by:
+        ref_data   = db.get(str(referred_by), {})
+        ref_nombre = ref_data.get("username") or ref_data.get("first_name") or str(referred_by)
+        ref_txt    = f"Referido por: @{ref_nombre} (ID: {referred_by})"
+    else:
+        src_label = CAMPAIGN_SOURCES.get(source, "Directo / desconocido")
+        ref_txt   = f"Sin referidor — Origen: {src_label}"
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Aprobar cazador", callback_data=f"cazador_ok_{uid}")],
+        [InlineKeyboardButton("❌ Rechazar",        callback_data=f"cazador_no_{uid}")]
+    ])
+
+    mod_text = (
+        "🎯 Nuevo Cazador - Verificacion pendiente\n\n"
+        f"Usuario: {nombre} (ID: {uid})\n"
+        f"{ref_txt}\n\n"
+"Verificar que la captura muestre Panther Wallet instalada."
+    )
+
+    # Confirmar al usuario
+    try:
+        await msg.reply_text(
+            f"Captura recibida {nombre}.\n\n"
+            "Un moderador va a verificar tu ritual. "
+            "Te avisamos cuando este aprobado."
+        )
+    except Exception:
+        pass
+
+    # Notificar al grupo de mods
+    try:
+        await context.bot.forward_message(
+            chat_id=MOD_GROUP_ID,
+            from_chat_id=update.effective_chat.id,
+            message_id=msg.message_id
+        )
+        await context.bot.send_message(
+            chat_id=MOD_GROUP_ID,
+            text=mod_text,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        logger.warning(f"Error notificando mods cazador: {e}")
+        for mod_id in MOD_IDS:
+            try:
+                await context.bot.forward_message(
+                    chat_id=mod_id,
+                    from_chat_id=update.effective_chat.id,
+                    message_id=msg.message_id
+                )
+                await context.bot.send_message(
+                    chat_id=mod_id,
+                    text=mod_text,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+            except Exception:
+                pass
+
+
+async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Callback para aprobar o rechazar un cazador"""
+    query = update.callback_query
+    await query.answer()
+
+    if update.effective_user.id not in MOD_IDS:
+        await query.answer("No tenes permisos.", show_alert=True)
+        return
+
+    data_str = query.data
+    db = load_db()
+
+    if data_str.startswith("cazador_ok_"):
+        target_uid = data_str.replace("cazador_ok_", "")
+        target_data = db.get(target_uid)
+        if not target_data:
+            await query.edit_message_text("Error: usuario no encontrado.")
+            return
+
+        nombre = target_data.get("username") or target_data.get("first_name") or target_uid
+
+        # Marcar como cazador verificado
+        target_data["cazador_verificado"] = True
+        target_data["wallet_activated"]   = True
+
+        # Activar referido si tiene referidor
+        referred_by = target_data.get("referred_by")
+        ref_msg = ""
+        if referred_by:
+            ref_data = db.get(str(referred_by), {})
+            if ref_data:
+                if target_uid not in ref_data.get("referrals", []):
+                    ref_data.setdefault("referrals", []).append(target_uid)
+                ref_data["referrals_active"] = ref_data.get("referrals_active", 0) + 1
+                db[str(referred_by)] = ref_data
+                ref_nombre = ref_data.get("username") or ref_data.get("first_name") or referred_by
+                ref_msg = f"\nReferidor @{ref_nombre} actualizado (+1 activo)."
+
+                # Notificar al referidor
+                try:
+                    await context.bot.send_message(
+                        chat_id=int(referred_by),
+                        text=(
+                            f"Tu referido {nombre} completo el ritual de cazador.\n\n"
+                            "Ya cuenta como referido activo en tu registro"
+                        )
+                    )
+                except Exception:
+                    pass
+
+        db[target_uid] = target_data
+        save_db(db)
+
+        # Notificar al usuario aprobado
+        try:
+            await context.bot.send_message(
+                chat_id=int(target_uid),
+                text=(
+                    "Tu ritual fue verificado.\n\n"
+                    "Sos oficialmente un Cazador de la Manada\n"
+                    "Cuando empiece el evento vas a recibir todos los detalles."
+                )
+            )
+        except Exception:
+            pass
+
+        await query.edit_message_text(
+            f"✅ Cazador aprobado: @{nombre} (ID: {target_uid}){ref_msg}",
+            parse_mode="Markdown"
+        )
+
+    elif data_str.startswith("cazador_no_"):
+        target_uid = data_str.replace("cazador_no_", "")
+        target_data = db.get(target_uid, {})
+        nombre = target_data.get("username") or target_data.get("first_name") or target_uid
+
+        try:
+            await context.bot.send_message(
+                chat_id=int(target_uid),
+                text=(
+                    "Tu captura no pudo ser verificada.\n\n"
+                    "Asegurate de que la imagen muestre Panther Wallet instalada "
+                    "y volvé a mandarla con #NuevoCazador."
+                )
+            )
+        except Exception:
+            pass
+
+        await query.edit_message_text(f"❌ Cazador rechazado: @{nombre} (ID: {target_uid})")
+
+
 async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Dar una estrella a un usuario respondiendo su mensaje"""
     if not update.message.reply_to_message:
@@ -3391,6 +3605,9 @@ def main():
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
     app.add_handler(CommandHandler("ganadores_ruleta", cmd_ganadores_ruleta))
     app.add_handler(CommandHandler("stats_referidos", cmd_stats_referidos))
+    app.add_handler(CommandHandler("links_campana",   cmd_links_campana))
+    app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
+    app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))

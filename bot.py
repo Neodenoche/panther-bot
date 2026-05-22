@@ -2663,119 +2663,169 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             por_referido = sum(1 for d in users.values() if d.get("referred_by"))
             directo      = total - por_referido
 
-            # Top referidores
-            top_refs = sorted(users.items(), key=lambda x: len(x[1].get("referrals", [])), reverse=True)[:10]
+            # Misiones
+            mission_counts = {}
+            total_missions = 0
+            total_pts_emitidos = 0
+            for d in users.values():
+                for h in d.get("history", []):
+                    t = h.get("type", "otro")
+                    mission_counts[t] = mission_counts.get(t, 0) + 1
+                    total_missions += 1
+                    total_pts_emitidos += h.get("pts", 0)
 
-            # Usuarios recientes (últimos 10 por historial)
+            checkins   = mission_counts.get("checkin", 0)
+            contenido  = mission_counts.get("reel", 0) + mission_counts.get("historia", 0) + mission_counts.get("tiktok", 0)
+            sociales   = sum(v for k, v in mission_counts.items() if "follow" in k or "social" in k)
+            referidos_m = mission_counts.get("referral", 0) + mission_counts.get("referral_wallet", 0)
+            glosario   = mission_counts.get("glosario", 0)
+            ruleta_m   = mission_counts.get("ruleta", 0)
+            otros      = max(0, total_missions - checkins - contenido - sociales - referidos_m - glosario - ruleta_m)
+
+            # Rachas
+            rachas = [d.get("streak", 0) for d in users.values()]
+            racha_prom = round(sum(rachas) / len(rachas), 1) if rachas else 0
+            racha_max  = max(rachas) if rachas else 0
+
+            # Top pts y misiones
+            top_pts = max(users.items(), key=lambda x: x[1].get("points", 0), default=(None, {}))
+            top_mis = max(users.items(), key=lambda x: len(x[1].get("history", [])), default=(None, {}))
+
+            # Niveles
+            nivel_dist = {}
+            for d in users.values():
+                lv = get_level(d.get("points", 0))
+                nivel_dist[lv] = nivel_dist.get(lv, 0) + 1
+            nivel_orden = ["Cachorro","Explorador","Guerrero","Cazador","Alfa","Embajador","Leyenda","Dios"]
+            nivel_dist_sorted = [(lv, nivel_dist.get(lv, 0)) for lv in nivel_orden if nivel_dist.get(lv, 0) > 0]
+
+            # Dias activos
+            from datetime import date as _date
+            launch = _date(2026, 4, 28)
+            dias_activos = (_date.today() - launch).days
+
+            # Top referidores y recientes
+            top_refs = sorted(users.items(), key=lambda x: len(x[1].get("referrals", [])), reverse=True)[:10]
             recientes = sorted(
                 [(uid, d) for uid, d in users.items() if d.get("history")],
                 key=lambda x: x[1]["history"][-1].get("date", "") + x[1]["history"][-1].get("time", ""),
                 reverse=True
             )[:10]
 
-            th = "<th style='text-align:left;padding:10px 14px;border-bottom:1px solid #222;color:#FF6B1A;font-size:13px;font-weight:600;letter-spacing:1px'>%s</th>"
+            pct_wallet = round(con_wallet / total * 100) if total else 0
+            pct_ref    = round(por_referido / total * 100) if total else 0
+            nombre_top_pts = str(top_pts[1].get("username") or top_pts[1].get("first_name") or top_pts[0]) if top_pts[0] else "—"
+            nombre_top_mis = str(top_mis[1].get("username") or top_mis[1].get("first_name") or top_mis[0]) if top_mis[0] else "—"
 
-            def td(val, bold=False, color="#333333"):
+            def td(val, bold=False, color="#333"):
                 s = "font-weight:700" if bold else "font-weight:400"
                 return f"<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;{s};color:{color}'>{val}</td>"
 
             def ref_rows():
                 out = ""
                 for i, (uid, d) in enumerate(top_refs):
-                    nombre  = str(d.get("username") or d.get("first_name") or uid)
-                    refs    = len(d.get("referrals", []))
-                    activos = d.get("referrals_active", 0)
-                    pts     = d.get("points", 0)
-                    out += f"<tr>{td(f'#{i+1}',color='#CCC')}{td(nombre,bold=True,color='#111')}{td(str(refs),bold=True,color='#FF5A0E')}{td(str(activos),color='#16a34a')}{td(str(pts),color='#666')}</tr>"
+                    n = str(d.get("username") or d.get("first_name") or uid)
+                    refs = len(d.get("referrals", []))
+                    act  = d.get("referrals_active", 0)
+                    pts  = d.get("points", 0)
+                    out += f"<tr>{td(f'#{i+1}',color='#CCC')}{td(n,True,'#111')}{td(str(refs),True,'#FF5A0E')}{td(str(act),color='#16a34a')}{td(str(pts),color='#666')}</tr>"
                 return out or "<tr><td colspan='5' style='padding:14px;color:#CCC;text-align:center'>Sin datos</td></tr>"
 
             def recent_rows():
                 out = ""
-                for i, (uid, d) in enumerate(recientes):
-                    nombre  = str(d.get("username") or d.get("first_name") or uid)
-                    wallet  = "<span class='badge badge-ok'>✅ Activa</span>" if d.get("wallet_activated") else "<span style='color:#CCC'>—</span>"
-                    ref_by  = "<span class='badge badge-ref'>Referido</span>" if d.get("referred_by") else "<span class='badge badge-dir'>Directo</span>"
-                    last    = d["history"][-1]
-                    fecha   = f"{last.get('date','')} {last.get('time','')}"
-                    out += f"<tr>{td(nombre,bold=True,color='#111')}<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7'>{wallet}</td><td style='padding:10px 16px;border-bottom:1px solid #F7F7F7'>{ref_by}</td>{td(fecha,color='#999')}</tr>"
+                for uid, d in recientes:
+                    n = str(d.get("username") or d.get("first_name") or uid)
+                    w = "<span style='background:#F0FDF4;color:#16a34a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600'>✅ Activa</span>" if d.get("wallet_activated") else "<span style='color:#CCC'>—</span>"
+                    r = "<span style='background:#FFF3EE;color:#FF5A0E;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600'>Referido</span>" if d.get("referred_by") else "<span style='background:#F5F5F5;color:#999;padding:2px 8px;border-radius:10px;font-size:11px'>Directo</span>"
+                    last = d["history"][-1]
+                    fecha = f"{last.get('date','')} {last.get('time','')}"
+                    out += f"<tr>{td(n,True,'#111')}<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7'>{w}</td><td style='padding:10px 16px;border-bottom:1px solid #F7F7F7'>{r}</td>{td(fecha,color='#999')}</tr>"
                 return out or "<tr><td colspan='4' style='padding:14px;color:#CCC;text-align:center'>Sin datos</td></tr>"
 
-            pct_wallet = round(con_wallet / total * 100) if total else 0
-            pct_ref    = round(por_referido / total * 100) if total else 0
+            def nivel_rows():
+                out = ""
+                for lv, count in nivel_dist_sorted:
+                    pct = round(count / total * 100) if total else 0
+                    bar = f"<div style='background:#F0F0F0;border-radius:4px;height:5px;margin-top:4px'><div style='width:{pct}%;height:5px;border-radius:4px;background:#FF5A0E'></div></div><span style='font-size:11px;color:#AAA'>{pct}%</span>"
+                    out += f"<tr>{td(lv,True,'#111')}{td(str(count),True,'#FF5A0E')}<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7;min-width:160px'>{bar}</td></tr>"
+                return out or "<tr><td colspan='3' style='padding:14px;color:#CCC;text-align:center'>Sin datos</td></tr>"
 
             html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
-            <meta name='viewport' content='width=device-width,initial-scale=1'>
-            <title>Manada Panther — Stats</title>
-            <style>
-              *{{box-sizing:border-box;margin:0;padding:0}}
-              body{{background:#F5F5F5;color:#111;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 24px;max-width:960px;margin:0 auto}}
-              h1{{color:#FF5A0E;font-size:24px;font-weight:800;margin-bottom:4px;letter-spacing:1px}}
-              .sub{{color:#AAA;font-size:11px;letter-spacing:2px;margin-bottom:32px;text-transform:uppercase}}
-              .grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:36px}}
-              .card{{background:#FFF;border:1px solid #E8E8E8;border-radius:14px;padding:22px 18px;box-shadow:0 2px 8px rgba(0,0,0,0.06)}}
-              .card-val{{font-size:44px;font-weight:800;color:#FF5A0E;line-height:1}}
-              .card-lbl{{font-size:10px;color:#AAA;letter-spacing:2px;margin-top:6px;text-transform:uppercase}}
-              .card-sub{{font-size:12px;color:#BBB;margin-top:5px}}
-              .card-val.green{{color:#16a34a}}
-              .card-val.gray{{color:#CCC}}
-              h2{{font-size:11px;letter-spacing:2px;color:#AAA;margin-bottom:10px;margin-top:32px;text-transform:uppercase}}
-              table{{width:100%;border-collapse:collapse;background:#FFF;border-radius:12px;overflow:hidden;border:1px solid #EEEEEE;box-shadow:0 2px 8px rgba(0,0,0,0.04)}}
-              th{{text-align:left;padding:12px 16px;border-bottom:1px solid #F0F0F0;color:#AAA;font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:#FAFAFA}}
-              td{{padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;color:#333}}
-              tr:last-child td{{border-bottom:none}}
-              tr:hover td{{background:#FFF8F5}}
-              .bar-bg{{background:#F0F0F0;border-radius:4px;height:5px;margin-top:8px}}
-              .bar-fill{{height:5px;border-radius:4px}}
-              .badge{{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600}}
-              .badge-ref{{background:#FFF3EE;color:#FF5A0E}}
-              .badge-dir{{background:#F5F5F5;color:#999}}
-              .badge-ok{{background:#F0FDF4;color:#16a34a}}
-              footer{{margin-top:48px;font-size:11px;color:#CCC;text-align:center;letter-spacing:2px;text-transform:uppercase}}
-            </style></head><body>
-            <h1>MANADA PANTHER</h1>
-            <div class='sub'>Community Stats · Panther Wallet</div>
+<meta name='viewport' content='width=device-width,initial-scale=1'>
+<title>Manada Panther Stats</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#F5F5F5;color:#111;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;padding:32px 24px;max-width:960px;margin:0 auto}}
+h1{{color:#FF5A0E;font-size:26px;font-weight:800;margin-bottom:4px}}
+.sub{{color:#AAA;font-size:11px;letter-spacing:2px;margin-bottom:28px;text-transform:uppercase}}
+.grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:14px}}
+.card{{background:#FFF;border:1px solid #E8E8E8;border-radius:14px;padding:20px 16px;box-shadow:0 2px 8px rgba(0,0,0,0.05)}}
+.card-val{{font-size:38px;font-weight:800;color:#FF5A0E;line-height:1}}
+.card-val.green{{color:#16a34a}}.card-val.gray{{color:#CCC}}.card-val.dark{{color:#111}}
+.card-lbl{{font-size:10px;color:#AAA;letter-spacing:2px;margin-top:6px;text-transform:uppercase}}
+.card-sub{{font-size:12px;color:#BBB;margin-top:5px}}
+.card-name{{font-size:16px;font-weight:700;color:#111;margin-top:6px}}
+h2{{font-size:11px;letter-spacing:2px;color:#AAA;margin-bottom:10px;margin-top:28px;text-transform:uppercase}}
+table{{width:100%;border-collapse:collapse;background:#FFF;border-radius:12px;overflow:hidden;border:1px solid #EEE;box-shadow:0 2px 8px rgba(0,0,0,0.04);margin-bottom:8px}}
+th{{text-align:left;padding:12px 16px;border-bottom:1px solid #F0F0F0;color:#AAA;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:#FAFAFA}}
+td{{padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;color:#333}}
+tr:last-child td{{border-bottom:none}}
+tr:hover td{{background:#FFF8F5}}
+.bar-bg{{background:#F0F0F0;border-radius:4px;height:5px;margin-top:8px}}
+.bar-fill{{height:5px;border-radius:4px}}
+.mis-row{{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;background:#FFF}}
+.mis-row:last-child{{border-bottom:none}}
+footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align:center;letter-spacing:2px;text-transform:uppercase}}
+</style></head><body>
+<h1>MANADA PANTHER</h1>
+<div class='sub'>Community Dashboard &nbsp;·&nbsp; Panther Wallet &nbsp;·&nbsp; {dias_activos} días activos</div>
 
-            <div class='grid'>
-              <div class='card'>
-                <div class='card-val'>{total}</div>
-                <div class='card-lbl'>Miembros totales</div>
-              </div>
-              <div class='card'>
-                <div class='card-val green'>{con_wallet}</div>
-                <div class='card-lbl'>Con wallet activa</div>
-                <div class='bar-bg'><div class='bar-fill' style='width:{pct_wallet}%;background:#16a34a'></div></div>
-                <div class='card-sub'>{pct_wallet}% del total</div>
-              </div>
-              <div class='card'>
-                <div class='card-val gray'>{sin_wallet}</div>
-                <div class='card-lbl'>Sin wallet aún</div>
-              </div>
-              <div class='card'>
-                <div class='card-val'>{por_referido}</div>
-                <div class='card-lbl'>Vía referido</div>
-                <div class='bar-bg'><div class='bar-fill' style='width:{pct_ref}%;background:#FF5A0E'></div></div>
-                <div class='card-sub'>{pct_ref}% del total</div>
-              </div>
-              <div class='card'>
-                <div class='card-val gray'>{directo}</div>
-                <div class='card-lbl'>Acceso directo</div>
-              </div>
-            </div>
+<h2>Comunidad</h2>
+<div class='grid'>
+<div class='card'><div class='card-val'>{total}</div><div class='card-lbl'>Miembros totales</div></div>
+<div class='card'><div class='card-val green'>{con_wallet}</div><div class='card-lbl'>Con wallet activa</div><div class='bar-bg'><div class='bar-fill' style='width:{pct_wallet}%;background:#16a34a'></div></div><div class='card-sub'>{pct_wallet}% del total</div></div>
+<div class='card'><div class='card-val gray'>{sin_wallet}</div><div class='card-lbl'>Sin wallet aún</div></div>
+<div class='card'><div class='card-val'>{por_referido}</div><div class='card-lbl'>Vía referido</div><div class='bar-bg'><div class='bar-fill' style='width:{pct_ref}%;background:#FF5A0E'></div></div><div class='card-sub'>{pct_ref}% del total</div></div>
+<div class='card'><div class='card-val gray'>{directo}</div><div class='card-lbl'>Acceso directo</div></div>
+</div>
 
-            <h2>Top Referidores</h2>
-            <table>
-              <tr><th>#</th><th>Usuario</th><th>Referidos</th><th>Con Wallet</th><th>Puntos</th></tr>
-              {ref_rows()}
-            </table>
+<h2>Actividad & Engagement</h2>
+<div class='grid'>
+<div class='card'><div class='card-val dark'>{total_missions}</div><div class='card-lbl'>Misiones completadas</div></div>
+<div class='card'><div class='card-val'>{total_pts_emitidos:,}</div><div class='card-lbl'>Puntos emitidos</div></div>
+<div class='card'><div class='card-val dark'>{checkins}</div><div class='card-lbl'>Check-ins totales</div></div>
+<div class='card'><div class='card-val dark'>{racha_prom}</div><div class='card-lbl'>Racha promedio</div><div class='card-sub'>Máx: {racha_max} días</div></div>
+<div class='card'><div class='card-val dark'>{ruleta_m}</div><div class='card-lbl'>Giros de ruleta</div></div>
+</div>
 
-            <h2>Actividad Reciente</h2>
-            <table>
-              <tr><th>Usuario</th><th>Wallet</th><th>Origen</th><th>Última acción</th></tr>
-              {recent_rows()}
-            </table>
+<h2>Misiones por tipo</h2>
+<div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
+<div class='mis-row'><span>🔥 Check-in diario</span><strong style='color:#FF5A0E'>{checkins}</strong></div>
+<div class='mis-row'><span>📱 Contenido (reels, historias, TikTok)</span><strong style='color:#FF5A0E'>{contenido}</strong></div>
+<div class='mis-row'><span>👥 Sociales (follows)</span><strong style='color:#FF5A0E'>{sociales}</strong></div>
+<div class='mis-row'><span>🔗 Referidos</span><strong style='color:#FF5A0E'>{referidos_m}</strong></div>
+<div class='mis-row'><span>📖 Glosario crypto</span><strong style='color:#FF5A0E'>{glosario}</strong></div>
+<div class='mis-row'><span>🎰 Ruleta</span><strong style='color:#FF5A0E'>{ruleta_m}</strong></div>
+<div class='mis-row' style='border-bottom:none'><span style='color:#AAA'>Otros</span><strong style='color:#CCC'>{otros}</strong></div>
+</div>
 
-            <footer>Manada Panther · Pegando La Vuelta</footer>
-            </body></html>"""
+<h2>Usuarios destacados</h2>
+<div class='grid'>
+<div class='card'><div class='card-lbl'>Mayor puntaje</div><div class='card-name'>{nombre_top_pts}</div><div class='card-sub'>{top_pts[1].get("points",0):,} pts</div></div>
+<div class='card'><div class='card-lbl'>Más misiones completadas</div><div class='card-name'>{nombre_top_mis}</div><div class='card-sub'>{len(top_mis[1].get("history",[]))} misiones</div></div>
+</div>
+
+<h2>Distribución de niveles</h2>
+<table><tr><th>Nivel</th><th>Usuarios</th><th>Distribución</th></tr>{nivel_rows()}</table>
+
+<h2>Top Referidores</h2>
+<table><tr><th>#</th><th>Usuario</th><th>Referidos</th><th>Con Wallet</th><th>Puntos</th></tr>{ref_rows()}</table>
+
+<h2>Actividad Reciente</h2>
+<table><tr><th>Usuario</th><th>Wallet</th><th>Origen</th><th>Última acción</th></tr>{recent_rows()}</table>
+
+<footer>Manada Panther &nbsp;·&nbsp; Pegando La Vuelta &nbsp;·&nbsp; go.mypanther.io</footer>
+</body></html>"""
 
             html_bytes = html.encode("utf-8")
             self.send_response(200)
@@ -2785,7 +2835,6 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             self.wfile.write(html_bytes)
             return
 
-        # ── GET /admin/ganadores?key=panther2026 ──
         elif path == "/admin/ganadores":
             key = params.get("key", [None])[0]
             if key != "panther2026":

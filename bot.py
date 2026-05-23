@@ -33,6 +33,7 @@ CAMPAIGN_SOURCES = {
     "camp_ig":   "Instagram",
     "camp_mail": "Email",
     "camp_tk":   "TikTok",
+    "camp_web":  "Sitio Web",
 }
 PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
 STAR_COOLDOWN: dict = {}    # uid -> list of timestamps (máx 5 por hora)
@@ -2192,6 +2193,9 @@ async def cmd_links_campana(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "",
         "TikTok:",
         base + "camp_tk",
+        "",
+        "Sitio Web:",
+        base + "camp_web",
         "",
         "Los links de usuarios siguen siendo sus codigos PANTH-XXXXXX de siempre.",
     ]

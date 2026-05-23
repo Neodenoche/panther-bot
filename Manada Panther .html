@@ -546,38 +546,41 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
 </div>
 
+<!-- NAV -->
 <!-- SCREEN EVENTO -->
 <div class="screen" id="s-evento">
 
-  <!-- Estado: SIN EVENTO ACTIVO -->
-  <div id="ev-pronto" style="display:none;padding:32px 18px;text-align:center">
-    <div style="font-size:64px;margin-bottom:16px">🔒</div>
-    <div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:8px">Próximamente</div>
-    <div style="font-size:13px;color:#888;line-height:1.5">El próximo evento de la Manada<br>se anunciará pronto. ¡Seguí atento!</div>
+  <!-- SIEMPRE visible: assets visuales + banner próximo evento -->
+  <div style="background:linear-gradient(160deg,#1a0800 0%,#0a0a0a 100%);border-bottom:1px solid #2a1500;padding:22px 18px 18px;text-align:center">
+    <div style="font-size:10px;font-weight:800;letter-spacing:3px;color:#FF5C1A;text-transform:uppercase;margin-bottom:4px">⚔️ OPERACIÓN 1,000 CAZADORES</div>
+    <div style="font-size:20px;font-weight:900;color:#fff">Manada Panther</div>
   </div>
 
-  <!-- Estado: EVENTO ACTIVO -->
+  <!-- Assets: pantera pirata + cofre + llave -->
+  <div style="display:flex;align-items:flex-end;justify-content:center;gap:0;padding:24px 0 8px;position:relative">
+    <img src="https://raw.githubusercontent.com/Neodenoche/panther-bot/main/assets/panther_pirata_v7-removebg-preview.png" alt="pantera pirata" style="width:130px;height:130px;object-fit:contain;filter:drop-shadow(0 0 12px rgba(255,92,26,.3));margin-right:-10px;z-index:1">
+    <img src="https://raw.githubusercontent.com/Neodenoche/panther-bot/main/assets/COFRE_PANTHER_1-removebg-preview.png" alt="cofre" style="width:110px;height:110px;object-fit:contain;filter:drop-shadow(0 0 20px rgba(255,92,26,.5));z-index:2">
+    <img src="https://raw.githubusercontent.com/Neodenoche/panther-bot/main/assets/LLAVE_DEL_COFRE_PANTHER-removebg-preview.png" alt="llave" style="width:80px;height:80px;object-fit:contain;filter:drop-shadow(0 0 10px rgba(255,200,0,.4));margin-left:-8px;z-index:1;transform:rotate(-20deg)">
+  </div>
+
+  <!-- Pool PNT -->
+  <div style="text-align:center;padding:8px 0 16px">
+    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">Pool del cofre</div>
+    <div style="font-size:40px;font-weight:900;color:#FF5C1A;line-height:1">1,125 <span style="font-size:18px;color:#fff">PNT</span></div>
+  </div>
+
+  <!-- Banner: PRÓXIMAMENTE (visible cuando no hay evento activo) -->
+  <div id="ev-pronto-banner" style="margin:0 14px 16px;background:#141414;border:1px solid #2a1500;border-radius:16px;padding:18px;text-align:center">
+    <div style="font-size:24px;margin-bottom:8px">🔒</div>
+    <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:6px">Próximo Evento</div>
+    <div style="font-size:12px;color:#888;line-height:1.5">El evento se anunciará pronto.<br>¡Seguí invitando amigos para estar listo!</div>
+  </div>
+
+  <!-- Contenido del evento ACTIVO (oculto hasta que /evento devuelva activo:true) -->
   <div id="ev-activo" style="display:none">
 
-    <!-- Hero -->
-    <div style="background:linear-gradient(160deg,#1a0800 0%,#0a0a0a 100%);border-bottom:1px solid #2a1500;padding:22px 18px 18px;text-align:center">
-      <div style="font-size:10px;font-weight:800;letter-spacing:3px;color:#FF5C1A;text-transform:uppercase;margin-bottom:6px">⚔️ OPERACIÓN EN CURSO</div>
-      <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:4px">1,000 Cazadores</div>
-      <div style="font-size:12px;color:#aaa" id="ev-dias-label">Calculando...</div>
-    </div>
-
-    <!-- Cofre + pool -->
-    <div style="display:flex;align-items:center;justify-content:center;gap:20px;padding:20px 18px 8px">
-      <img id="ev-cofre-img" src="" alt="cofre" style="width:88px;height:88px;object-fit:contain;filter:drop-shadow(0 0 16px rgba(255,92,26,.45))">
-      <div style="text-align:left">
-        <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">Pool del cofre</div>
-        <div style="font-size:34px;font-weight:900;color:#FF5C1A;line-height:1">1,125</div>
-        <div style="font-size:13px;font-weight:700;color:#fff">PNT</div>
-      </div>
-    </div>
-
     <!-- Barra de progreso -->
-    <div style="padding:0 18px 16px">
+    <div style="padding:0 14px 12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <div style="font-size:11px;color:#888">Cazadores en la Manada</div>
         <div style="font-size:13px;font-weight:800;color:#fff"><span id="ev-total-caz">0</span><span style="color:#555"> / 1,000</span></div>
@@ -590,6 +593,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
         <div id="ev-pct-label" style="font-size:10px;color:#FF5C1A;font-weight:700">0%</div>
         <div style="font-size:10px;color:#555">1,000</div>
       </div>
+      <div id="ev-dias-label" style="font-size:11px;color:#aaa;text-align:center;margin-top:6px"></div>
     </div>
 
     <!-- Tu situación -->
@@ -613,29 +617,29 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
       </div>
     </div>
 
-    <!-- Top 5 referidores -->
-    <div style="padding:0 14px 16px">
+    <!-- Top 5 -->
+    <div style="padding:0 14px 12px">
       <div style="font-size:10px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:2px;margin-bottom:10px">🏆 Top Cazadores</div>
       <div id="ev-top5-list"></div>
     </div>
 
-    <!-- CTA -->
-    <div style="padding:0 14px 20px">
-      <button onclick="goTo('referido')" style="width:100%;background:#FF5C1A;color:#000;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:800;cursor:pointer;letter-spacing:.5px">
-        🔗 Compartir mi link de referido
-      </button>
-      <div style="font-size:10px;color:#555;text-align:center;margin-top:8px">Cada cazador que traigas aumenta tus PNT del cofre</div>
-    </div>
-
   </div>
 
-  <!-- Estado: EVENTO CERRADO -->
-  <div id="ev-cerrado" style="display:none;padding:32px 18px;text-align:center">
-    <div style="font-size:64px;margin-bottom:16px">🎊</div>
-    <div style="font-size:20px;font-weight:900;color:#FF5C1A;margin-bottom:8px">¡Evento finalizado!</div>
-    <div style="font-size:13px;color:#aaa;line-height:1.6;margin-bottom:20px">El cofre fue abierto y los PNT distribuidos.<br>Revisá tu wallet en los próximos días hábiles.</div>
-    <div id="ev-premio-ganado" style="display:none;background:#1a0800;border:1px solid #FF5C1A;border-radius:16px;padding:20px;margin-bottom:16px">
-      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">Tu premio</div>
+  <!-- CTA siempre visible -->
+  <div style="padding:0 14px 24px">
+    <button onclick="goTo('referido')" style="width:100%;background:#FF5C1A;color:#000;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:800;cursor:pointer">
+      🔗 Compartir mi link de referido
+    </button>
+    <div style="font-size:10px;color:#555;text-align:center;margin-top:8px">Cada cazador que traigas aumenta tus PNT del cofre</div>
+  </div>
+
+  <!-- Estado CERRADO -->
+  <div id="ev-cerrado" style="display:none;margin:0 14px 24px;background:#141414;border:1px solid #FF5C1A;border-radius:16px;padding:20px;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🎊</div>
+    <div style="font-size:16px;font-weight:900;color:#FF5C1A;margin-bottom:6px">¡Evento finalizado!</div>
+    <div style="font-size:12px;color:#aaa;line-height:1.6;margin-bottom:12px">El cofre fue abierto y los PNT distribuidos.<br>Revisá tu wallet en los próximos días hábiles.</div>
+    <div id="ev-premio-ganado" style="display:none">
+      <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Tu premio</div>
       <div style="font-size:36px;font-weight:900;color:#FF5C1A" id="ev-premio-valor">0</div>
       <div style="font-size:14px;color:#fff;font-weight:700">PNT</div>
     </div>
@@ -643,12 +647,11 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
 </div>
 
-<!-- NAV -->
 <nav class="nav">
   <div class="ni active" data-s="misiones" onclick="goTo('misiones')"><span class="ni-ic">🎯</span><span class="ni-lb">Misiones</span></div>
   <div class="ni" data-s="puntos" onclick="goTo('puntos')"><span class="ni-ic">📊</span><span class="ni-lb">Mis pts</span></div>
   <div class="ni" data-s="ranking" onclick="goTo('ranking')"><span class="ni-ic">🏆</span><span class="ni-lb">Ranking</span></div>
-  <div class="ni" data-s="evento" onclick="goTo('evento')" style="position:relative"><span class="ni-ic">⚔️</span><span class="ni-lb" style="color:#FF5C1A">Evento</span><span id="ev-nav-badge" style="display:none;position:absolute;top:4px;right:8px;width:7px;height:7px;background:#FF5C1A;border-radius:50%"></span></div>
+  <div class="ni" data-s="evento" onclick="goTo('evento')"><span class="ni-ic">⚔️</span><span class="ni-lb" style="color:#FF5C1A">Evento</span></div>
   <div class="ni" data-s="referido" onclick="goTo('referido')"><span class="ni-ic">🔗</span><span class="ni-lb">Referido</span></div>
 </nav>
 
@@ -2095,119 +2098,95 @@ function goTo(n){
 }
 
 // ══════════════════════════════════════════════════════════
-// OPERACIÓN 1,000 CAZADORES — Lógica de pantalla
+// OPERACIÓN 1,000 CAZADORES
 // ══════════════════════════════════════════════════════════
-
-const COFRE_IMG = 'https://raw.githubusercontent.com/Neodenoche/panther-bot/main/assets/COFRE_PANTHER_1-removebg-preview.png';
-
 async function loadEvento() {
   if (!USER_ID) return;
   try {
     const res = await fetch(`${API_BASE}/evento?id=${USER_ID}`);
-    if (!res.ok) { showEventoProximo(); return; }
+    if (!res.ok) return; // sin evento: muestra solo el banner próximamente
     const ev = await res.json();
 
     if (ev.cerrado) {
-      showEventoCerrado(ev);
+      // Ocultar banner próximamente, mostrar cerrado
+      const pronto = document.getElementById('ev-pronto-banner');
+      const cerrado = document.getElementById('ev-cerrado');
+      if (pronto) pronto.style.display = 'none';
+      if (cerrado) cerrado.style.display = 'block';
+
+      // Premio del usuario
+      const u = ev.usuario || {};
+      if (u.evento_pnt_ganado && u.evento_pnt_ganado > 0) {
+        const premioEl = document.getElementById('ev-premio-ganado');
+        const premioVal = document.getElementById('ev-premio-valor');
+        if (premioEl) premioEl.style.display = 'block';
+        if (premioVal) premioVal.textContent = u.evento_pnt_ganado.toFixed(4);
+      }
+
     } else if (ev.activo) {
-      showEventoActivo(ev);
-    } else {
-      showEventoProximo();
+      // Ocultar banner próximamente, mostrar contenido activo
+      const pronto = document.getElementById('ev-pronto-banner');
+      const activo = document.getElementById('ev-activo');
+      if (pronto) pronto.style.display = 'none';
+      if (activo) activo.style.display = 'block';
+
+      // Progreso
+      const total = ev.total_cazadores || 0;
+      const pct   = Math.min(100, ev.pct_objetivo || 0);
+      const tcEl  = document.getElementById('ev-total-caz');
+      const pctEl = document.getElementById('ev-pct-label');
+      const diasEl = document.getElementById('ev-dias-label');
+      if (tcEl)  tcEl.textContent  = total.toLocaleString();
+      if (pctEl) pctEl.textContent = pct.toFixed(1) + '%';
+      if (diasEl) {
+        const restantes = Math.max(0, (ev.dias_limite || 20) - (ev.dias_transcurridos || 0));
+        diasEl.textContent = restantes > 0 ? `⏰ Quedan ${restantes} día${restantes !== 1 ? 's' : ''}` : '⏰ ¡Último día!';
+      }
+      setTimeout(() => {
+        const barra = document.getElementById('ev-barra');
+        if (barra) barra.style.width = pct + '%';
+      }, 120);
+
+      // Situación del usuario
+      const u = ev.usuario || {};
+      const refsEl = document.getElementById('ev-mis-refs');
+      const pntEl  = document.getElementById('ev-mi-pnt');
+      if (refsEl) refsEl.textContent = u.referidos_validos || 0;
+      if (pntEl)  pntEl.textContent  = u.pnt_estimado ? u.pnt_estimado.toFixed(2) : '0';
+
+      const calBadge   = document.getElementById('ev-califica-badge');
+      const nocalBadge = document.getElementById('ev-no-califica-badge');
+      const faltanEl   = document.getElementById('ev-faltan-refs');
+      if (u.califica) {
+        if (calBadge)   calBadge.style.display   = 'block';
+        if (nocalBadge) nocalBadge.style.display = 'none';
+      } else {
+        if (calBadge)   calBadge.style.display   = 'none';
+        if (nocalBadge) nocalBadge.style.display = 'block';
+        if (faltanEl)   faltanEl.textContent = Math.max(0, (u.min_referidos || 3) - (u.referidos_validos || 0));
+      }
+
+      // Top 5
+      const top5El = document.getElementById('ev-top5-list');
+      if (top5El && ev.top5 && ev.top5.length > 0) {
+        const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+        top5El.innerHTML = ev.top5.map((u, i) => `
+          <div class="ev-row">
+            <span class="ev-medal">${medals[i] || (i+1)+'.'}</span>
+            <span class="ev-name">@${u.username || u.uid}</span>
+            <div style="text-align:right">
+              <div class="ev-refs">${u.referidos}</div>
+              <div class="ev-refs-lab">cazadores</div>
+            </div>
+          </div>
+        `).join('');
+      } else if (top5El) {
+        top5El.innerHTML = '<div style="text-align:center;color:#555;font-size:13px;padding:16px">Aún no hay referidores. ¡Sé el primero!</div>';
+      }
     }
+    // Si no es activo ni cerrado → queda el banner próximamente por defecto
   } catch(e) {
-    showEventoProximo();
-  }
-}
-
-function showEventoProximo() {
-  document.getElementById('ev-pronto').style.display  = 'block';
-  document.getElementById('ev-activo').style.display  = 'none';
-  document.getElementById('ev-cerrado').style.display = 'none';
-}
-
-function showEventoActivo(ev) {
-  document.getElementById('ev-pronto').style.display  = 'none';
-  document.getElementById('ev-activo').style.display  = 'block';
-  document.getElementById('ev-cerrado').style.display = 'none';
-
-  // Badge nav activo
-  const badge = document.getElementById('ev-nav-badge');
-  if (badge) badge.style.display = 'block';
-
-  // Cofre siempre abierto
-  const cofreImg = document.getElementById('ev-cofre-img');
-  if (cofreImg) cofreImg.src = COFRE_IMG;
-
-  // Días restantes
-  const diasLabel = document.getElementById('ev-dias-label');
-  if (diasLabel) {
-    const restantes = Math.max(0, (ev.dias_limite || 20) - (ev.dias_transcurridos || 0));
-    diasLabel.textContent = restantes > 0
-      ? `⏰ Quedan ${restantes} día${restantes !== 1 ? 's' : ''}`
-      : '⏰ ¡Último día!';
-  }
-
-  // Progreso
-  const total = ev.total_cazadores || 0;
-  const pct   = Math.min(100, ev.pct_objetivo || 0);
-  document.getElementById('ev-total-caz').textContent = total.toLocaleString();
-  document.getElementById('ev-pct-label').textContent = pct.toFixed(1) + '%';
-  setTimeout(() => {
-    const barra = document.getElementById('ev-barra');
-    if (barra) barra.style.width = pct + '%';
-  }, 120);
-
-  // Situación del usuario
-  const u = ev.usuario || {};
-  document.getElementById('ev-mis-refs').textContent = u.referidos_validos || 0;
-  document.getElementById('ev-mi-pnt').textContent   = u.pnt_estimado ? u.pnt_estimado.toFixed(2) : '0';
-
-  const calBadge   = document.getElementById('ev-califica-badge');
-  const nocalBadge = document.getElementById('ev-no-califica-badge');
-  const faltanEl   = document.getElementById('ev-faltan-refs');
-  const minRefs    = u.min_referidos || 3;
-  const refsActual = u.referidos_validos || 0;
-
-  if (u.califica) {
-    calBadge.style.display   = 'block';
-    nocalBadge.style.display = 'none';
-  } else {
-    calBadge.style.display   = 'none';
-    nocalBadge.style.display = 'block';
-    if (faltanEl) faltanEl.textContent = Math.max(0, minRefs - refsActual);
-  }
-
-  // Top 5
-  const top5El = document.getElementById('ev-top5-list');
-  if (top5El && ev.top5 && ev.top5.length > 0) {
-    const medals = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-    top5El.innerHTML = ev.top5.map((u, i) => `
-      <div class="ev-row">
-        <span class="ev-medal">${medals[i] || (i+1)+'.'}</span>
-        <span class="ev-name">@${u.username || u.uid}</span>
-        <div style="text-align:right">
-          <div class="ev-refs">${u.referidos}</div>
-          <div class="ev-refs-lab">cazadores</div>
-        </div>
-      </div>
-    `).join('');
-  } else if (top5El) {
-    top5El.innerHTML = '<div style="text-align:center;color:#555;font-size:13px;padding:16px">Aún no hay referidores. ¡Sé el primero!</div>';
-  }
-}
-
-function showEventoCerrado(ev) {
-  document.getElementById('ev-pronto').style.display  = 'none';
-  document.getElementById('ev-activo').style.display  = 'none';
-  document.getElementById('ev-cerrado').style.display = 'block';
-
-  // Si el usuario ganó PNT
-  const u = ev.usuario || {};
-  const premioEl = document.getElementById('ev-premio-ganado');
-  const premioValEl = document.getElementById('ev-premio-valor');
-  if (u.pnt_estimado && u.pnt_estimado > 0 && premioEl && premioValEl) {
-    premioEl.style.display    = 'block';
-    premioValEl.textContent   = u.pnt_estimado.toFixed(4);
+    console.log('Evento no disponible:', e);
   }
 }
 

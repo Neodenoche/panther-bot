@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
@@ -163,6 +165,54 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 .ni.active{background:#2a1200}
 .ni-ic{font-size:20px;color:var(--or)}
 .ni-lb{font-size:8px;color:var(--or);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+/* ── Tipografía retro 8-bit para el Evento ── */
+#s-evento .ev-titulo-retro {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  line-height: 2;
+  letter-spacing: 1px;
+}
+#s-evento .ev-pool-retro {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 22px;
+  color: #FF5C1A;
+  line-height: 1.4;
+}
+#s-evento .ev-pool-sub {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 9px;
+  color: #aaa;
+}
+#s-evento .ev-pronto-titulo {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: #fff;
+  line-height: 1.8;
+}
+#s-evento .ev-pronto-sub {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  color: #888;
+  line-height: 2;
+}
+#s-evento .ev-header-op {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  letter-spacing: 2px;
+  color: #FF5C1A;
+}
+#s-evento .ev-header-titulo {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 11px;
+  color: #fff;
+  line-height: 1.6;
+  margin-top: 6px;
+}
+#s-evento .ev-btn-retro {
+  font-family: 'Press Start 2P', monospace !important;
+  font-size: 9px !important;
+  letter-spacing: 1px;
+}
 /* ── Evento ── */
 .ev-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;background:#141414;border:1px solid #222;margin-bottom:7px}
 .ev-medal{font-size:18px;min-width:24px;text-align:center}
@@ -551,8 +601,8 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 <div class="screen" id="s-evento">
 
   <div style="background:linear-gradient(160deg,#1a0800 0%,#0a0a0a 100%);border-bottom:1px solid #2a1500;padding:20px 18px 16px;text-align:center">
-    <div style="font-size:10px;font-weight:800;letter-spacing:3px;color:#FF5C1A;text-transform:uppercase;margin-bottom:4px">⚔️ OPERACIÓN 1,000 CAZADORES</div>
-    <div style="font-size:20px;font-weight:900;color:#fff">Manada Panther</div>
+    <div class="ev-header-op">⚔️ OPERACION 1,000 CAZADORES</div>
+    <div class="ev-header-titulo">Manada Panther</div>
   </div>
 
   <!-- Assets visuales — fondo transparente -->
@@ -564,15 +614,15 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
   <!-- Pool -->
   <div style="text-align:center;padding:10px 0 16px;background:#0a0a0a">
-    <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:3px">Pool del cofre</div>
-    <div style="font-size:38px;font-weight:900;color:#FF5C1A;line-height:1">1,125 <span style="font-size:16px;color:#fff;font-weight:700">PNT</span></div>
+    <div class="ev-pool-sub" style="margin-bottom:8px">POOL DEL COFRE</div>
+    <div class="ev-pool-retro">1,125 <span style="font-size:13px;color:#fff">PNT</span></div>
   </div>
 
   <!-- Banner próximo evento -->
-  <div id="ev-pronto-banner" style="margin:0 14px 14px;background:#141414;border:1px solid #2a1500;border-radius:16px;padding:18px;text-align:center">
-    <div style="font-size:22px;margin-bottom:8px">🔒</div>
-    <div style="font-size:15px;font-weight:800;color:#fff;margin-bottom:5px">Próximo Evento</div>
-    <div style="font-size:12px;color:#888;line-height:1.6">El evento se anunciará pronto.<br>¡Seguí invitando amigos para estar listo!</div>
+  <div id="ev-pronto-banner" style="margin:0 14px 14px;background:#141414;border:1px solid #2a1500;border-radius:16px;padding:20px;text-align:center">
+    <div style="font-size:22px;margin-bottom:12px">🔒</div>
+    <div class="ev-pronto-titulo" style="margin-bottom:12px">PROXIMO<br>EVENTO</div>
+    <div class="ev-pronto-sub">El evento se anunciara<br>pronto. Segui invitando<br>amigos para estar listo!</div>
   </div>
 
   <!-- Contenido activo (se muestra cuando el bot activa el evento) -->
@@ -627,7 +677,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
   <!-- CTA siempre visible -->
   <div style="padding:0 14px 28px">
-    <button onclick="goTo('referido')" style="width:100%;background:#FF5C1A;color:#000;border:none;border-radius:14px;padding:15px;font-size:14px;font-weight:800;cursor:pointer">🔗 Compartir mi link de referido</button>
+    <button onclick="goTo('referido')" class="ev-btn-retro" style="width:100%;background:#FF5C1A;color:#000;border:none;border-radius:14px;padding:15px;cursor:pointer">🔗 MI LINK</button>
     <div style="font-size:10px;color:#555;text-align:center;margin-top:7px">Cada cazador que traigas aumenta tus PNT del cofre</div>
   </div>
 
@@ -654,6 +704,7 @@ const T = {
     misPtsTitle: 'MIS PTS',
     rankingTitle: 'RANKING',
     ruletaTitle: 'RULETA',
+    eventoTitle: 'EVENTO',
     referidoTitle: 'REFERIDO',
     checkinName: 'Check-in diario',
     checkinSub: '+5 a +10 pts · bonus por racha',
@@ -745,6 +796,7 @@ const T = {
     misPtsTitle: 'MY PTS',
     rankingTitle: 'RANKING',
     ruletaTitle: 'WHEEL',
+    eventoTitle: 'EVENT',
     referidoTitle: 'REFERRAL',
     checkinName: 'Daily Check-in',
     checkinSub: '+5 to +10 pts · streak bonus',
@@ -851,7 +903,7 @@ function t(key) {
 function applyTranslations() {
   // Nav
   const navItems = document.querySelectorAll('.ni-lb');
-  const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','ruletaTitle','referidoTitle'];
+  const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','eventoTitle','referidoTitle'];
   navItems.forEach((el, i) => { if(navKeys[i]) el.textContent = t(navKeys[i]); });
 
   // Mission cards — diarias

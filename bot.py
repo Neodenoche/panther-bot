@@ -2747,8 +2747,9 @@ async def cmd_cazadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("\n".join(lineas))
 
 
-async def check_evento_dia(context):
+async def check_evento_dia(app_or_context):
     """Job diario: verifica si hay que enviar mensajes automáticos o cerrar el evento."""
+    bot = getattr(app_or_context, 'bot', None) or getattr(app_or_context, 'bot', app_or_context)
     ev = get_evento_state()
     if not ev["activo"] or ev["cerrado"]:
         return
@@ -2759,7 +2760,7 @@ async def check_evento_dia(context):
 
     # Meta alcanzada — abrir cofre
     if cazadores >= META_CAZADORES and not ev["cofre_abierto"]:
-        await abrir_cofre(context)
+        await abrir_cofre(bot)
         return
 
     # Día 7 — top 5
@@ -2773,7 +2774,7 @@ async def check_evento_dia(context):
             lineas.append(f"{medal} {nombre} — {refs} cazadores")
         lineas.extend(["", f"Total: {cazadores} / {META_CAZADORES} cazadores", "Seguimos 🐾"])
         try:
-            await context.bot.send_message(chat_id=MAIN_GROUP_ID,
+            await bot.send_message(chat_id=MAIN_GROUP_ID,
                                            text="\n".join(lineas), parse_mode="Markdown")
         except Exception as e:
             logger.warning(f"Error mensaje día 7: {e}")
@@ -2788,23 +2789,23 @@ async def check_evento_dia(context):
             f"No dejen que se queme. Compartan sus links ahora 🐾"
         )
         try:
-            await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
+            await bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
         except Exception as e:
             logger.warning(f"Error mensaje día 15: {e}")
 
     # Día 20+ — evaluar extensión o cierre
     end = datetime.fromisoformat(ev["end_date"])
     if datetime.now() >= end:
-        await evaluar_cierre_evento(context, cazadores)
+        await evaluar_cierre_evento(bot, cazadores)
 
 
-async def evaluar_cierre_evento(context, cazadores: int):
+async def evaluar_cierre_evento(bot, cazadores: int):
     """Evalúa si extender o cerrar el evento."""
     ev = get_evento_state()
     faltan = META_CAZADORES - cazadores
 
     if faltan <= 0:
-        await abrir_cofre(context)
+        await abrir_cofre(bot)
         return
 
     # Calcular extensión
@@ -2839,7 +2840,7 @@ async def evaluar_cierre_evento(context, cazadores: int):
         logger.warning(f"Error anunciando extensión: {e}")
 
 
-async def abrir_cofre(context):
+async def abrir_cofre(bot):
     """Abre el cofre, distribuye PNT y anuncia ganadores."""
     db = load_db()
     distribucion = calcular_cofre(db)
@@ -2885,7 +2886,7 @@ async def abrir_cofre(context):
     ])
 
     try:
-        await context.bot.send_message(chat_id=MAIN_GROUP_ID,
+        await bot.send_message(chat_id=MAIN_GROUP_ID,
                                        text="\n".join(lineas), parse_mode="Markdown")
     except Exception as e:
         logger.warning(f"Error anunciando apertura del cofre: {e}")
@@ -2896,7 +2897,7 @@ async def abrir_cofre(context):
         mod_lineas.append(f"{info['nombre']} (ID:{uid}) — {info['pnt']} PNT — {info['refs']} cazadores")
     for mod_id in MOD_IDS:
         try:
-            await context.bot.send_message(chat_id=mod_id,
+            await bot.send_message(chat_id=mod_id,
                                            text="\n".join(mod_lineas))
         except Exception:
             pass
@@ -4158,7 +4159,18 @@ def main():
         print(f"❌ No se puede escribir en {DB_FILE}: {e}")
 
     from telegram.ext import JobQueue
-    app = Application.builder().token(TOKEN).job_queue(JobQueue()).build()
+    app = Application.builder().token(TOKEN).build()
+
+    # Scheduler del evento con asyncio (sin job-queue extra)
+    async def evento_scheduler():
+        while True:
+            await asyncio.sleep(86400)  # cada 24 horas
+            try:
+                await check_evento_dia(app)
+            except Exception as e:
+                logger.warning(f"Error en evento scheduler: {e}")
+
+    asyncio.get_event_loop().create_task(evento_scheduler()) if False else None
 
     app.add_handler(CommandHandler("start",      cmd_start))
     app.add_handler(CommandHandler("checkin",    cmd_checkin))
@@ -4183,9 +4195,6 @@ def main():
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_nuevo_cazador_privado))
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
-
-    # Job diario para el evento (cada 24h)
-    app.job_queue.run_repeating(check_evento_dia, interval=86400, first=60)
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))
@@ -4224,6 +4233,16 @@ def main():
                 drop_pending_updates=True
             )
             print(f"✅ Webhook registrado: {full_webhook_url}")
+            # Lanzar scheduler del evento
+            asyncio.create_task(evento_daily_scheduler(app))
+
+        async def evento_daily_scheduler(application):
+            while True:
+                await asyncio.sleep(86400)
+                try:
+                    await check_evento_dia(application)
+                except Exception as e:
+                    logger.warning(f"Error en evento scheduler: {e}")
 
         loop.run_until_complete(init_app())
 

@@ -27,6 +27,23 @@ SQLITE_FILE = "/data/panther.db"
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
+MAIN_GROUP_ID = int(os.environ.get("MAIN_GROUP_ID", "-1001234567890"))  # chat general
+
+# Evento Operación 1,000 Cazadores
+COFRE_PNT        = 1125
+PREMIOS_TOP_PNT  = {1: 500, 2: 250, 3: 125}
+META_CAZADORES   = 1000
+EVENTO_DIAS_BASE = 20
+
+# Links oficiales
+LINKS = {
+    "ig":       "https://www.instagram.com/panther.wallet/",
+    "yt":       "https://www.youtube.com/@Panther.Wallet",
+    "tiktok":   "https://www.tiktok.com/@panther_wallet",
+    "web":      "https://mypanther.io/es/",
+    "canal":    "https://t.me/pantherwalletoficial",
+    "chat":     "https://t.me/manadapanther",
+}
 
 # Links de campaña — prefijos reconocidos como fuentes externas
 CAMPAIGN_SOURCES = {
@@ -842,11 +859,11 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             data["founder_number"] = user_count
             db[uid] = data
             save_db(db)
-            # Enviar badge
-            fname = user.first_name or user.username or "Miembro"
-            asyncio.create_task(send_founder_badge(context.bot, uid, fname, user_count))
+            asyncio.create_task(send_founder_badge(context.bot, uid, user.first_name or user.username or "Miembro", user_count))
         else:
             save_db(db)
+        # Lanzar secuencia de bienvenida en background
+        asyncio.create_task(send_welcome_sequence(context.bot, uid, user.first_name or "Cazador"))
     else:
         save_db(db)
 
@@ -2319,6 +2336,86 @@ async def handle_nuevo_cazador(update: Update, context: ContextTypes.DEFAULT_TYP
                 pass
 
 
+
+async def handle_nuevo_cazador_privado(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Detecta #NuevoCazador con foto en privado y notifica a mods"""
+    msg = update.message
+    if not msg or not msg.photo:
+        return
+    if update.effective_chat.type != "private":
+        return
+
+    caption = (msg.caption or "").lower()
+    if "#nuevocazador" not in caption:
+        return
+
+    user = update.effective_user
+    uid  = str(user.id)
+    db   = load_db()
+    data = get_user(db, uid, user)
+    nombre = f"@{user.username}" if user.username else user.first_name
+
+    if data.get("cazador_verificado"):
+        await msg.reply_text(f"🐆 {nombre}, tu ritual ya fue verificado anteriormente.")
+        return
+
+    referred_by = data.get("referred_by")
+    source      = data.get("source", "directo")
+
+    if referred_by:
+        ref_data   = db.get(str(referred_by), {})
+        ref_nombre = ref_data.get("username") or ref_data.get("first_name") or str(referred_by)
+        ref_txt    = f"Referido por: @{ref_nombre} (ID: {referred_by})"
+    else:
+        src_label = CAMPAIGN_SOURCES.get(source, "Directo / desconocido")
+        ref_txt   = f"Sin referidor — Origen: {src_label}"
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Aprobar cazador", callback_data=f"cazador_ok_{uid}")],
+        [InlineKeyboardButton("❌ Rechazar",        callback_data=f"cazador_no_{uid}")]
+    ])
+
+    mod_text = (
+        f"🎯 Nuevo Cazador - Verificacion pendiente\n\n"
+        f"Usuario: {nombre} (ID: {uid})\n"
+        f"{ref_txt}\n\n"
+        f"Verificar que la captura muestre Panther Wallet con 2FA activo."
+    )
+
+    await msg.reply_text(
+        f"Captura recibida {nombre}.\n\n"
+        f"Un moderador va a verificar tu ritual. "
+        f"Te avisamos cuando este aprobado. 🐾"
+    )
+
+    try:
+        await context.bot.forward_message(
+            chat_id=MOD_GROUP_ID,
+            from_chat_id=update.effective_chat.id,
+            message_id=msg.message_id
+        )
+        await context.bot.send_message(
+            chat_id=MOD_GROUP_ID,
+            text=mod_text,
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        logger.warning(f"Error notificando mods cazador privado: {e}")
+        for mod_id in MOD_IDS:
+            try:
+                await context.bot.forward_message(
+                    chat_id=mod_id,
+                    from_chat_id=update.effective_chat.id,
+                    message_id=msg.message_id
+                )
+                await context.bot.send_message(
+                    chat_id=mod_id,
+                    text=mod_text,
+                    reply_markup=keyboard
+                )
+            except Exception:
+                pass
+
 async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback para aprobar o rechazar un cazador"""
     query = update.callback_query
@@ -2408,6 +2505,401 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
             pass
 
         await query.edit_message_text(f"❌ Cazador rechazado: @{nombre} (ID: {target_uid})")
+
+
+
+# ═══════════════════════════════════════════════════════════════
+# ONBOARDING — Mensajes de bienvenida secuenciales
+# ═══════════════════════════════════════════════════════════════
+
+async def send_welcome_sequence(bot, uid: str, first_name: str):
+    """Envía 3 mensajes de bienvenida con delays al usuario nuevo."""
+
+    msg1 = (
+        f"🐆 *¡Bienvenido a la Manada Panther, {first_name}!*\n\n"
+        f"Me alegra que estés acá. Este es el espacio donde la comunidad de "
+        f"Panther Wallet se reúne, aprende y gana recompensas reales.\n\n"
+        f"Para ser parte oficial de la Manada necesitas completar tu ritual de iniciación:\n\n"
+        f"*Paso 1:* Descarga Panther Wallet\n"
+        f"👉 https://mypanther.io/es/\n\n"
+        f"*Paso 2:* Activa tu cuenta y configura el Google 2FA\n"
+        f"_(Configuración → Seguridad → Google Authenticator)_\n\n"
+        f"*Paso 3:* Toma una captura de pantalla de esa sección mostrando el 2FA activo\n\n"
+        f"*Paso 4:* Envía esa captura acá al bot en privado con el hashtag *#NuevoCazador*\n\n"
+        f"Un moderador la verificará y quedarás oficialmente como Cazador de la Manada. 🐾"
+    )
+
+    msg2 = (
+        f"📋 *Reglas de la Manada*\n\n"
+        f"Para que este espacio funcione bien para todos, seguimos estas reglas:\n\n"
+        f"✅ Respeto y buena onda — acá nos ayudamos entre todos\n"
+        f"✅ Las dudas sobre la wallet son bienvenidas — la comunidad responde "
+        f"y si no puede, te derivamos al soporte oficial\n"
+        f"✅ No spam ni promoción de proyectos externos\n"
+        f"✅ Solo contenido relacionado con Panther Wallet y crypto\n"
+        f"✅ No FUD, no toxicidad, no comentarios malintencionados\n\n"
+        f"⭐ La buena onda se premia — los miembros activos y colaborativos "
+        f"acumulan puntos y reconocimiento dentro de la Manada.\n\n"
+        f"⚠️ El incumplimiento puede resultar en suspensión del grupo.\n\n"
+        f"El equipo de moderación está siempre presente. Ante cualquier duda, escribinos. 🐆"
+    )
+
+    msg3 = (
+        f"🔗 *Seguinos en todas las plataformas*\n\n"
+        f"Toda la actividad oficial de Panther Wallet pasa por acá:\n\n"
+        f"🐾 Instagram: {LINKS['ig']}\n"
+        f"📺 YouTube: {LINKS['yt']}\n"
+        f"🎵 TikTok: {LINKS['tiktok']}\n"
+        f"🌐 Sitio web: {LINKS['web']}\n"
+        f"📢 Canal oficial: {LINKS['canal']}\n"
+        f"💬 Chat general: {LINKS['chat']}\n\n"
+        f"Seguinos para no perderte ningún anuncio, sorteo ni novedad. 🐆"
+    )
+
+    try:
+        await bot.send_message(chat_id=int(uid), text=msg1, parse_mode="Markdown",
+                               disable_web_page_preview=True)
+        await asyncio.sleep(300)  # 5 minutos
+        await bot.send_message(chat_id=int(uid), text=msg2, parse_mode="Markdown")
+        await asyncio.sleep(300)  # 10 minutos
+        await bot.send_message(chat_id=int(uid), text=msg3, parse_mode="Markdown",
+                               disable_web_page_preview=True)
+    except Exception as e:
+        logger.warning(f"Error en welcome sequence para {uid}: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════
+# EVENTO — Operación 1,000 Cazadores
+# ═══════════════════════════════════════════════════════════════
+
+def get_evento_state():
+    """Retorna el estado actual del evento desde globals."""
+    db = load_db()
+    g = db.get("_global", {})
+    return {
+        "activo":      g.get("evento_activo", False),
+        "start_date":  g.get("evento_start_date"),
+        "end_date":    g.get("evento_end_date"),
+        "extension":   g.get("evento_extension", 0),
+        "cerrado":     g.get("evento_cerrado", False),
+        "cofre_abierto": g.get("cofre_abierto", False),
+    }
+
+def set_evento_state(**kwargs):
+    """Guarda estado del evento en globals."""
+    db = load_db()
+    if "_global" not in db:
+        db["_global"] = {}
+    db["_global"].update(kwargs)
+    save_db(db)
+
+def get_cazadores_count():
+    """Retorna total de cazadores verificados en el evento."""
+    db = load_db()
+    return sum(1 for uid, d in db.items()
+               if not uid.startswith("_") and isinstance(d, dict)
+               and d.get("cazador_verificado"))
+
+def get_top_cazadores(n=10):
+    """Retorna top N referidores del evento."""
+    db = load_db()
+    users = [(uid, d) for uid, d in db.items()
+             if not uid.startswith("_") and isinstance(d, dict)
+             and d.get("cazador_verificado")]
+    # Sort by referrals_active
+    ranked = sorted(users, key=lambda x: x[1].get("referrals_active", 0), reverse=True)
+    return ranked[:n]
+
+def calcular_cofre(db):
+    """Calcula distribución del cofre según fórmula de Valeria."""
+    # Solo usuarios con mínimo 3 cazadores verificados
+    elegibles = {
+        uid: d for uid, d in db.items()
+        if not uid.startswith("_") and isinstance(d, dict)
+        and d.get("referrals_active", 0) >= 3
+    }
+    total_refs = sum(d.get("referrals_active", 0) for d in elegibles.values())
+    if total_refs == 0:
+        return {}
+    distribucion = {}
+    for uid, d in elegibles.items():
+        refs = d.get("referrals_active", 0)
+        pnt = round((refs / total_refs) * COFRE_PNT, 4)
+        distribucion[uid] = {"pnt": pnt, "refs": refs, "nombre": d.get("username") or d.get("first_name") or uid}
+    return distribucion
+
+
+async def cmd_evento_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Activa el evento — solo mods."""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    ev = get_evento_state()
+    if ev["activo"]:
+        await update.message.reply_text("El evento ya está activo.")
+        return
+
+    start = datetime.now()
+    end   = start + timedelta(days=EVENTO_DIAS_BASE)
+
+    set_evento_state(
+        evento_activo=True,
+        evento_start_date=start.isoformat(),
+        evento_end_date=end.isoformat(),
+        evento_extension=0,
+        evento_cerrado=False,
+        cofre_abierto=False,
+    )
+
+    # Anuncio al grupo
+    msg = (
+        "⚔️ *OPERACIÓN 1,000 CAZADORES — ARRANCÓ*\n\n"
+        f"El evento está activo. Tenemos {EVENTO_DIAS_BASE} días.\n\n"
+        f"🏆 *Premios individuales (top 3):*\n"
+        f"1er lugar: {PREMIOS_TOP_PNT[1]} PNT\n"
+        f"2do lugar: {PREMIOS_TOP_PNT[2]} PNT\n"
+        f"3er lugar: {PREMIOS_TOP_PNT[3]} PNT\n\n"
+        f"💰 *Cofre comunitario:* {COFRE_PNT} PNT\n"
+        f"_(Se reparte entre todos los que traigan 3+ cazadores si llegamos a 1,000)_\n\n"
+        f"¿Cómo participar?\n"
+        f"1. Compartí tu link de referido\n"
+        f"2. Tu referido descarga Panther Wallet y activa el 2FA\n"
+        f"3. Te manda la captura al bot con *#NuevoCazador*\n"
+        f"4. Un mod lo verifica → suma a tu cuenta\n\n"
+        f"Cierre estimado: {end.strftime('%d/%m/%Y')} 🐾"
+    )
+    try:
+        await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
+    except Exception as e:
+        logger.warning(f"Error anunciando evento al grupo: {e}")
+
+    await update.message.reply_text(f"✅ Evento activado. Cierre: {end.strftime('%d/%m/%Y')}")
+
+
+async def cmd_estado_cofre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Estado del evento — solo mods."""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    ev = get_evento_state()
+    if not ev["activo"] and not ev["cerrado"]:
+        await update.message.reply_text("El evento no está activo.")
+        return
+
+    cazadores = get_cazadores_count()
+    top = get_top_cazadores(5)
+    db  = load_db()
+
+    start = datetime.fromisoformat(ev["start_date"]) if ev["start_date"] else datetime.now()
+    end   = datetime.fromisoformat(ev["end_date"])   if ev["end_date"]   else datetime.now()
+    dias_restantes = (end - datetime.now()).days
+    dias_transcurridos = (datetime.now() - start).days
+
+    top_txt = ""
+    for i, (uid, d) in enumerate(top, 1):
+        nombre = d.get("username") or d.get("first_name") or uid
+        refs   = d.get("referrals_active", 0)
+        top_txt += f"  {i}. {nombre} — {refs} cazadores\n"
+
+    lineas = [
+        "⚔️ ESTADO DEL COFRE",
+        "",
+        f"Día {dias_transcurridos} de {EVENTO_DIAS_BASE + ev.get('extension', 0)}",
+        f"Cierre: {end.strftime('%d/%m/%Y')}",
+        f"Días restantes: {max(0, dias_restantes)}",
+        "",
+        f"Cazadores verificados: {cazadores} / {META_CAZADORES}",
+        f"Faltan: {max(0, META_CAZADORES - cazadores)}",
+        "",
+        "TOP 5 REFERIDORES:",
+        top_txt,
+        f"Cofre: {'ABIERTO' if ev['cofre_abierto'] else 'CERRADO'}",
+        f"Estado: {'CERRADO' if ev['cerrado'] else 'ACTIVO'}",
+    ]
+    await update.message.reply_text("\n".join(lineas))
+
+
+async def cmd_cazadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Leaderboard público del evento."""
+    ev = get_evento_state()
+    if not ev["activo"] and not ev["cerrado"]:
+        await update.message.reply_text("El evento no está activo todavía.")
+        return
+
+    cazadores_total = get_cazadores_count()
+    top = get_top_cazadores(10)
+
+    lineas = [
+        "⚔️ TOP CAZADORES — Operacion 1000",
+        f"Cazadores verificados: {cazadores_total} / {META_CAZADORES}",
+        "",
+    ]
+    for i, (uid, d) in enumerate(top, 1):
+        nombre = d.get("username") or d.get("first_name") or uid
+        refs   = d.get("referrals_active", 0)
+        medal  = ["🥇","🥈","🥉"][i-1] if i <= 3 else f"{i}."
+        lineas.append(f"{medal} {nombre} — {refs} cazadores")
+
+    lineas.append("")
+    lineas.append("Compartí tu link desde la Mini App y sumá cazadores 🐾")
+    await update.message.reply_text("\n".join(lineas))
+
+
+async def check_evento_dia(context):
+    """Job diario: verifica si hay que enviar mensajes automáticos o cerrar el evento."""
+    ev = get_evento_state()
+    if not ev["activo"] or ev["cerrado"]:
+        return
+
+    start = datetime.fromisoformat(ev["start_date"])
+    dia   = (datetime.now() - start).days + 1
+    cazadores = get_cazadores_count()
+
+    # Meta alcanzada — abrir cofre
+    if cazadores >= META_CAZADORES and not ev["cofre_abierto"]:
+        await abrir_cofre(context)
+        return
+
+    # Día 7 — top 5
+    if dia == 7:
+        top = get_top_cazadores(5)
+        lineas = ["⚔️ *SEMANA 1 — TOP 5 CAZADORES*", ""]
+        for i, (uid, d) in enumerate(top, 1):
+            nombre = d.get("username") or d.get("first_name") or uid
+            refs   = d.get("referrals_active", 0)
+            medal  = ["🥇","🥈","🥉"][i-1] if i <= 3 else f"{i}."
+            lineas.append(f"{medal} {nombre} — {refs} cazadores")
+        lineas.extend(["", f"Total: {cazadores} / {META_CAZADORES} cazadores", "Seguimos 🐾"])
+        try:
+            await context.bot.send_message(chat_id=MAIN_GROUP_ID,
+                                           text="\n".join(lineas), parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"Error mensaje día 7: {e}")
+
+    # Día 15 — alerta cofre
+    elif dia == 15:
+        faltan = max(0, META_CAZADORES - cazadores)
+        msg = (
+            f"⚠️ *ALERTA DEL COFRE*\n\n"
+            f"Estamos en el día 15. Faltan *{faltan} cazadores* para abrir el cofre.\n\n"
+            f"💰 {COFRE_PNT} PNT están esperando.\n"
+            f"No dejen que se queme. Compartan sus links ahora 🐾"
+        )
+        try:
+            await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
+        except Exception as e:
+            logger.warning(f"Error mensaje día 15: {e}")
+
+    # Día 20+ — evaluar extensión o cierre
+    end = datetime.fromisoformat(ev["end_date"])
+    if datetime.now() >= end:
+        await evaluar_cierre_evento(context, cazadores)
+
+
+async def evaluar_cierre_evento(context, cazadores: int):
+    """Evalúa si extender o cerrar el evento."""
+    ev = get_evento_state()
+    faltan = META_CAZADORES - cazadores
+
+    if faltan <= 0:
+        await abrir_cofre(context)
+        return
+
+    # Calcular extensión
+    if cazadores >= 800:
+        dias_extra = 5
+        rango = "800-999"
+    elif cazadores >= 600:
+        dias_extra = 10
+        rango = "600-799"
+    else:
+        dias_extra = 15
+        rango = "menos de 600"
+
+    nueva_end = datetime.now() + timedelta(days=dias_extra)
+    extension_total = ev.get("extension", 0) + dias_extra
+
+    set_evento_state(
+        evento_end_date=nueva_end.isoformat(),
+        evento_extension=extension_total,
+    )
+
+    msg = (
+        f"⏳ *EL EVENTO SE EXTIENDE*\n\n"
+        f"Llegamos al día 20 con {cazadores} cazadores ({rango}).\n\n"
+        f"El cofre sigue abierto. Tienen *{dias_extra} días más* para llegar a 1,000.\n\n"
+        f"Nuevo cierre: *{nueva_end.strftime('%d/%m/%Y')}*\n\n"
+        f"Los {COFRE_PNT} PNT siguen en juego. No paren. 🐾"
+    )
+    try:
+        await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
+    except Exception as e:
+        logger.warning(f"Error anunciando extensión: {e}")
+
+
+async def abrir_cofre(context):
+    """Abre el cofre, distribuye PNT y anuncia ganadores."""
+    db = load_db()
+    distribucion = calcular_cofre(db)
+
+    # Guardar PNT ganados en cada usuario
+    for uid, info in distribucion.items():
+        if uid in db:
+            db[uid]["evento_pnt_ganado"] = info["pnt"]
+    save_db(db)
+
+    # Top 3 individual
+    top3 = get_top_cazadores(3)
+
+    set_evento_state(cofre_abierto=True, evento_cerrado=True, evento_activo=False)
+
+    # Anuncio de ganadores
+    lineas = [
+        "🎉 *EL COFRE SE ABRIÓ — OPERACIÓN 1,000 CAZADORES*",
+        "",
+        "🏆 *PREMIOS INDIVIDUALES (TOP 3):*",
+    ]
+    for i, (uid, d) in enumerate(top3, 1):
+        nombre = d.get("username") or d.get("first_name") or uid
+        pnt    = PREMIOS_TOP_PNT.get(i, 0)
+        medal  = ["🥇","🥈","🥉"][i-1]
+        lineas.append(f"{medal} {nombre} — {pnt} PNT")
+
+    lineas.extend([
+        "",
+        f"💰 *COFRE COMUNITARIO: {COFRE_PNT} PNT*",
+        f"Distribuido entre {len(distribucion)} cazadores elegibles:",
+        "",
+    ])
+    for info in sorted(distribucion.values(), key=lambda x: x["pnt"], reverse=True)[:5]:
+        lineas.append(f"  🐾 {info['nombre']} — {info['pnt']} PNT ({info['refs']} cazadores)")
+    if len(distribucion) > 5:
+        lineas.append(f"  ...y {len(distribucion)-5} más")
+
+    lineas.extend([
+        "",
+        "Los premios se entregarán en los próximos 5 días hábiles.",
+        "Gracias a todos los que participaron. La Manada es real. 🐆",
+    ])
+
+    try:
+        await context.bot.send_message(chat_id=MAIN_GROUP_ID,
+                                       text="\n".join(lineas), parse_mode="Markdown")
+    except Exception as e:
+        logger.warning(f"Error anunciando apertura del cofre: {e}")
+
+    # Notificar a mods con lista completa
+    mod_lineas = ["📋 DISTRIBUCIÓN COMPLETA DEL COFRE", ""]
+    for uid, info in sorted(distribucion.items(), key=lambda x: x[1]["pnt"], reverse=True):
+        mod_lineas.append(f"{info['nombre']} (ID:{uid}) — {info['pnt']} PNT — {info['refs']} cazadores")
+    for mod_id in MOD_IDS:
+        try:
+            await context.bot.send_message(chat_id=mod_id,
+                                           text="\n".join(mod_lineas))
+        except Exception:
+            pass
 
 
 async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2886,6 +3378,53 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 }
                 for i, u in enumerate(top20)
             ])
+
+        # ── GET /evento?id=123456 ──
+        elif path == "/evento":
+            uid = params.get("id", [None])[0]
+            db  = load_db()
+            ev  = get_evento_state()
+
+            cazadores_total = get_cazadores_count()
+            top5 = get_top_cazadores(5)
+
+            user_data = db.get(uid, {}) if uid else {}
+            mis_cazadores = user_data.get("referrals_active", 0)
+            mi_pnt_estimado = 0
+            if mis_cazadores >= 3:
+                total_refs = sum(d.get("referrals_active", 0) for u2, d in db.items()
+                                 if not u2.startswith("_") and isinstance(d, dict)
+                                 and d.get("referrals_active", 0) >= 3)
+                if total_refs > 0:
+                    mi_pnt_estimado = round((mis_cazadores / total_refs) * COFRE_PNT, 4)
+
+            top5_list = []
+            for i, (ruid, d) in enumerate(top5, 1):
+                top5_list.append({
+                    "pos":    i,
+                    "nombre": d.get("username") or d.get("first_name") or ruid,
+                    "refs":   d.get("referrals_active", 0),
+                    "es_yo":  ruid == uid,
+                })
+
+            end_date = ev.get("end_date")
+            dias_restantes = 0
+            if end_date:
+                dias_restantes = max(0, (datetime.fromisoformat(end_date) - datetime.now()).days)
+
+            return self.send_json({
+                "activo":            ev["activo"],
+                "cerrado":           ev["cerrado"],
+                "cofre_abierto":     ev["cofre_abierto"],
+                "total_cazadores":   cazadores_total,
+                "meta":              META_CAZADORES,
+                "dias_restantes":    dias_restantes,
+                "cofre_pnt":         COFRE_PNT,
+                "mis_cazadores":     mis_cazadores,
+                "mi_pnt_estimado":   mi_pnt_estimado,
+                "top5":              top5_list,
+                "evento_pnt_ganado": user_data.get("evento_pnt_ganado", 0),
+            })
 
         # ── GET /admin/stats?key=panther2026 ──
         elif path == "/admin/stats":
@@ -3618,7 +4157,7 @@ def main():
     except Exception as e:
         print(f"❌ No se puede escribir en {DB_FILE}: {e}")
 
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token(TOKEN).job_queue(True).build()
 
     app.add_handler(CommandHandler("start",      cmd_start))
     app.add_handler(CommandHandler("checkin",    cmd_checkin))
@@ -3637,8 +4176,15 @@ def main():
     app.add_handler(CommandHandler("ganadores_ruleta", cmd_ganadores_ruleta))
     app.add_handler(CommandHandler("stats_referidos", cmd_stats_referidos))
     app.add_handler(CommandHandler("links_campana",   cmd_links_campana))
+    app.add_handler(CommandHandler("evento_start",    cmd_evento_start))
+    app.add_handler(CommandHandler("estado_cofre",    cmd_estado_cofre))
+    app.add_handler(CommandHandler("cazadores",       cmd_cazadores))
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
+    app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_nuevo_cazador_privado))
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
+
+    # Job diario para el evento (cada 24h)
+    app.job_queue.run_repeating(check_evento_dia, interval=86400, first=60)
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))

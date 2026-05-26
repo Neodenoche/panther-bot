@@ -873,14 +873,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app_url = f"https://go.mypanther.io/app?id={uid}&v=3"
 
     if is_new:
-        text = (
-            f"🐆 *¡Bienvenido a la Manada Panther, {user.first_name}!*\n\n"
-            f"🏅 Nivel: *{level}*\n"
-            f"⭐ Puntos: *{data['points']}*\n\n"
-            f"📢 Canal oficial: t.me/pantherwalletoficial\n"
-            f"💬 Chat comunidad: t.me/manadapanther\n\n"
-            f"_Completa misiones, refiere amigos y gana premios en PNT y USDT 💰_"
-        )
+        text = f"🐆 La Manada te espera, {user.first_name}. Revisá los mensajes que te envié para empezar 👇"
     else:
         text = (
             f"🐾 *¡Hola, {user.first_name}!*\n\n"

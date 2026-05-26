@@ -4157,7 +4157,8 @@ def main():
     except Exception as e:
         print(f"❌ No se puede escribir en {DB_FILE}: {e}")
 
-    app = Application.builder().token(TOKEN).job_queue(True).build()
+    from telegram.ext import JobQueue
+    app = Application.builder().token(TOKEN).job_queue(JobQueue()).build()
 
     app.add_handler(CommandHandler("start",      cmd_start))
     app.add_handler(CommandHandler("checkin",    cmd_checkin))

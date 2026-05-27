@@ -1893,8 +1893,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             approve_text = (
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"
-                f"Puntos acreditados: *+{earned}*\n"
-                f"Aprobado por: {mod_name}"
+                f"Puntos acreditados: *+{earned}*"
             )
             # Confirmar el tap inmediatamente
             await query.answer(f"✅ {tipo_label.get(tipo, tipo)} aprobado — +{earned} pts")
@@ -2896,6 +2895,62 @@ async def abrir_cofre(bot):
                                            text="\n".join(mod_lineas))
         except Exception:
             pass
+
+
+async def cmd_misiones_recientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Muestra misiones aprobadas/rechazadas de los últimos 2 días — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    db = load_db()
+    hoy = date.today()
+    fechas_validas = {
+        (hoy - timedelta(days=i)).isoformat()
+        for i in range(3)  # hoy, ayer, anteayer
+    }
+
+    tipo_label = {
+        "reel": "🎬 Reel",
+        "story": "📸 Historia",
+        "content": "📱 Contenido",
+        "wallet_activate": "👛 Wallet",
+        "comment_ig": "💬 Comentario IG",
+        "comment_ig_last": "💬 Comentario IG último post",
+        "comment_tt": "💬 Comentario TikTok",
+        "comment_tt_last": "💬 Comentario TikTok último video",
+        "checkin": "🔥 Check-in",
+        "referral": "🔗 Referido",
+        "cazador": "⚔️ Cazador verificado",
+    }
+
+    aprobadas = []
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        nombre = str(data.get("username") or data.get("first_name") or uid).replace("_", " ")
+        for h in data.get("history", []):
+            if h.get("date") in fechas_validas:
+                tipo = h.get("type", "otro")
+                if tipo in ("checkin",):  # omitir checkins — son demasiados
+                    continue
+                pts  = h.get("pts", 0)
+                hora = h.get("time", "??:??")
+                fecha = h.get("date", "")
+                label = tipo_label.get(tipo, tipo)
+                aprobadas.append(f"{fecha} {hora} — {nombre} — {label} +{pts}pts")
+
+    if not aprobadas:
+        await update.message.reply_text("No hay misiones aprobadas en los últimos 2 días.")
+        return
+
+    aprobadas.sort(reverse=True)
+    lineas = [f"📋 Misiones aprobadas (últimos 2 días)\n"]
+    lineas.extend(aprobadas[:50])
+    if len(aprobadas) > 50:
+        lineas.append(f"...y {len(aprobadas)-50} más")
+
+    await update.message.reply_text("\n".join(lineas))
 
 
 async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -4183,6 +4238,7 @@ def main():
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
     app.add_handler(CommandHandler("ganadores_ruleta", cmd_ganadores_ruleta))
     app.add_handler(CommandHandler("stats_referidos", cmd_stats_referidos))
+    app.add_handler(CommandHandler("misiones_recientes", cmd_misiones_recientes))
     app.add_handler(CommandHandler("links_campana",   cmd_links_campana))
     app.add_handler(CommandHandler("evento_start",    cmd_evento_start))
     app.add_handler(CommandHandler("estado_cofre",    cmd_estado_cofre))

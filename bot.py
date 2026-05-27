@@ -2911,17 +2911,25 @@ async def cmd_misiones_recientes(update: Update, context: ContextTypes.DEFAULT_T
     }
 
     tipo_label = {
-        "reel": "🎬 Reel",
-        "story": "📸 Historia",
-        "content": "📱 Contenido",
-        "wallet_activate": "👛 Wallet",
-        "comment_ig": "💬 Comentario IG",
-        "comment_ig_last": "💬 Comentario IG último post",
-        "comment_tt": "💬 Comentario TikTok",
-        "comment_tt_last": "💬 Comentario TikTok último video",
-        "checkin": "🔥 Check-in",
-        "referral": "🔗 Referido",
-        "cazador": "⚔️ Cazador verificado",
+        "reel":              "🎬 Reel",
+        "story":             "📸 Historia",
+        "historia":          "📸 Historia",
+        "content":           "📱 Contenido propio",
+        "wallet_activate":   "👛 Wallet activada",
+        "comment_ig":        "💬 Comentario IG",
+        "comment_ig_last":   "💬 Comentario IG último post",
+        "comment_tt":        "💬 Comentario TikTok",
+        "comment_tt_last":   "💬 Comentario TikTok último video",
+        "referral":          "🔗 Referido",
+        "referral_wallet":   "🔗 Referido con wallet",
+        "cazador":           "⚔️ Cazador verificado",
+        "follow_ig":         "👁 Follow IG",
+        "follow_x":          "👁 Follow X",
+        "follow_tiktok":     "👁 Follow TikTok",
+        "follow_facebook":   "👁 Follow Facebook",
+        "follow_youtube":    "👁 Follow YouTube",
+        "glosario":          "📖 Glosario",
+        "ruleta":            "🎰 Ruleta",
     }
 
     aprobadas = []
@@ -2932,8 +2940,6 @@ async def cmd_misiones_recientes(update: Update, context: ContextTypes.DEFAULT_T
         for h in data.get("history", []):
             if h.get("date") in fechas_validas:
                 tipo = h.get("type", "otro")
-                if tipo in ("checkin",):  # omitir checkins — son demasiados
-                    continue
                 pts  = h.get("pts", 0)
                 hora = h.get("time", "??:??")
                 fecha = h.get("date", "")

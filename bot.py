@@ -2412,11 +2412,12 @@ async def handle_nuevo_cazador_privado(update: Update, context: ContextTypes.DEF
 async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Callback para aprobar o rechazar un cazador"""
     query = update.callback_query
-    await query.answer()
 
     if update.effective_user.id not in MOD_IDS:
         await query.answer("No tenes permisos.", show_alert=True)
         return
+
+    await query.answer()
 
     data_str = query.data
     db = load_db()

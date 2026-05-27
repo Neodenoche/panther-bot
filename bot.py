@@ -3496,6 +3496,130 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "evento_pnt_ganado": user_data.get("evento_pnt_ganado", 0),
             })
 
+        # ── GET /admin/misiones?key=panther2026 ──
+        elif path == "/admin/misiones":
+            key = params.get("key", [None])[0]
+            if key != "panther2026":
+                self.send_response(403)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.end_headers()
+                self.wfile.write(b"<h2>Acceso denegado</h2>")
+                return
+
+            db   = load_db()
+            now  = datetime.now()
+            generado = now.strftime("%d/%m/%Y %H:%M:%S")
+
+            tipo_label = {
+                "reel":            "🎬 Reel de Panther",
+                "story":           "📸 Historia de Panther",
+                "historia":        "📸 Historia de Panther",
+                "content":         "✏️ Contenido propio",
+                "wallet_activate": "👛 Wallet activada",
+                "comment_ig":      "💬 Comentario IG",
+                "comment_ig_last": "💬 Comentario IG último post",
+                "comment_tt":      "💬 Comentario TikTok",
+                "comment_tt_last": "💬 Comentario TikTok último video",
+                "checkin":         "🔥 Check-in diario",
+                "referral":        "🔗 Referido",
+                "referral_wallet": "🔗 Referido con wallet",
+                "cazador":         "⚔️ Cazador verificado",
+                "follow_ig":       "👁 Follow IG",
+                "follow_x":        "👁 Follow X",
+                "follow_tiktok":   "👁 Follow TikTok",
+                "follow_facebook": "👁 Follow Facebook",
+                "follow_youtube":  "👁 Follow YouTube",
+                "glosario":        "📖 Glosario",
+                "ruleta":          "🎰 Ruleta",
+            }
+
+            # Recopilar todas las misiones
+            filas = []
+            for uid, data in db.items():
+                if uid.startswith("_") or not isinstance(data, dict):
+                    continue
+                nombre = str(data.get("username") or data.get("first_name") or uid).replace("_", " ")
+                for h in data.get("history", []):
+                    tipo  = h.get("type", "otro")
+                    label = tipo_label.get(tipo, tipo)
+                    pts   = h.get("pts", 0)
+                    fecha = h.get("date", "")
+                    hora  = h.get("time", "")
+                    estado = "✅ Aprobada"
+                    filas.append({
+                        "fecha":   fecha,
+                        "hora":    hora,
+                        "nombre":  nombre,
+                        "mision":  label,
+                        "pts":     pts,
+                        "estado":  estado,
+                    })
+
+            # Ordenar por fecha+hora descendente
+            filas.sort(key=lambda x: x["fecha"] + x["hora"], reverse=True)
+
+            # Pendientes
+            pendientes = len(PENDING_MISSIONS)
+            if pendientes == 0:
+                banner = "<div class=\'banner\'>✅ Ninguna misión pendiente. Todas analizadas.</div>"
+            else:
+                banner = f"<div class=\'banner pending\'>⏳ {pendientes} misión(es) pendiente(s) de revisión.</div>"
+
+            def build_rows(filas):
+                if not filas:
+                    return "<tr><td colspan='5' style='text-align:center;color:#AAA;padding:20px'>Sin misiones registradas</td></tr>"
+                out = ""
+                for i, row in enumerate(filas):
+                    bg = "#FAFAFA" if i % 2 == 0 else "#FFFFFF"
+                    pts_color = "#FF5A0E" if row["pts"] > 0 else "#AAA"
+                    out += (
+                        "<tr style='background:" + bg + "'>"
+                        "<td>" + row["fecha"] + " " + row["hora"] + "</td>"
+                        "<td><b>" + row["nombre"] + "</b></td>"
+                        "<td>" + row["mision"] + "</td>"
+                        "<td style='color:" + pts_color + ";font-weight:700'>+" + str(row["pts"]) + " pts</td>"
+                        "<td>" + row["estado"] + "</td>"
+                        "</tr>"
+                    )
+                return out
+
+            html = f"""<!DOCTYPE html><html><head><meta charset=\'utf-8\'>
+<meta name=\'viewport\' content=\'width=device-width,initial-scale=1\'>
+<title>Misiones — Manada Panther</title>
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{background:#F5F5F5;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif;padding:24px;color:#111}}
+h1{{color:#FF5A0E;font-size:22px;font-weight:800;margin-bottom:4px}}
+.sub{{color:#AAA;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}}
+.banner{{background:#F0FDF4;border:1px solid #86efac;border-radius:10px;padding:14px 20px;font-size:14px;font-weight:600;color:#166534;margin-bottom:20px}}
+.banner.pending{{background:#FFF7ED;border-color:#fed7aa;color:#9a3412}}
+.generado{{font-size:11px;color:#AAA;margin-bottom:16px}}
+table{{width:100%;border-collapse:collapse;background:#FFF;border-radius:12px;overflow:hidden;border:1px solid #EEE;box-shadow:0 2px 8px rgba(0,0,0,0.04)}}
+th{{text-align:left;padding:12px 16px;border-bottom:1px solid #F0F0F0;color:#AAA;font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;background:#FAFAFA}}
+td{{padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:13px;color:#333}}
+tr:last-child td{{border-bottom:none}}
+tr:hover td{{background:#FFF8F5}}
+.total{{margin-top:12px;font-size:12px;color:#AAA;text-align:right}}
+</style></head><body>
+<h1>MISIONES — MANADA PANTHER</h1>
+<div class=\'sub\'>Registro de actividad · Uso interno</div>
+<div class=\'generado\'>Documento generado el {generado}</div>
+{banner}
+<table>
+<tr><th>Fecha y hora</th><th>Usuario</th><th>Misión</th><th>Puntos</th><th>Estado</th></tr>
+{build_rows(filas)}
+</table>
+<div class=\'total\'>{len(filas)} misiones registradas</div>
+</body></html>"""
+
+            html_bytes = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
         # ── GET /admin/stats?key=panther2026 ──
         elif path == "/admin/stats":
             key = params.get("key", [None])[0]

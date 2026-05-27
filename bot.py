@@ -1597,6 +1597,18 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_pending_missions()
     MAX_DAILY = 3
 
+    # ── Foto sin contexto — rechazar con explicación ──
+    if mission_type is None:
+        await update.message.reply_text(
+            "⚠️ Esta imagen no fue enviada desde una misión del gamebot.\n\n"
+            "Para que cuente, tenés que entrar a la Mini App → Misiones → "
+            "seleccionar la misión correspondiente (Reel, Historia, Contenido propio, "
+            "Comentario IG, Comentario TikTok, etc.) y subir la captura desde ahí.\n\n"
+            "Las imágenes enviadas sin contexto no son válidas y serán ignoradas. "
+            "Tenés un límite de 3 capturas por misión por día."
+        )
+        return
+
     tipo_labels = {
         "reel":            "🎬 Reel de Panther",
         "story":           "📸 Historia de Panther",
@@ -1651,9 +1663,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         counter_msg = ""
 
     await update.message.reply_text(
-        f"📸 ¡Captura recibida! Gracias {name}.\n\n"
-        f"Misión: *{tipo_label}*{counter_msg}\n\n"
-        f"Un moderador verificará y acreditará los puntos en las próximas 24h 🐾",
+        f"📨 Captura recibida. Misión: *{tipo_label}*{counter_msg}\n\n"
+        f"Un moderador la revisará en las próximas 24 horas. "
+        f"Si es aprobada recibirás tus puntos automáticamente. "
+        f"Si es rechazada te avisaremos con el motivo. 🐾",
         parse_mode="Markdown"
     )
 

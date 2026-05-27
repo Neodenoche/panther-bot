@@ -2476,9 +2476,9 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
         except Exception:
             pass
 
+        nombre_safe = str(nombre).replace("_", " ").replace("*", "").replace("`", "")
         await query.edit_message_text(
-            f"✅ Cazador aprobado: @{nombre} (ID: {target_uid}){ref_msg}",
-            parse_mode="Markdown"
+            f"✅ Cazador aprobado: @{nombre_safe} (ID: {target_uid}){ref_msg}"
         )
 
     elif data_str.startswith("cazador_no_"):
@@ -2498,7 +2498,8 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
         except Exception:
             pass
 
-        await query.edit_message_text(f"❌ Cazador rechazado: @{nombre} (ID: {target_uid})")
+        nombre_safe2 = str(nombre).replace("_", " ").replace("*", "").replace("`", "")
+        await query.edit_message_text(f"❌ Cazador rechazado: @{nombre_safe2} (ID: {target_uid})")
 
 
 

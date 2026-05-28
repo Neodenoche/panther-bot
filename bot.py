@@ -4233,12 +4233,14 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
         # ── POST /set_mission_type — guarda qué misión va a subir el usuario ──
         elif path == "/set_mission_type":
             uid = body.get("id")
-            mission_type = body.get("type")  # reel | story | content | wallet_activate | review_store | review_trust
+            mission_type = body.get("type")
+            logger.info(f"set_mission_type: uid={uid} type={mission_type}")
             if not uid or mission_type not in ["reel", "story", "content", "wallet_activate", "review_store", "review_trust", "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last"]:
+                logger.warning(f"set_mission_type INVALID: uid={uid} type={mission_type}")
                 return self.send_json({"error": "Invalid params"}, 400)
-            # Guardar en memoria del bot usando un dict global temporal
             PENDING_MISSIONS[uid] = mission_type
             save_pending_missions()
+            logger.info(f"set_mission_type OK: uid={uid} type={mission_type}")
             return self.send_json({"status": "ok", "type": mission_type})
 
         # ── POST /follow ──

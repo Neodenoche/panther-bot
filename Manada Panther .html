@@ -1936,31 +1936,26 @@ function goToWalletBot() {
   document.getElementById('wallet-mission-modal').style.display = 'none';
   const mType = window._walletMissionType || 'content';
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Abrir bot PRIMERO (como el original que funcionaba)
-  if(tg && tg.openTelegramLink) {
-    tg.openTelegramLink('https://t.me/ManadaPantherBot?start=mission');
-  } else {
-    window.open('https://t.me/ManadaPantherBot?start=mission', '_blank');
-  }
-  // Registrar misión después
+  // Registrar misión
   fetch(API_BASE + '/set_mission_type', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({id: USER_ID, type: mType})
   }).catch(()=>{});
+  // Abrir bot y cerrar mini app
+  if(tg && tg.openTelegramLink) {
+    tg.openTelegramLink('https://t.me/ManadaPantherBot?start=mission');
+  } else {
+    window.open('https://t.me/ManadaPantherBot?start=mission', '_blank');
+  }
+  setTimeout(() => { if(tg) tg.close(); }, 300);
 }
 
 function goToBot() {
   const modal = document.getElementById('share-modal');
   if(modal) modal.remove();
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Abrir bot PRIMERO (como el original que funcionaba)
-  if(tg && tg.openTelegramLink) {
-    tg.openTelegramLink('https://t.me/ManadaPantherBot?start=mission');
-  } else {
-    window.open('https://t.me/ManadaPantherBot?start=mission', '_blank');
-  }
-  // Registrar misión después
+  // Registrar misión
   if(_currentMissionType) {
     fetch(API_BASE + '/set_mission_type', {
       method: 'POST',
@@ -1968,6 +1963,13 @@ function goToBot() {
       body: JSON.stringify({id: USER_ID, type: _currentMissionType})
     }).catch(()=>{});
   }
+  // Abrir bot y cerrar mini app
+  if(tg && tg.openTelegramLink) {
+    tg.openTelegramLink('https://t.me/ManadaPantherBot?start=mission');
+  } else {
+    window.open('https://t.me/ManadaPantherBot?start=mission', '_blank');
+  }
+  setTimeout(() => { if(tg) tg.close(); }, 300);
 }
 
 let soundEnabled = true;

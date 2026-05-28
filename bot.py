@@ -1709,6 +1709,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Puntos actuales: *{data['points']}*\n\n"
         f"Seleccioná la acción:"
     )
+    logger.info(f"handle_photo: uid={uid} mission_type={mission_type} tipo_label={tipo_label}")
     # Enviar al grupo de mods primero
     mission_notified = False
     try:

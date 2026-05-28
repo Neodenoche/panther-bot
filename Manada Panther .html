@@ -1936,27 +1936,30 @@ function goToWalletBot() {
   document.getElementById('wallet-mission-modal').style.display = 'none';
   const mType = window._walletMissionType || 'content';
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Registrar misión (fire and forget)
   fetch(API_BASE + '/set_mission_type', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({id: USER_ID, type: mType})
   }).catch(()=>{});
-  // Abrir Telegram inmediatamente
   setTimeout(() => {
-    if(tg && tg.openTelegramLink) {
-      tg.openTelegramLink('https://t.me/ManadaPantherBot');
-    } else {
-      window.open('https://t.me/ManadaPantherBot', '_blank');
+    try {
+      if(tg && tg.openTelegramLink) {
+        tg.openTelegramLink('https://t.me/ManadaPantherBot');
+      } else if(tg && tg.openLink) {
+        tg.openLink('https://t.me/ManadaPantherBot');
+      } else {
+        window.location.href = 'tg://resolve?domain=ManadaPantherBot';
+      }
+    } catch(e) {
+      window.location.href = 'tg://resolve?domain=ManadaPantherBot';
     }
-  }, 300);
+  }, 400);
 }
 
 function goToBot() {
   const modal = document.getElementById('share-modal');
   if(modal) modal.remove();
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Registrar misión (fire and forget)
   if(_currentMissionType) {
     fetch(API_BASE + '/set_mission_type', {
       method: 'POST',
@@ -1964,14 +1967,19 @@ function goToBot() {
       body: JSON.stringify({id: USER_ID, type: _currentMissionType})
     }).catch(()=>{});
   }
-  // Abrir Telegram inmediatamente
   setTimeout(() => {
-    if(tg && tg.openTelegramLink) {
-      tg.openTelegramLink('https://t.me/ManadaPantherBot');
-    } else {
-      window.open('https://t.me/ManadaPantherBot', '_blank');
+    try {
+      if(tg && tg.openTelegramLink) {
+        tg.openTelegramLink('https://t.me/ManadaPantherBot');
+      } else if(tg && tg.openLink) {
+        tg.openLink('https://t.me/ManadaPantherBot');
+      } else {
+        window.location.href = 'tg://resolve?domain=ManadaPantherBot';
+      }
+    } catch(e) {
+      window.location.href = 'tg://resolve?domain=ManadaPantherBot';
     }
-  }, 300);
+  }, 400);
 }
 
 let soundEnabled = true;

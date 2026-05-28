@@ -1936,55 +1936,42 @@ function goToWalletBot() {
   document.getElementById('wallet-mission-modal').style.display = 'none';
   const mType = window._walletMissionType || 'content';
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Registrar misión PRIMERO, luego abrir Telegram
+  // Registrar misión (fire and forget)
   fetch(API_BASE + '/set_mission_type', {
     method: 'POST',
     headers: {'Content-Type':'application/json'},
     body: JSON.stringify({id: USER_ID, type: mType})
-  }).then(() => {
+  }).catch(()=>{});
+  // Abrir Telegram inmediatamente
+  setTimeout(() => {
     if(tg && tg.openTelegramLink) {
       tg.openTelegramLink('https://t.me/ManadaPantherBot');
     } else {
       window.open('https://t.me/ManadaPantherBot', '_blank');
     }
-  }).catch(() => {
-    if(tg && tg.openTelegramLink) {
-      tg.openTelegramLink('https://t.me/ManadaPantherBot');
-    } else {
-      window.open('https://t.me/ManadaPantherBot', '_blank');
-    }
-  });
+  }, 300);
 }
 
 function goToBot() {
-  document.getElementById('share-modal').remove();
+  const modal = document.getElementById('share-modal');
+  if(modal) modal.remove();
   const tg = window.Telegram && window.Telegram.WebApp;
-  // Registrar misión PRIMERO, luego abrir Telegram
+  // Registrar misión (fire and forget)
   if(_currentMissionType) {
     fetch(API_BASE + '/set_mission_type', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({id: USER_ID, type: _currentMissionType})
-    }).then(() => {
-      if(tg && tg.openTelegramLink) {
-        tg.openTelegramLink('https://t.me/ManadaPantherBot');
-      } else {
-        window.open('https://t.me/ManadaPantherBot', '_blank');
-      }
-    }).catch(() => {
-      if(tg && tg.openTelegramLink) {
-        tg.openTelegramLink('https://t.me/ManadaPantherBot');
-      } else {
-        window.open('https://t.me/ManadaPantherBot', '_blank');
-      }
-    });
-  } else {
+    }).catch(()=>{});
+  }
+  // Abrir Telegram inmediatamente
+  setTimeout(() => {
     if(tg && tg.openTelegramLink) {
       tg.openTelegramLink('https://t.me/ManadaPantherBot');
     } else {
       window.open('https://t.me/ManadaPantherBot', '_blank');
     }
-  }
+  }, 300);
 }
 
 let soundEnabled = true;

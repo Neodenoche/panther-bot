@@ -1491,10 +1491,12 @@ function openBotForShare(type) {
   modal.style.display = 'flex';
 
   // Agregar event listener al botón IR AL BOT después de insertar el HTML
-  const botBtn = modal.querySelector('#btn-ir-al-bot');
-  if(botBtn) {
-    botBtn.addEventListener('click', goToBot);
-  }
+  setTimeout(() => {
+    const botBtn = document.getElementById('btn-ir-al-bot');
+    if(botBtn) {
+      botBtn.onclick = goToBot;
+    }
+  }, 50);
 }
 
 // ── GLOSARIO ──────────────────────────────────────────────────────────────────
@@ -2666,9 +2668,9 @@ new MutationObserver(()=>{
     <a id="wm-social-link" href="#" target="_blank" style="display:none;background:#1a1a1a;color:#fff;text-decoration:none;border-radius:12px;padding:11px 0;width:100%;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:8px;text-align:center;border:1px solid #333">
       📲 IR A LA RED SOCIAL
     </a>
-    <a id="wm-bot-link" href="https://t.me/ManadaPantherBot?start=mission" target="_blank" style="display:block;background:#FF5C1A;color:#fff;text-decoration:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:center">
+    <button id="wm-bot-link" onclick="goToWalletBot()" style="display:block;background:#FF5C1A;color:#fff;text-decoration:none;border-radius:12px;padding:13px 0;width:100%;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;text-align:center;border:none">
       🐆 IR AL BOT
-    </a>
+    </button>
     <button onclick="document.getElementById('wallet-mission-modal').style.display='none'" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
       Cancelar
     </button>

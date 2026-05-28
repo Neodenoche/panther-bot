@@ -1506,7 +1506,13 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only handle photos in private chats
     if update.effective_chat.type != "private":
         return
-    
+
+    # Detectar #NuevoCazador en privado
+    caption = (update.message.caption or "").lower()
+    if "#nuevocazador" in caption:
+        await handle_nuevo_cazador_privado(update, context)
+        return
+
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)
@@ -4387,7 +4393,6 @@ def main():
     app.add_handler(CommandHandler("estado_cofre",    cmd_estado_cofre))
     app.add_handler(CommandHandler("cazadores",       cmd_cazadores))
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
-    app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.PRIVATE, handle_nuevo_cazador_privado))
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))

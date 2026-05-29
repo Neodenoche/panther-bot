@@ -3545,10 +3545,13 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             top5_list = []
             for i, (ruid, d) in enumerate(top5, 1):
                 top5_list.append({
-                    "pos":    i,
-                    "nombre": d.get("username") or d.get("first_name") or ruid,
-                    "refs":   d.get("referrals_active", 0),
-                    "es_yo":  ruid == uid,
+                    "pos":      i,
+                    "nombre":   d.get("username") or d.get("first_name") or ruid,
+                    "username": d.get("username") or d.get("first_name") or ruid,
+                    "refs":     d.get("referrals_active", 0),
+                    "referidos": d.get("referrals_active", 0),
+                    "uid":      ruid,
+                    "es_yo":    ruid == uid,
                 })
 
             end_date = ev.get("end_date")
@@ -3563,11 +3566,21 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "total_cazadores":   cazadores_total,
                 "meta":              META_CAZADORES,
                 "dias_restantes":    dias_restantes,
+                "dias_transcurridos": (datetime.fromisoformat(ev["start_date"]) - datetime.now()).days * -1 if ev.get("start_date") else 0,
+                "dias_limite":       EVENTO_DIAS_BASE + ev.get("extension", 0),
+                "pct_objetivo":      round(cazadores_total / META_CAZADORES * 100, 1),
                 "cofre_pnt":         COFRE_PNT,
                 "mis_cazadores":     mis_cazadores,
                 "mi_pnt_estimado":   mi_pnt_estimado,
                 "top5":              top5_list,
                 "evento_pnt_ganado": user_data.get("evento_pnt_ganado", 0),
+                "usuario": {
+                    "referidos_validos": mis_cazadores,
+                    "pnt_estimado":      mi_pnt_estimado,
+                    "califica":          mis_cazadores >= 3,
+                    "min_referidos":     3,
+                    "evento_pnt_ganado": user_data.get("evento_pnt_ganado", 0),
+                },
             })
 
         # ── GET /admin/misiones?key=panther2026 ──

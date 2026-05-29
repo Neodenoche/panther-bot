@@ -2079,6 +2079,72 @@ async def cmd_enviar_badges(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"❌ Fallidos: {failed}"
     )
 
+async def cmd_verificar_cazador(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Marca manualmente a un usuario como cazador verificado — solo mods
+    Uso: /verificar_cazador <user_id>
+    """
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    if not context.args:
+        await update.message.reply_text("Uso: /verificar_cazador <user_id>")
+        return
+
+    target_uid = context.args[0].strip()
+    db = load_db()
+
+    if target_uid not in db:
+        await update.message.reply_text(f"Usuario {target_uid} no encontrado en la DB.")
+        return
+
+    data = db[target_uid]
+    nombre = data.get("username") or data.get("first_name") or target_uid
+
+    # Ya verificado
+    if data.get("cazador_verificado"):
+        await update.message.reply_text(f"@{nombre} ya estaba verificado como cazador.")
+        return
+
+    # Marcar como cazador verificado
+    data["cazador_verificado"] = True
+    data["wallet_activated"]   = True
+
+    # Activar referido si tiene referidor
+    referred_by = data.get("referred_by")
+    ref_msg = ""
+    if referred_by:
+        ref_data = db.get(str(referred_by), {})
+        if ref_data:
+            ref_data["referrals_active"] = ref_data.get("referrals_active", 0) + 1
+            db[str(referred_by)] = ref_data
+            ref_nombre = ref_data.get("username") or ref_data.get("first_name") or referred_by
+            ref_msg = f"\nReferidor @{ref_nombre} actualizado (+1 activo)."
+            try:
+                await context.bot.send_message(
+                    chat_id=int(referred_by),
+                    text=f"Tu referido {nombre} fue verificado como cazador.\n\nYa cuenta como referido activo en tu registro."
+                )
+            except Exception:
+                pass
+
+    db[target_uid] = data
+    save_db(db)
+
+    # Notificar al usuario
+    try:
+        await context.bot.send_message(
+            chat_id=int(target_uid),
+            text="Tu ritual fue verificado.\n\nEres oficialmente un Cazador de la Manada."
+        )
+    except Exception:
+        pass
+
+    await update.message.reply_text(
+        f"Cazador verificado: @{nombre} (ID: {target_uid}){ref_msg}"
+    )
+
+
 async def cmd_dar_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
         await update.message.reply_text("No tenes permisos.")
@@ -4391,6 +4457,7 @@ def main():
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
     app.add_handler(CommandHandler("ganadores_ruleta", cmd_ganadores_ruleta))
     app.add_handler(CommandHandler("stats_referidos", cmd_stats_referidos))
+    app.add_handler(CommandHandler("verificar_cazador", cmd_verificar_cazador))
     app.add_handler(CommandHandler("misiones_recientes", cmd_misiones_recientes))
     app.add_handler(CommandHandler("links_campana",   cmd_links_campana))
     app.add_handler(CommandHandler("evento_start",    cmd_evento_start))

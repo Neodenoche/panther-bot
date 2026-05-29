@@ -2691,6 +2691,43 @@ async def cmd_evento_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(f"✅ Evento activado. Cierre: {end.strftime('%d/%m/%Y')}")
 
 
+async def cmd_evento_cerrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Cierra el evento manualmente — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    ev = get_evento_state()
+    if not ev["activo"] and not ev.get("cerrado"):
+        await update.message.reply_text("El evento no está activo.")
+        return
+
+    set_evento_state(evento_activo=False, evento_cerrado=True)
+    await update.message.reply_text(
+        "🔒 Evento cerrado manualmente.\n\n"
+        "El cofre NO se distribuyó. Para distribuir manualmente usá /evento_distribuir."
+    )
+    try:
+        await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID,
+            text="🔒 La Operación 1,000 Cazadores ha sido cerrada temporalmente. "
+                 "Más información pronto. 🐆"
+        )
+    except Exception:
+        pass
+
+
+async def cmd_evento_distribuir(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Distribuye el cofre manualmente — solo mods"""
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("No tenes permisos.")
+        return
+
+    await update.message.reply_text("⏳ Calculando distribución y anunciando...")
+    await abrir_cofre(context.bot)
+    await update.message.reply_text("✅ Cofre distribuido y anunciado al grupo.")
+
+
 async def cmd_estado_cofre(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Estado del evento — solo mods."""
     if update.effective_user.id not in MOD_IDS:
@@ -4394,6 +4431,8 @@ def main():
     app.add_handler(CommandHandler("links_campana",   cmd_links_campana))
     app.add_handler(CommandHandler("evento_start",    cmd_evento_start))
     app.add_handler(CommandHandler("estado_cofre",    cmd_estado_cofre))
+    app.add_handler(CommandHandler("evento_cerrar",   cmd_evento_cerrar))
+    app.add_handler(CommandHandler("evento_distribuir", cmd_evento_distribuir))
     app.add_handler(CommandHandler("cazadores",       cmd_cazadores))
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))

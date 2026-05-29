@@ -1832,7 +1832,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Give +150 pts to referrer
         if referrer_uid and referrer_uid in db:
             earned = add_points(db[referrer_uid], PTS["referral_wallet"])
-            db[referrer_uid]["referrals_active"] = db[referrer_uid].get("referrals_active", 0) + 1
+            db[referrer_uid]["referrals_active"]  = db[referrer_uid].get("referrals_active", 0) + 1
+            db[referrer_uid]["cazadores_evento"]  = db[referrer_uid].get("cazadores_evento", 0) + 1
             save_db(db)
             try:
                 await context.bot.send_message(
@@ -1886,11 +1887,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Acciones especiales por tipo
             if tipo == "wallet_activate":
                 db[target_uid]["wallet_activated"] = True
-                # Dar +150 pts al referidor
+                db[target_uid]["cazador_verificado"] = True
+                # Dar +150 pts al referidor y sumar cazadores_evento
                 referrer_uid = db[target_uid].get("referred_by")
                 if referrer_uid and referrer_uid in db:
                     referrer_earned = add_points(db[referrer_uid], PTS["referral_wallet"])
-                    db[referrer_uid]["referrals_active"] = db[referrer_uid].get("referrals_active", 0) + 1
+                    db[referrer_uid]["referrals_active"]  = db[referrer_uid].get("referrals_active", 0) + 1
+                    db[referrer_uid]["cazadores_evento"]  = db[referrer_uid].get("cazadores_evento", 0) + 1
                     try:
                         await context.bot.send_message(
                             chat_id=int(referrer_uid),
@@ -2117,6 +2120,7 @@ async def cmd_verificar_cazador(update: Update, context: ContextTypes.DEFAULT_TY
         ref_data = db.get(str(referred_by), {})
         if ref_data:
             ref_data["referrals_active"] = ref_data.get("referrals_active", 0) + 1
+            ref_data["cazadores_evento"] = ref_data.get("cazadores_evento", 0) + 1
             db[str(referred_by)] = ref_data
             ref_nombre = ref_data.get("username") or ref_data.get("first_name") or referred_by
             ref_msg = f"\nReferidor @{ref_nombre} actualizado (+1 activo)."
@@ -2529,7 +2533,8 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
             if ref_data:
                 if target_uid not in ref_data.get("referrals", []):
                     ref_data.setdefault("referrals", []).append(target_uid)
-                ref_data["referrals_active"] = ref_data.get("referrals_active", 0) + 1
+                ref_data["referrals_active"]  = ref_data.get("referrals_active", 0) + 1
+                ref_data["cazadores_evento"]  = ref_data.get("cazadores_evento", 0) + 1
                 db[str(referred_by)] = ref_data
                 ref_nombre = ref_data.get("username") or ref_data.get("first_name") or referred_by
                 ref_msg = f"\nReferidor @{ref_nombre} actualizado (+1 activo)."
@@ -2677,34 +2682,32 @@ def set_evento_state(**kwargs):
 def get_cazadores_count():
     """Retorna total de cazadores verificados en el evento."""
     db = load_db()
-    return sum(1 for uid, d in db.items()
-               if not uid.startswith("_") and isinstance(d, dict)
-               and d.get("cazador_verificado"))
+    return sum(d.get("cazadores_evento", 0) for uid, d in db.items()
+               if not uid.startswith("_") and isinstance(d, dict))
 
 def get_top_cazadores(n=10):
-    """Retorna top N referidores del evento."""
+    """Retorna top N referidores del evento — solo cazadores_evento (desde inicio del evento)."""
     db = load_db()
     users = [(uid, d) for uid, d in db.items()
              if not uid.startswith("_") and isinstance(d, dict)
-             and d.get("cazador_verificado")]
-    # Sort by referrals_active
-    ranked = sorted(users, key=lambda x: x[1].get("referrals_active", 0), reverse=True)
+             and d.get("cazadores_evento", 0) > 0]
+    ranked = sorted(users, key=lambda x: x[1].get("cazadores_evento", 0), reverse=True)
     return ranked[:n]
 
 def calcular_cofre(db):
     """Calcula distribución del cofre según fórmula de Valeria."""
-    # Solo usuarios con mínimo 3 cazadores verificados
+    # Solo usuarios con mínimo 3 cazadores del evento
     elegibles = {
         uid: d for uid, d in db.items()
         if not uid.startswith("_") and isinstance(d, dict)
-        and d.get("referrals_active", 0) >= 3
+        and d.get("cazadores_evento", 0) >= 3
     }
-    total_refs = sum(d.get("referrals_active", 0) for d in elegibles.values())
+    total_refs = sum(d.get("cazadores_evento", 0) for d in elegibles.values())
     if total_refs == 0:
         return {}
     distribucion = {}
     for uid, d in elegibles.items():
-        refs = d.get("referrals_active", 0)
+        refs = d.get("cazadores_evento", 0)
         pnt = round((refs / total_refs) * COFRE_PNT, 4)
         distribucion[uid] = {"pnt": pnt, "refs": refs, "nombre": d.get("username") or d.get("first_name") or uid}
     return distribucion
@@ -3533,12 +3536,12 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             top5 = get_top_cazadores(5)
 
             user_data = db.get(uid, {}) if uid else {}
-            mis_cazadores = user_data.get("referrals_active", 0)
+            mis_cazadores = user_data.get("cazadores_evento", 0)
             mi_pnt_estimado = 0
             if mis_cazadores >= 3:
-                total_refs = sum(d.get("referrals_active", 0) for u2, d in db.items()
+                total_refs = sum(d.get("cazadores_evento", 0) for u2, d in db.items()
                                  if not u2.startswith("_") and isinstance(d, dict)
-                                 and d.get("referrals_active", 0) >= 3)
+                                 and d.get("cazadores_evento", 0) >= 3)
                 if total_refs > 0:
                     mi_pnt_estimado = round((mis_cazadores / total_refs) * COFRE_PNT, 4)
 

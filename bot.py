@@ -3791,19 +3791,48 @@ tr:hover td{{background:#FFF8F5}}
             otros      = max(0, total_missions - checkins - contenido - sociales - referidos_m - glosario - ruleta_m)
 
             # ── Fallback: reconstruir desde campos booleanos si historial no tiene datos ──
-            reels_count     = mission_counts.get("reel", 0) or sum(1 for d in users.values() if d.get("reel_verified"))
-            stories_count   = mission_counts.get("story", 0) + mission_counts.get("historia", 0) or sum(1 for d in users.values() if d.get("story_verified"))
+            # Fallback desde historial (nuevas misiones)
+            reels_count     = mission_counts.get("reel", 0)
+            stories_count   = mission_counts.get("story", 0) + mission_counts.get("historia", 0)
             wallet_count    = mission_counts.get("wallet_activate", 0) or sum(1 for d in users.values() if d.get("wallet_activated"))
             content_count   = mission_counts.get("content", 0)
-            follow_ig_count    = mission_counts.get("follow_ig", 0) or sum(1 for d in users.values() if d.get("follow_ig"))
-            follow_yt_count    = mission_counts.get("follow_youtube", 0) or sum(1 for d in users.values() if d.get("follow_youtube"))
-            follow_tt_count    = mission_counts.get("follow_tiktok", 0) or sum(1 for d in users.values() if d.get("follow_tiktok"))
-            follow_x_count     = mission_counts.get("follow_x", 0) or sum(1 for d in users.values() if d.get("follow_x"))
-            follow_fb_count    = mission_counts.get("follow_facebook", 0) or sum(1 for d in users.values() if d.get("follow_facebook"))
-            comment_ig_count   = mission_counts.get("comment_ig", 0)
-            comment_ig_last    = mission_counts.get("comment_ig_last", 0)
-            comment_tt_count   = mission_counts.get("comment_tt", 0)
-            comment_tt_last    = mission_counts.get("comment_tt_last", 0)
+            follow_ig_count = mission_counts.get("follow_ig", 0) or sum(1 for d in users.values() if d.get("follow_ig"))
+            follow_yt_count = mission_counts.get("follow_youtube", 0) or sum(1 for d in users.values() if d.get("follow_youtube"))
+            follow_tt_count = mission_counts.get("follow_tiktok", 0) or sum(1 for d in users.values() if d.get("follow_tiktok"))
+            follow_x_count  = mission_counts.get("follow_x", 0) or sum(1 for d in users.values() if d.get("follow_x"))
+            follow_fb_count = mission_counts.get("follow_facebook", 0) or sum(1 for d in users.values() if d.get("follow_facebook"))
+            comment_ig_count = mission_counts.get("comment_ig", 0)
+            comment_ig_last  = mission_counts.get("comment_ig_last", 0)
+            comment_tt_count = mission_counts.get("comment_tt", 0)
+            comment_tt_last  = mission_counts.get("comment_tt_last", 0)
+
+            # Reconstruccion historica desde puntos del historial
+            # Buscamos entradas con pts especificos que no sean follow/checkin/ruleta
+            pts_30_count = 0  # reels, comentarios IG ultimo, comentarios TT ultimo
+            pts_20_count = 0  # historias
+            pts_50_count = 0  # contenido propio
+            pts_5_count  = 0  # comentarios cortos
+            known_types  = {"checkin", "ruleta", "follow_ig", "follow_youtube",
+                           "follow_tiktok", "follow_x", "follow_facebook",
+                           "reel", "story", "historia", "content", "wallet_activate",
+                           "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last"}
+            for d in users.values():
+                for h in d.get("history", []):
+                    t = h.get("type", "")
+                    if t not in known_types and t not in ("referral", "referral_wallet"):
+                        pts = h.get("pts", 0)
+                        if pts == 30:   pts_30_count += 1
+                        elif pts == 20: pts_20_count += 1
+                        elif pts == 50: pts_50_count += 1
+                        elif pts == 5:  pts_5_count  += 1
+
+            # Usar historial si tiene datos, sino reconstruccion
+            if reels_count == 0 and pts_30_count > 0:
+                reels_count = pts_30_count
+            if stories_count == 0 and pts_20_count > 0:
+                stories_count = pts_20_count
+            if content_count == 0 and pts_50_count > 0:
+                content_count = pts_50_count
 
             # ── Referidos del evento ──
             total_cazadores_evento = sum(d.get("cazadores_evento", 0) for d in users.values())

@@ -3899,10 +3899,19 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 <h2>Misiones por tipo</h2>
 <div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
 <div class='mis-row'><span>🔥 Check-in diario</span><strong style='color:#FF5A0E'>{checkins}</strong></div>
-<div class='mis-row'><span>📱 Contenido (reels, historias, TikTok)</span><strong style='color:#FF5A0E'>{contenido}</strong></div>
-<div class='mis-row'><span>👥 Sociales (follows)</span><strong style='color:#FF5A0E'>{sociales}</strong></div>
-<div class='mis-row'><span>🔗 Referidos</span><strong style='color:#FF5A0E'>{referidos_m}</strong></div>
-<div class='mis-row'><span>📖 Glosario crypto</span><strong style='color:#FF5A0E'>{glosario}</strong></div>
+<div class='mis-row'><span>🎬 Reels de Panther</span><strong style='color:#FF5A0E'>{mission_counts.get("reel", 0)}</strong></div>
+<div class='mis-row'><span>📸 Historias de Panther</span><strong style='color:#FF5A0E'>{mission_counts.get("story", mission_counts.get("historia", 0))}</strong></div>
+<div class='mis-row'><span>✏️ Contenido propio</span><strong style='color:#FF5A0E'>{mission_counts.get("content", 0)}</strong></div>
+<div class='mis-row'><span>👛 Wallet activada</span><strong style='color:#FF5A0E'>{mission_counts.get("wallet_activate", 0)}</strong></div>
+<div class='mis-row'><span>👁 Follow Instagram</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_ig", 0)}</strong></div>
+<div class='mis-row'><span>👁 Follow TikTok</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_tiktok", mission_counts.get("follow_tt", 0))}</strong></div>
+<div class='mis-row'><span>👁 Follow YouTube</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_youtube", mission_counts.get("follow_yt", 0))}</strong></div>
+<div class='mis-row'><span>👁 Follow X</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_x", mission_counts.get("follow_twitter", 0))}</strong></div>
+<div class='mis-row'><span>👁 Follow Facebook</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_facebook", 0)}</strong></div>
+<div class='mis-row'><span>💬 Comentario IG</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_ig", 0)}</strong></div>
+<div class='mis-row'><span>💬 Comentario último post IG</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_ig_last", 0)}</strong></div>
+<div class='mis-row'><span>💬 Comentario TikTok</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_tt", 0)}</strong></div>
+<div class='mis-row'><span>💬 Comentario último video TikTok</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_tt_last", 0)}</strong></div>
 <div class='mis-row'><span>🎰 Ruleta</span><strong style='color:#FF5A0E'>{ruleta_m}</strong></div>
 <div class='mis-row' style='border-bottom:none'><span style='color:#AAA'>Otros</span><strong style='color:#CCC'>{otros}</strong></div>
 </div>
@@ -4458,6 +4467,43 @@ def main():
     download_fonts()
     init_db()
     load_pending_missions()
+
+    # ── Migración: poblar cazadores_evento desde referidos con wallet activa ──
+    def migrate_cazadores_evento():
+        EVENTO_START = "2026-05-29"
+        db = load_db()
+        referidor_counts = {}
+        migrated = 0
+        for uid, data in db.items():
+            if uid.startswith("_") or not isinstance(data, dict):
+                continue
+            referred_by = data.get("referred_by")
+            if not referred_by:
+                continue
+            if not data.get("wallet_activated"):
+                continue
+            # Usar joined_at si existe, si no contar igual
+            joined_at = data.get("joined_at", "")
+            joined_date = joined_at[:10] if joined_at else ""
+            # Contar si se unió desde el evento O si no tenemos fecha (beneficio de la duda)
+            if not joined_date or joined_date >= EVENTO_START:
+                referidor_counts[str(referred_by)] = referidor_counts.get(str(referred_by), 0) + 1
+                migrated += 1
+
+        updated = 0
+        for ref_uid, count in referidor_counts.items():
+            if ref_uid in db:
+                if db[ref_uid].get("cazadores_evento", 0) != count:
+                    db[ref_uid]["cazadores_evento"] = count
+                    updated += 1
+
+        if updated > 0:
+            save_db(db)
+            logger.info(f"✅ Migración cazadores_evento: {migrated} referidos, {updated} referidores actualizados")
+        else:
+            logger.info(f"✅ Migración cazadores_evento: sin cambios necesarios")
+
+    migrate_cazadores_evento()
     print("✅ Base de datos SQLite inicializada")
 
     # Test escritura en volumen

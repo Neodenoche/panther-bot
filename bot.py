@@ -3876,6 +3876,20 @@ tr:hover td{{background:#FFF8F5}}
             nombre_top_pts = str(top_pts[1].get("username") or top_pts[1].get("first_name") or top_pts[0]) if top_pts[0] else "—"
             nombre_top_mis = str(top_mis[1].get("username") or top_mis[1].get("first_name") or top_mis[0]) if top_mis[0] else "—"
 
+            # Pre-build HTML snippets to avoid backslash in f-strings
+            if top_days:
+                dias_activos_html = "".join(
+                    "<div class='mis-row'><span>" + day + "</span><strong style='color:#FF5A0E'>" + str(count) + " acciones</strong></div>"
+                    for day, count in top_days
+                )
+            else:
+                dias_activos_html = "<div class='mis-row'>Sin datos</div>"
+
+            origen_html = "".join(
+                "<div class='mis-row'><span>" + label + "</span><strong style='color:#FF5A0E'>" + str(count) + "</strong></div>"
+                for label, count in sorted(origen_counts.items(), key=lambda x: x[1], reverse=True)
+            ) or "<div class='mis-row'>Sin datos</div>"
+
             def td(val, bold=False, color="#333"):
                 s = "font-weight:700" if bold else "font-weight:400"
                 return f"<td style='padding:10px 16px;border-bottom:1px solid #F7F7F7;font-size:14px;{s};color:{color}'>{val}</td>"
@@ -3947,7 +3961,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 
 <h2>Días más activos</h2>
 <div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
-{"".join(f"<div class=\'mis-row\'><span>{day}</span><strong style=\'color:#FF5A0E\'>{count} acciones</strong></div>" for day, count in top_days) or "<div class='mis-row'>Sin datos</div>"}
+{dias_activos_html}
 </div>
 
 <h2>Comunidad</h2>
@@ -3977,7 +3991,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 
 <h2>Origen de usuarios</h2>
 <div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
-{''.join(f"<div class='mis-row'><span>{label}</span><strong style='color:#FF5A0E'>{count}</strong></div>" for label,count in sorted(origen_counts.items(), key=lambda x: x[1], reverse=True))}
+{origen_html}
 </div>
 
 <h2>Misiones por tipo</h2>

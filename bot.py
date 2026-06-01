@@ -304,6 +304,10 @@ def init_db():
         ("review_store_done",   "INTEGER DEFAULT 0"),
         ("review_trust_done",   "INTEGER DEFAULT 0"),
         ("founder_number",      "INTEGER"),
+        ("cazadores_evento",    "INTEGER DEFAULT 0"),
+        ("cazador_verificado",  "INTEGER DEFAULT 0"),
+        ("source",              "TEXT DEFAULT 'directo'"),
+        ("evento_pnt_ganado",   "REAL DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -398,7 +402,8 @@ def _row_to_dict(row):
     for field in ("reel_verified", "story_verified", "follow_ig", "follow_x",
                   "follow_tiktok", "follow_facebook", "follow_youtube",
                   "follow_all_bonus", "has_virtual_card", "has_physical_card",
-                  "big_transaction", "wallet_activated", "pending_wallet_proof"):
+                  "big_transaction", "wallet_activated", "pending_wallet_proof",
+                  "cazador_verificado"):
         d[field] = bool(d.get(field, 0))
     return d
 
@@ -439,8 +444,9 @@ def save_db(db):
                      follow_ig, follow_x, follow_tiktok, follow_facebook, follow_youtube,
                      follow_all_bonus, has_virtual_card, has_physical_card, big_transaction,
                      wallet_activated, pending_wallet_proof, spins_used_this_event,
-                    reel_count_today, story_count_today, content_count_today, last_mission_date, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    reel_count_today, story_count_today, content_count_today, last_mission_date,
+                    cazadores_evento, cazador_verificado, source, evento_pnt_ganado, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -475,6 +481,10 @@ def save_db(db):
                     data.get("story_count_today", 0),
                     data.get("content_count_today", 0),
                     data.get("last_mission_date"),
+                    data.get("cazadores_evento", 0),
+                    int(data.get("cazador_verificado", False)),
+                    data.get("source", "directo"),
+                    data.get("evento_pnt_ganado", 0),
                     json.dumps(history),
                 ))
             conn.commit()

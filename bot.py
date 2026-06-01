@@ -3748,6 +3748,26 @@ tr:hover td{{background:#FFF8F5}}
             ruleta_m   = mission_counts.get("ruleta", 0)
             otros      = max(0, total_missions - checkins - contenido - sociales - referidos_m - glosario - ruleta_m)
 
+            # ── Referidos del evento ──
+            total_cazadores_evento = sum(d.get("cazadores_evento", 0) for d in users.values())
+            total_referidos_hist   = sum(d.get("referrals_active", 0) for d in users.values())
+            top_evento = sorted(users.items(), key=lambda x: x[1].get("cazadores_evento", 0), reverse=True)[:10]
+            top_evento = [(uid, d) for uid, d in top_evento if d.get("cazadores_evento", 0) > 0]
+
+            # ── Origen de usuarios ──
+            origen_counts = {}
+            for d in users.values():
+                src = d.get("source", "directo")
+                label = {
+                    "camp_ig":   "Instagram",
+                    "camp_mail": "Email",
+                    "camp_tk":   "TikTok",
+                    "camp_web":  "Sitio Web",
+                    "referral":  "Referido de usuario",
+                    "directo":   "Directo",
+                }.get(src, src)
+                origen_counts[label] = origen_counts.get(label, 0) + 1
+
             # Rachas
             rachas = [d.get("streak", 0) for d in users.values()]
             racha_prom = round(sum(rachas) / len(rachas), 1) if rachas else 0
@@ -3862,6 +3882,18 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 <div class='card'><div class='card-val dark'>{checkins}</div><div class='card-lbl'>Check-ins totales</div></div>
 <div class='card'><div class='card-val dark'>{racha_prom}</div><div class='card-lbl'>Racha promedio</div><div class='card-sub'>Máx: {racha_max} días</div></div>
 <div class='card'><div class='card-val dark'>{ruleta_m}</div><div class='card-lbl'>Giros de ruleta</div></div>
+</div>
+
+<h2>Referidos del Evento</h2>
+<div class='grid'>
+<div class='card'><div class='card-val'>{total_cazadores_evento}</div><div class='card-lbl'>Cazadores del evento</div></div>
+<div class='card'><div class='card-val' style='color:#111'>{total_referidos_hist}</div><div class='card-lbl'>Referidos históricos totales</div></div>
+</div>
+{'<table><tr><th>#</th><th>Usuario</th><th>Cazadores evento</th></tr>' + ''.join(f"<tr><td style='padding:10px 16px;color:#CCC'>{i+1}</td><td style='padding:10px 16px;font-weight:700;color:#111'>{str(d.get('username') or d.get('first_name') or uid).replace('_',' ')}</td><td style='padding:10px 16px;font-weight:700;color:#FF5A0E'>{d.get('cazadores_evento',0)}</td></tr>" for i,(uid,d) in enumerate(top_evento)) + '</table>' if top_evento else "<p style='color:#AAA;font-size:13px'>Sin cazadores verificados aún.</p>"}
+
+<h2>Origen de usuarios</h2>
+<div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
+{''.join(f"<div class='mis-row'><span>{label}</span><strong style='color:#FF5A0E'>{count}</strong></div>" for label,count in sorted(origen_counts.items(), key=lambda x: x[1], reverse=True))}
 </div>
 
 <h2>Misiones por tipo</h2>

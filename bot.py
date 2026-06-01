@@ -3605,7 +3605,6 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(b"<h2>Acceso denegado</h2>")
                 return
-
             db   = load_db()
             now  = datetime.now()
             generado = now.strftime("%d/%m/%Y %H:%M:%S")
@@ -3719,6 +3718,27 @@ tr:hover td{{background:#FFF8F5}}
             self.end_headers()
             self.wfile.write(html_bytes)
             return
+
+        # ── GET /admin/debug?key=panther2026 ── ver tipos de misiones en DB
+        elif path == "/admin/debug":
+            key = params.get("key", [None])[0]
+            if key != "panther2026":
+                return self.send_json({"error": "forbidden"}, 403)
+            db = load_db()
+            type_counts = {}
+            total_history = 0
+            for uid, data in db.items():
+                if uid.startswith("_") or not isinstance(data, dict):
+                    continue
+                for h in data.get("history", []):
+                    t = h.get("type", "sin_tipo")
+                    type_counts[t] = type_counts.get(t, 0) + 1
+                    total_history += 1
+            return self.send_json({
+                "total_history": total_history,
+                "total_users": len([u for u in db if not u.startswith("_")]),
+                "mission_types": dict(sorted(type_counts.items(), key=lambda x: x[1], reverse=True))
+            })
 
         # ── GET /admin/stats?key=panther2026 ──
         elif path == "/admin/stats":

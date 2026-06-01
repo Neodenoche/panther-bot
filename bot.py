@@ -1921,6 +1921,18 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif tipo == "review_trust":
                 db[target_uid]["review_trust_done"] = True
 
+            # ── Guardar en historial con tipo correcto ──
+            today = date.today().isoformat()
+            now_time = datetime.now().strftime("%H:%M")
+            if "history" not in db[target_uid]:
+                db[target_uid]["history"] = []
+            db[target_uid]["history"].append({
+                "type": tipo,
+                "pts":  earned,
+                "date": today,
+                "time": now_time,
+            })
+
             save_db(db)
 
             tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot", "comment_ig": "Comentario IG", "comment_ig_last": "Comentario Ultimo Post IG", "comment_tt": "Comentario TikTok", "comment_tt_last": "Comentario Ultimo Video TikTok"}
@@ -3778,6 +3790,21 @@ tr:hover td{{background:#FFF8F5}}
             ruleta_m   = mission_counts.get("ruleta", 0)
             otros      = max(0, total_missions - checkins - contenido - sociales - referidos_m - glosario - ruleta_m)
 
+            # ── Fallback: reconstruir desde campos booleanos si historial no tiene datos ──
+            reels_count     = mission_counts.get("reel", 0) or sum(1 for d in users.values() if d.get("reel_verified"))
+            stories_count   = mission_counts.get("story", 0) + mission_counts.get("historia", 0) or sum(1 for d in users.values() if d.get("story_verified"))
+            wallet_count    = mission_counts.get("wallet_activate", 0) or sum(1 for d in users.values() if d.get("wallet_activated"))
+            content_count   = mission_counts.get("content", 0)
+            follow_ig_count    = mission_counts.get("follow_ig", 0) or sum(1 for d in users.values() if d.get("follow_ig"))
+            follow_yt_count    = mission_counts.get("follow_youtube", 0) or sum(1 for d in users.values() if d.get("follow_youtube"))
+            follow_tt_count    = mission_counts.get("follow_tiktok", 0) or sum(1 for d in users.values() if d.get("follow_tiktok"))
+            follow_x_count     = mission_counts.get("follow_x", 0) or sum(1 for d in users.values() if d.get("follow_x"))
+            follow_fb_count    = mission_counts.get("follow_facebook", 0) or sum(1 for d in users.values() if d.get("follow_facebook"))
+            comment_ig_count   = mission_counts.get("comment_ig", 0)
+            comment_ig_last    = mission_counts.get("comment_ig_last", 0)
+            comment_tt_count   = mission_counts.get("comment_tt", 0)
+            comment_tt_last    = mission_counts.get("comment_tt_last", 0)
+
             # ── Referidos del evento ──
             total_cazadores_evento = sum(d.get("cazadores_evento", 0) for d in users.values())
             total_referidos_hist   = sum(d.get("referrals_active", 0) for d in users.values())
@@ -3830,6 +3857,22 @@ tr:hover td{{background:#FFF8F5}}
 
             pct_wallet = round(con_wallet / total * 100) if total else 0
             pct_ref    = round(por_referido / total * 100) if total else 0
+
+            # ── Fechas importantes ──
+            ev = get_evento_state()
+            fecha_inicio_manada = "28 de abril 2026"
+            fecha_inicio_evento = datetime.fromisoformat(ev["start_date"]).strftime("%d de %B %Y") if ev.get("start_date") else "No iniciado"
+            dias_evento = (datetime.now() - datetime.fromisoformat(ev["start_date"])).days if ev.get("start_date") else 0
+            dias_restantes_evento = max(0, 20 - dias_evento + ev.get("extension", 0))
+
+            # ── Actividad diaria ──
+            daily_activity = {}
+            for d in users.values():
+                for h in d.get("history", []):
+                    day = h.get("date", "")
+                    if day:
+                        daily_activity[day] = daily_activity.get(day, 0) + 1
+            top_days = sorted(daily_activity.items(), key=lambda x: x[1], reverse=True)[:7]
             nombre_top_pts = str(top_pts[1].get("username") or top_pts[1].get("first_name") or top_pts[0]) if top_pts[0] else "—"
             nombre_top_mis = str(top_mis[1].get("username") or top_mis[1].get("first_name") or top_mis[0]) if top_mis[0] else "—"
 
@@ -3896,6 +3939,17 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 <h1>MANADA PANTHER</h1>
 <div class='sub'>Community Dashboard &nbsp;·&nbsp; Panther Wallet &nbsp;·&nbsp; {dias_activos} días activos</div>
 
+<h2>Fechas clave</h2>
+<div class='grid'>
+<div class='card'><div class='card-lbl'>Inicio de la Manada</div><div class='card-name'>{fecha_inicio_manada}</div></div>
+<div class='card'><div class='card-lbl'>Inicio del Evento</div><div class='card-name'>{fecha_inicio_evento}</div><div class='card-sub'>Día {dias_evento} · {dias_restantes_evento} días restantes</div></div>
+</div>
+
+<h2>Días más activos</h2>
+<div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
+{"".join(f"<div class=\'mis-row\'><span>{day}</span><strong style=\'color:#FF5A0E\'>{count} acciones</strong></div>" for day, count in top_days) or "<div class='mis-row'>Sin datos</div>"}
+</div>
+
 <h2>Comunidad</h2>
 <div class='grid'>
 <div class='card'><div class='card-val'>{total}</div><div class='card-lbl'>Miembros totales</div></div>
@@ -3929,21 +3983,20 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 <h2>Misiones por tipo</h2>
 <div style='background:#FFF;border-radius:12px;border:1px solid #EEE;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.04)'>
 <div class='mis-row'><span>🔥 Check-in diario</span><strong style='color:#FF5A0E'>{checkins}</strong></div>
-<div class='mis-row'><span>🎬 Reels de Panther</span><strong style='color:#FF5A0E'>{mission_counts.get("reel", 0)}</strong></div>
-<div class='mis-row'><span>📸 Historias de Panther</span><strong style='color:#FF5A0E'>{mission_counts.get("story", mission_counts.get("historia", 0))}</strong></div>
-<div class='mis-row'><span>✏️ Contenido propio</span><strong style='color:#FF5A0E'>{mission_counts.get("content", 0)}</strong></div>
-<div class='mis-row'><span>👛 Wallet activada</span><strong style='color:#FF5A0E'>{mission_counts.get("wallet_activate", 0)}</strong></div>
-<div class='mis-row'><span>👁 Follow Instagram</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_ig", 0)}</strong></div>
-<div class='mis-row'><span>👁 Follow TikTok</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_tiktok", mission_counts.get("follow_tt", 0))}</strong></div>
-<div class='mis-row'><span>👁 Follow YouTube</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_youtube", mission_counts.get("follow_yt", 0))}</strong></div>
-<div class='mis-row'><span>👁 Follow X</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_x", mission_counts.get("follow_twitter", 0))}</strong></div>
-<div class='mis-row'><span>👁 Follow Facebook</span><strong style='color:#FF5A0E'>{mission_counts.get("follow_facebook", 0)}</strong></div>
-<div class='mis-row'><span>💬 Comentario IG</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_ig", 0)}</strong></div>
-<div class='mis-row'><span>💬 Comentario último post IG</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_ig_last", 0)}</strong></div>
-<div class='mis-row'><span>💬 Comentario TikTok</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_tt", 0)}</strong></div>
-<div class='mis-row'><span>💬 Comentario último video TikTok</span><strong style='color:#FF5A0E'>{mission_counts.get("comment_tt_last", 0)}</strong></div>
 <div class='mis-row'><span>🎰 Ruleta</span><strong style='color:#FF5A0E'>{ruleta_m}</strong></div>
-<div class='mis-row' style='border-bottom:none'><span style='color:#AAA'>Otros</span><strong style='color:#CCC'>{otros}</strong></div>
+<div class='mis-row'><span>👁 Follow Instagram</span><strong style='color:#FF5A0E'>{follow_ig_count}</strong></div>
+<div class='mis-row'><span>👁 Follow YouTube</span><strong style='color:#FF5A0E'>{follow_yt_count}</strong></div>
+<div class='mis-row'><span>👁 Follow TikTok</span><strong style='color:#FF5A0E'>{follow_tt_count}</strong></div>
+<div class='mis-row'><span>👁 Follow X</span><strong style='color:#FF5A0E'>{follow_x_count}</strong></div>
+<div class='mis-row'><span>👁 Follow Facebook</span><strong style='color:#FF5A0E'>{follow_fb_count}</strong></div>
+<div class='mis-row'><span>🎬 Reels de Panther</span><strong style='color:#FF5A0E'>{reels_count}</strong></div>
+<div class='mis-row'><span>📸 Historias de Panther</span><strong style='color:#FF5A0E'>{stories_count}</strong></div>
+<div class='mis-row'><span>✏️ Contenido propio</span><strong style='color:#FF5A0E'>{content_count}</strong></div>
+<div class='mis-row'><span>👛 Wallet activada</span><strong style='color:#FF5A0E'>{wallet_count}</strong></div>
+<div class='mis-row'><span>💬 Comentario IG</span><strong style='color:#FF5A0E'>{comment_ig_count}</strong></div>
+<div class='mis-row'><span>💬 Comentario último post IG</span><strong style='color:#FF5A0E'>{comment_ig_last}</strong></div>
+<div class='mis-row'><span>💬 Comentario TikTok</span><strong style='color:#FF5A0E'>{comment_tt_count}</strong></div>
+<div class='mis-row' style='border-bottom:none'><span>💬 Comentario último video TikTok</span><strong style='color:#FF5A0E'>{comment_tt_last}</strong></div>
 </div>
 
 <h2>Usuarios destacados</h2>

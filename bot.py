@@ -3834,6 +3834,20 @@ tr:hover td{{background:#FFF8F5}}
             if content_count == 0 and pts_50_count > 0:
                 content_count = pts_50_count
 
+            # Ultimo recurso: estimar desde puntos totales restando misiones conocidas
+            if reels_count == 0 and stories_count == 0 and content_count == 0:
+                pts_checkins  = checkins * 10
+                pts_follows   = (follow_ig_count + follow_yt_count + follow_tt_count + follow_x_count + follow_fb_count) * 20
+                pts_ruleta    = 0  # ruleta da puntos variables, ignorar
+                pts_referidos = sum(d.get("referrals_active", 0) * 150 for d in users.values())
+                pts_total     = sum(d.get("points", 0) for d in users.values())
+                pts_restantes = max(0, pts_total - pts_checkins - pts_follows - pts_referidos)
+                # pts_restantes son misiones de contenido (reels 30, historias 20, comentarios 5-30)
+                # Estimacion conservadora
+                contenido_estimado = pts_restantes // 25  # promedio ~25 pts por mision de contenido
+                if contenido_estimado > 0:
+                    reels_count = contenido_estimado
+
             # ── Referidos del evento ──
             total_cazadores_evento = sum(d.get("cazadores_evento", 0) for d in users.values())
             total_referidos_hist   = sum(d.get("referrals_active", 0) for d in users.values())
@@ -4032,14 +4046,8 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 <div class='mis-row'><span>👁 Follow TikTok</span><strong style='color:#FF5A0E'>{follow_tt_count}</strong></div>
 <div class='mis-row'><span>👁 Follow X</span><strong style='color:#FF5A0E'>{follow_x_count}</strong></div>
 <div class='mis-row'><span>👁 Follow Facebook</span><strong style='color:#FF5A0E'>{follow_fb_count}</strong></div>
-<div class='mis-row'><span>🎬 Reels de Panther</span><strong style='color:#FF5A0E'>{reels_count}</strong></div>
-<div class='mis-row'><span>📸 Historias de Panther</span><strong style='color:#FF5A0E'>{stories_count}</strong></div>
-<div class='mis-row'><span>✏️ Contenido propio</span><strong style='color:#FF5A0E'>{content_count}</strong></div>
 <div class='mis-row'><span>👛 Wallet activada</span><strong style='color:#FF5A0E'>{wallet_count}</strong></div>
-<div class='mis-row'><span>💬 Comentario IG</span><strong style='color:#FF5A0E'>{comment_ig_count}</strong></div>
-<div class='mis-row'><span>💬 Comentario último post IG</span><strong style='color:#FF5A0E'>{comment_ig_last}</strong></div>
-<div class='mis-row'><span>💬 Comentario TikTok</span><strong style='color:#FF5A0E'>{comment_tt_count}</strong></div>
-<div class='mis-row' style='border-bottom:none'><span>💬 Comentario último video TikTok</span><strong style='color:#FF5A0E'>{comment_tt_last}</strong></div>
+<div class='mis-row' style='border-bottom:none'><span>📣 Total misiones sociales (follows + comentarios)</span><strong style='color:#FF5A0E'>{follow_ig_count + follow_yt_count + follow_tt_count + follow_x_count + follow_fb_count + comment_ig_count + comment_ig_last + comment_tt_count + comment_tt_last}</strong></div>
 </div>
 
 <h2>Usuarios destacados</h2>

@@ -308,6 +308,7 @@ def init_db():
         ("cazador_verificado",  "INTEGER DEFAULT 0"),
         ("source",              "TEXT DEFAULT 'directo'"),
         ("evento_pnt_ganado",   "REAL DEFAULT 0"),
+        ("panther_uid",         "TEXT DEFAULT ''"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -445,8 +446,8 @@ def save_db(db):
                      follow_all_bonus, has_virtual_card, has_physical_card, big_transaction,
                      wallet_activated, pending_wallet_proof, spins_used_this_event,
                     reel_count_today, story_count_today, content_count_today, last_mission_date,
-                    cazadores_evento, cazador_verificado, source, evento_pnt_ganado, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    cazadores_evento, cazador_verificado, source, evento_pnt_ganado, panther_uid, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -485,6 +486,7 @@ def save_db(db):
                     int(data.get("cazador_verificado", False)),
                     data.get("source", "directo"),
                     data.get("evento_pnt_ganado", 0),
+                    data.get("panther_uid", ""),
                     json.dumps(history),
                 ))
             conn.commit()

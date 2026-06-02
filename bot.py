@@ -3648,70 +3648,101 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                     by_date[d] = []
                 by_date[d].append(s)
 
-            rows_html = ""
-            for fecha in sorted(by_date.keys(), reverse=True):
-                spins = by_date[fecha]
-                rows_html += f"<tr><td colspan='6' style='background:#1a1a1a;color:#FF5A0E;font-weight:700;padding:10px 12px'>{fecha} — {len(spins)} giros</td></tr>"
-                for i, s in enumerate(spins):
-                    prize_badge = ""
-                    if s["prize"] == "USDT":
-                        prize_badge = f"<span style='background:#1a3a1a;color:#4ade80;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>${s['monto']} USDT</span>"
-                    elif s["prize"] == "PNT":
-                        prize_badge = f"<span style='background:#1a0a2a;color:#cc88ff;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>{s['monto']} PNT</span>"
-                    elif s["pts"]:
-                        prize_badge = f"<span style='background:#1a1a2a;color:#aaa;padding:2px 8px;border-radius:6px;font-size:12px'>+{s['pts']} pts</span>"
+            # Separar por tipo de premio
+            usdt_spins = [s for s in all_spins if s["prize"] == "USDT"]
+            pnt_spins  = [s for s in all_spins if s["prize"] == "PNT"]
+            pts_spins  = [s for s in all_spins if s["prize"] not in ("USDT", "PNT")]
 
-                    row_id = f"row_{fecha}_{i}"
-                    rows_html += f"""<tr id='{row_id}'>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{s['hora']}</td>
+            def build_rows(spins, section):
+                if not spins:
+                    return "<tr><td colspan='6' style='color:#888;text-align:center;padding:16px'>Sin ganadores</td></tr>"
+                rows = ""
+                for i, s in enumerate(spins):
+                    row_id = f"{section}_{i}"
+                    if s["prize"] == "USDT":
+                        badge = f"<span style='background:#1a3a1a;color:#4ade80;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>${s['monto']} USDT</span>"
+                    elif s["prize"] == "PNT":
+                        badge = f"<span style='background:#1a0a2a;color:#cc88ff;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>{s['monto']} PNT</span>"
+                    else:
+                        badge = f"<span style='background:#1a1a2a;color:#aaa;padding:2px 8px;border-radius:6px;font-size:12px'>+{s['pts']} pts</span>"
+
+                    # UID guardado en DB si existe
+                    saved_uid = s.get("panther_uid", "")
+                    uid_style = "background:#111;border:1px solid #333;color:#fff;padding:4px 8px;border-radius:6px;width:160px;font-size:12px"
+                    status_html = f"<span id='status_{row_id}' style='font-size:11px;color:" + ("#4ade80" if saved_uid else "#555") + "'>" + ("✅ " + saved_uid if saved_uid else "sin asignar") + "</span>"
+
+                    rows += f"""<tr id='{row_id}'>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{s['fecha']} {s['hora']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;font-weight:700'>{s['nombre']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;color:#666;font-size:12px'>{s['uid']}</td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{prize_badge}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{badge}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>
-                            <input type='text' placeholder='UID Panther Wallet' 
-                                style='background:#111;border:1px solid #333;color:#fff;padding:4px 8px;border-radius:6px;width:160px;font-size:12px'
-                                onchange="markDirty(this, '{row_id}')">
+                            <input type='text' placeholder='UID Panther Wallet' value='{saved_uid}'
+                                style='{uid_style}'
+                                data-tgid='{s["uid"]}' data-rowid='{row_id}'
+                                onchange="saveUID(this)">
                         </td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>
-                            <span id='status_{row_id}' style='font-size:11px;color:#555'>sin asignar</span>
-                        </td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{status_html}</td>
                     </tr>"""
+                return rows
 
-            if not rows_html:
-                rows_html = "<tr><td colspan='6' style='color:#888;text-align:center;padding:20px'>Sin giros registrados aún</td></tr>"
+            usdt_rows = build_rows(usdt_spins, "usdt")
+            pnt_rows  = build_rows(pnt_spins, "pnt")
+            pts_rows  = build_rows(pts_spins, "pts")
+
+            th = lambda t: f"<th style='background:#1a1a1a;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:1px solid #333;font-size:13px'>{t}</th>"
+            headers = th("Fecha/Hora") + th("Usuario") + th("ID Telegram") + th("Premio") + th("UID Panther Wallet") + th("Estado")
 
             html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
             <title>Ganadores Ruleta — Manada Panther</title>
             <style>
-              body{{background:#0a0a0a;color:#eee;font-family:sans-serif;padding:24px;max-width:900px;margin:0 auto}}
+              body{{background:#0a0a0a;color:#eee;font-family:sans-serif;padding:24px;max-width:960px;margin:0 auto}}
               h1{{color:#ff6b1a;margin-bottom:4px}}
-              .sub{{color:#555;font-size:13px;margin-bottom:24px}}
-              table{{border-collapse:collapse;width:100%;margin-bottom:24px}}
-              th{{background:#1a1a1a;color:#ff6b1a;padding:8px 12px;text-align:left;border-bottom:1px solid #333;font-size:13px}}
+              h2{{color:#aaa;font-size:15px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #222}}
+              .sub{{color:#555;font-size:13px;margin-bottom:28px}}
+              table{{border-collapse:collapse;width:100%;margin-bottom:8px}}
               td{{font-size:13px}}
               input:focus{{outline:none;border-color:#FF5A0E !important}}
-              .dirty{{border-color:#FF5A0E !important}}
-              .saved{{color:#4ade80 !important}}
+              .saving{{border-color:#FF5A0E !important}}
+              .toast{{position:fixed;bottom:20px;right:20px;background:#1a3a1a;color:#4ade80;padding:10px 18px;border-radius:10px;font-size:13px;display:none}}
             </style></head><body>
             <h1>🎰 Ganadores de Ruleta</h1>
-            <div class='sub'>Manada Panther · Total: {len(all_spins)} giros registrados</div>
-            <table>
-              <tr>
-                <th>Hora</th><th>Usuario</th><th>ID Telegram</th><th>Premio</th><th>UID Panther Wallet</th><th>Estado</th>
-              </tr>
-              {rows_html}
-            </table>
+            <div class='sub'>Manada Panther · {len(all_spins)} giros totales · {len(usdt_spins)} USDT · {len(pnt_spins)} PNT</div>
+
+            <h2>💵 Ganadores USDT — {len(usdt_spins)}</h2>
+            <table><tr>{headers}</tr>{usdt_rows}</table>
+
+            <h2>🐾 Ganadores PNT — {len(pnt_spins)}</h2>
+            <table><tr>{headers}</tr>{pnt_rows}</table>
+
+            <h2>⭐ Solo puntos — {len(pts_spins)}</h2>
+            <table><tr>{headers}</tr>{pts_rows}</table>
+
+            <div class='toast' id='toast'>✅ UID guardado</div>
             <script>
-            function markDirty(input, rowId) {{
-                input.classList.add('dirty');
-                const status = document.getElementById('status_' + rowId);
-                if(input.value.trim()) {{
-                    status.textContent = '✅ ' + input.value.trim();
-                    status.className = 'saved';
-                }} else {{
-                    status.textContent = 'sin asignar';
-                    status.style.color = '#555';
+            async function saveUID(input) {{
+                const tgid = input.dataset.tgid;
+                const rowid = input.dataset.rowid;
+                const uid = input.value.trim();
+                const status = document.getElementById('status_' + rowid);
+                input.classList.add('saving');
+                try {{
+                    const res = await fetch('/admin/save_ruleta_uid?key=panther2026', {{
+                        method: 'POST',
+                        headers: {{'Content-Type': 'application/json'}},
+                        body: JSON.stringify({{tg_id: tgid, panther_uid: uid}})
+                    }});
+                    if(res.ok) {{
+                        status.textContent = uid ? '✅ ' + uid : 'sin asignar';
+                        status.style.color = uid ? '#4ade80' : '#555';
+                        const toast = document.getElementById('toast');
+                        toast.style.display = 'block';
+                        setTimeout(() => toast.style.display = 'none', 2000);
+                    }}
+                }} catch(e) {{
+                    status.textContent = '❌ error';
                 }}
+                input.classList.remove('saving');
             }}
             </script>
             </body></html>"""
@@ -3846,6 +3877,22 @@ tr:hover td{{background:#FFF8F5}}
             self.end_headers()
             self.wfile.write(html_bytes)
             return
+
+        # ── POST /admin/save_ruleta_uid ── guarda UID de Panther Wallet para ganador
+        elif path == "/admin/save_ruleta_uid":
+            key = params.get("key", [None])[0]
+            if key != "panther2026":
+                return self.send_json({"error": "forbidden"}, 403)
+            tg_id      = body.get("tg_id")
+            panther_uid = body.get("panther_uid", "")
+            if not tg_id:
+                return self.send_json({"error": "missing tg_id"}, 400)
+            db = load_db()
+            if str(tg_id) in db:
+                db[str(tg_id)]["panther_uid"] = panther_uid
+                save_db(db)
+                return self.send_json({"status": "ok"})
+            return self.send_json({"error": "user not found"}, 404)
 
         # ── GET /admin/debug?key=panther2026 ── ver tipos de misiones en DB
         elif path == "/admin/debug":

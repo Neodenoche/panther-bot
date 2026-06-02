@@ -3655,7 +3655,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             pnt_spins  = [s for s in all_spins if s["prize"] == "PNT"]
             pts_spins  = [s for s in all_spins if s["prize"] not in ("USDT", "PNT")]
 
-            def build_rows(spins, section):
+            def build_rows(spins, section, db):
                 if not spins:
                     return "<tr><td colspan='6' style='color:#888;text-align:center;padding:16px'>Sin ganadores</td></tr>"
                 rows = ""
@@ -3668,8 +3668,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                     else:
                         badge = f"<span style='background:#1a1a2a;color:#aaa;padding:2px 8px;border-radius:6px;font-size:12px'>+{s['pts']} pts</span>"
 
-                    # UID guardado en DB si existe
-                    saved_uid = s.get("panther_uid", "")
+                    # UID guardado en DB si existe — leer del usuario, no del spin
+                    user_data = db.get(s["uid"], {})
+                    saved_uid = user_data.get("panther_uid", "") if isinstance(user_data, dict) else ""
                     uid_style = "background:#111;border:1px solid #333;color:#fff;padding:4px 8px;border-radius:6px;width:160px;font-size:12px"
                     status_html = f"<span id='status_{row_id}' style='font-size:11px;color:" + ("#4ade80" if saved_uid else "#555") + "'>" + ("✅ " + saved_uid if saved_uid else "sin asignar") + "</span>"
 
@@ -3691,9 +3692,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                     </tr>"""
                 return rows
 
-            usdt_rows = build_rows(usdt_spins, "usdt")
-            pnt_rows  = build_rows(pnt_spins, "pnt")
-            pts_rows  = build_rows(pts_spins, "pts")
+            usdt_rows = build_rows(usdt_spins, "usdt", db)
+            pnt_rows  = build_rows(pnt_spins, "pnt", db)
+            pts_rows  = build_rows(pts_spins, "pts", db)
 
             th = lambda t: f"<th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>{t}</th>"
             headers = th("Fecha/Hora") + th("Usuario") + th("ID Telegram") + th("Premio") + th("UID Panther Wallet") + th("Estado")

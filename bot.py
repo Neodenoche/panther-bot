@@ -3637,6 +3637,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                             "monto":  h.get("prize_amount", ""),
                         })
 
+            # Filtrar solo giros del evento actual (desde 01 junio 2026)
+            all_spins = [s for s in all_spins if s["fecha"] >= "2026-06-01"]
             # Ordenar por fecha y hora desc
             all_spins.sort(key=lambda x: (x["fecha"], x["hora"]), reverse=True)
 
@@ -3672,17 +3674,17 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                     status_html = f"<span id='status_{row_id}' style='font-size:11px;color:" + ("#4ade80" if saved_uid else "#555") + "'>" + ("✅ " + saved_uid if saved_uid else "sin asignar") + "</span>"
 
                     rows += f"""<tr id='{row_id}'>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{s['fecha']} {s['hora']}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee'>{s['fecha']} {s['hora']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;font-weight:700'>{s['nombre']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;color:#666;font-size:12px'>{s['uid']}</td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{badge}</td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee'>{badge}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee'>
                             <input type='text' placeholder='UID Panther Wallet' value='{saved_uid}'
                                 style='{uid_style}'
                                 data-tgid='{s["uid"]}' data-rowid='{row_id}'
                                 onchange="saveUID(this)">
                         </td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{status_html}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee'>{status_html}</td>
                     </tr>"""
                 return rows
 
@@ -3690,21 +3692,23 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             pnt_rows  = build_rows(pnt_spins, "pnt")
             pts_rows  = build_rows(pts_spins, "pts")
 
-            th = lambda t: f"<th style='background:#1a1a1a;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:1px solid #333;font-size:13px'>{t}</th>"
+            th = lambda t: f"<th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>{t}</th>"
             headers = th("Fecha/Hora") + th("Usuario") + th("ID Telegram") + th("Premio") + th("UID Panther Wallet") + th("Estado")
 
             html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
             <title>Ganadores Ruleta — Manada Panther</title>
             <style>
-              body{{background:#0a0a0a;color:#eee;font-family:sans-serif;padding:24px;max-width:960px;margin:0 auto}}
-              h1{{color:#ff6b1a;margin-bottom:4px}}
-              h2{{color:#aaa;font-size:15px;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #222}}
-              .sub{{color:#555;font-size:13px;margin-bottom:28px}}
+              body{{background:#fff;color:#111;font-family:sans-serif;padding:24px;max-width:960px;margin:0 auto}}
+              h1{{color:#FF5A0E;margin-bottom:4px}}
+              h2{{color:#333;font-size:15px;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #FF5A0E}}
+              .sub{{color:#888;font-size:13px;margin-bottom:28px}}
               table{{border-collapse:collapse;width:100%;margin-bottom:8px}}
-              td{{font-size:13px}}
+              td{{font-size:13px;color:#111}}
+              tr:hover td{{background:#fff8f5}}
+              input{{background:#fff;border:1px solid #ddd;color:#111;padding:4px 8px;border-radius:6px;width:160px;font-size:12px}}
               input:focus{{outline:none;border-color:#FF5A0E !important}}
               .saving{{border-color:#FF5A0E !important}}
-              .toast{{position:fixed;bottom:20px;right:20px;background:#1a3a1a;color:#4ade80;padding:10px 18px;border-radius:10px;font-size:13px;display:none}}
+              .toast{{position:fixed;bottom:20px;right:20px;background:#e6f4ea;color:#2e7d32;padding:10px 18px;border-radius:10px;font-size:13px;display:none;border:1px solid #a5d6a7}}
             </style></head><body>
             <h1>🎰 Ganadores de Ruleta</h1>
             <div class='sub'>Manada Panther · {len(all_spins)} giros totales · {len(usdt_spins)} USDT · {len(pnt_spins)} PNT</div>

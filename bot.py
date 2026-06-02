@@ -3610,6 +3610,120 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 },
             })
 
+        # ── GET /admin/ruleta?key=panther2026 ── ganadores ruleta con campo UID editable
+        elif path == "/admin/ruleta":
+            key = params.get("key", [None])[0]
+            if key != "panther2026":
+                self.send_response(403)
+                self.end_headers()
+                return
+
+            db = load_db()
+            # Recolectar todos los giros de ruleta del historial
+            all_spins = []
+            for uid, data in db.items():
+                if uid.startswith("_") or not isinstance(data, dict):
+                    continue
+                nombre = str(data.get("username") or data.get("first_name") or uid)
+                for h in data.get("history", []):
+                    if h.get("type") == "ruleta":
+                        all_spins.append({
+                            "uid":    uid,
+                            "nombre": nombre,
+                            "fecha":  h.get("date", ""),
+                            "hora":   h.get("time", ""),
+                            "pts":    h.get("pts", 0),
+                            "prize":  h.get("prize", ""),
+                            "monto":  h.get("prize_amount", ""),
+                        })
+
+            # Ordenar por fecha y hora desc
+            all_spins.sort(key=lambda x: (x["fecha"], x["hora"]), reverse=True)
+
+            # Agrupar por fecha
+            by_date = {}
+            for s in all_spins:
+                d = s["fecha"] or "sin fecha"
+                if d not in by_date:
+                    by_date[d] = []
+                by_date[d].append(s)
+
+            rows_html = ""
+            for fecha in sorted(by_date.keys(), reverse=True):
+                spins = by_date[fecha]
+                rows_html += f"<tr><td colspan='6' style='background:#1a1a1a;color:#FF5A0E;font-weight:700;padding:10px 12px'>{fecha} — {len(spins)} giros</td></tr>"
+                for i, s in enumerate(spins):
+                    prize_badge = ""
+                    if s["prize"] == "USDT":
+                        prize_badge = f"<span style='background:#1a3a1a;color:#4ade80;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>${s['monto']} USDT</span>"
+                    elif s["prize"] == "PNT":
+                        prize_badge = f"<span style='background:#1a0a2a;color:#cc88ff;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>{s['monto']} PNT</span>"
+                    elif s["pts"]:
+                        prize_badge = f"<span style='background:#1a1a2a;color:#aaa;padding:2px 8px;border-radius:6px;font-size:12px'>+{s['pts']} pts</span>"
+
+                    row_id = f"row_{fecha}_{i}"
+                    rows_html += f"""<tr id='{row_id}'>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{s['hora']}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;font-weight:700'>{s['nombre']}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;color:#666;font-size:12px'>{s['uid']}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>{prize_badge}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>
+                            <input type='text' placeholder='UID Panther Wallet' 
+                                style='background:#111;border:1px solid #333;color:#fff;padding:4px 8px;border-radius:6px;width:160px;font-size:12px'
+                                onchange="markDirty(this, '{row_id}')">
+                        </td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e'>
+                            <span id='status_{row_id}' style='font-size:11px;color:#555'>sin asignar</span>
+                        </td>
+                    </tr>"""
+
+            if not rows_html:
+                rows_html = "<tr><td colspan='6' style='color:#888;text-align:center;padding:20px'>Sin giros registrados aún</td></tr>"
+
+            html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+            <title>Ganadores Ruleta — Manada Panther</title>
+            <style>
+              body{{background:#0a0a0a;color:#eee;font-family:sans-serif;padding:24px;max-width:900px;margin:0 auto}}
+              h1{{color:#ff6b1a;margin-bottom:4px}}
+              .sub{{color:#555;font-size:13px;margin-bottom:24px}}
+              table{{border-collapse:collapse;width:100%;margin-bottom:24px}}
+              th{{background:#1a1a1a;color:#ff6b1a;padding:8px 12px;text-align:left;border-bottom:1px solid #333;font-size:13px}}
+              td{{font-size:13px}}
+              input:focus{{outline:none;border-color:#FF5A0E !important}}
+              .dirty{{border-color:#FF5A0E !important}}
+              .saved{{color:#4ade80 !important}}
+            </style></head><body>
+            <h1>🎰 Ganadores de Ruleta</h1>
+            <div class='sub'>Manada Panther · Total: {len(all_spins)} giros registrados</div>
+            <table>
+              <tr>
+                <th>Hora</th><th>Usuario</th><th>ID Telegram</th><th>Premio</th><th>UID Panther Wallet</th><th>Estado</th>
+              </tr>
+              {rows_html}
+            </table>
+            <script>
+            function markDirty(input, rowId) {{
+                input.classList.add('dirty');
+                const status = document.getElementById('status_' + rowId);
+                if(input.value.trim()) {{
+                    status.textContent = '✅ ' + input.value.trim();
+                    status.className = 'saved';
+                }} else {{
+                    status.textContent = 'sin asignar';
+                    status.style.color = '#555';
+                }}
+            }}
+            </script>
+            </body></html>"""
+
+            html_bytes = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
         # ── GET /admin/misiones?key=panther2026 ──
         elif path == "/admin/misiones":
             key = params.get("key", [None])[0]

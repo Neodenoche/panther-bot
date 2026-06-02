@@ -3864,15 +3864,20 @@ tr:hover td{{background:#FFF8F5}}
             key = params.get("key", [None])[0]
             if key != "panther2026":
                 return self.send_json({"error": "forbidden"}, 403)
-            tg_id       = body.get("tg_id")
-            panther_uid = body.get("panther_uid", "")
-            if tg_id and str(tg_id) in load_db():
-                db = load_db()
-                db[str(tg_id)]["panther_uid"] = panther_uid.strip()
+            tg_id       = body.get("tg_id", "").strip()
+            panther_uid = body.get("panther_uid", "").strip()
+            logger.info(f"save_ruleta_uid: tg_id={repr(tg_id)} panther_uid={repr(panther_uid)} body={body}")
+            db = load_db()
+            logger.info(f"save_ruleta_uid: DB has {len(db)} keys, tg_id in db: {tg_id in db}")
+            if tg_id and tg_id in db:
+                db[tg_id]["panther_uid"] = panther_uid
                 save_db(db)
-            # Redirect back to the ruleta page
+                logger.info(f"save_ruleta_uid: saved OK")
+            elif tg_id:
+                logger.warning(f"save_ruleta_uid: user {tg_id} not found in DB")
+            # Redirect back
             self.send_response(302)
-            self.send_header("Location", "/admin/ruleta?key=panther2026&saved=1")
+            self.send_header("Location", "/admin/ruleta?key=panther2026")
             self.end_headers()
             return
 

@@ -3678,13 +3678,15 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;font-weight:700'>{s['nombre']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;color:#666;font-size:12px'>{s['uid']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #eee'>{badge}</td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #eee'>
-                            <input type='text' placeholder='UID Panther Wallet' value='{saved_uid}'
-                                style='{uid_style}'
-                                data-tgid='{s["uid"]}' data-rowid='{row_id}'
-                                onchange="saveUID(this)">
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee' colspan='2'>
+                            <form method='POST' action='/admin/save_ruleta_uid?key=panther2026' style='display:flex;gap:6px;align-items:center'>
+                                <input type='hidden' name='tg_id' value='{s["uid"]}'>
+                                <input type='text' name='panther_uid' placeholder='UID Panther Wallet' value='{saved_uid}'
+                                    style='background:#fff;border:1px solid #ddd;color:#111;padding:4px 8px;border-radius:6px;width:160px;font-size:12px'>
+                                <button type='submit' style='background:#FF5A0E;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer'>Guardar</button>
+                                {"<span style='color:#2e7d32;font-size:11px'>✅ " + saved_uid + "</span>" if saved_uid else ""}
+                            </form>
                         </td>
-                        <td style='padding:8px 12px;border-bottom:1px solid #eee'>{status_html}</td>
                     </tr>"""
                 return rows
 
@@ -3722,33 +3724,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             <h2>⭐ Solo puntos — {len(pts_spins)}</h2>
             <table><tr>{headers}</tr>{pts_rows}</table>
 
-            <div class='toast' id='toast'>✅ UID guardado</div>
-            <script>
-            async function saveUID(input) {{
-                const tgid = input.dataset.tgid;
-                const rowid = input.dataset.rowid;
-                const uid = input.value.trim();
-                const status = document.getElementById('status_' + rowid);
-                input.classList.add('saving');
-                try {{
-                    const res = await fetch('/admin/save_ruleta_uid?key=panther2026', {{
-                        method: 'POST',
-                        headers: {{'Content-Type': 'application/json'}},
-                        body: JSON.stringify({{tg_id: tgid, panther_uid: uid}})
-                    }});
-                    if(res.ok) {{
-                        status.textContent = uid ? '✅ ' + uid : 'sin asignar';
-                        status.style.color = uid ? '#4ade80' : '#555';
-                        const toast = document.getElementById('toast');
-                        toast.style.display = 'block';
-                        setTimeout(() => toast.style.display = 'none', 2000);
-                    }}
-                }} catch(e) {{
-                    status.textContent = '❌ error';
-                }}
-                input.classList.remove('saving');
-            }}
-            </script>
+
             </body></html>"""
 
             html_bytes = html.encode("utf-8")
@@ -3888,16 +3864,17 @@ tr:hover td{{background:#FFF8F5}}
             key = params.get("key", [None])[0]
             if key != "panther2026":
                 return self.send_json({"error": "forbidden"}, 403)
-            tg_id      = body.get("tg_id")
+            tg_id       = body.get("tg_id")
             panther_uid = body.get("panther_uid", "")
-            if not tg_id:
-                return self.send_json({"error": "missing tg_id"}, 400)
-            db = load_db()
-            if str(tg_id) in db:
-                db[str(tg_id)]["panther_uid"] = panther_uid
+            if tg_id and str(tg_id) in load_db():
+                db = load_db()
+                db[str(tg_id)]["panther_uid"] = panther_uid.strip()
                 save_db(db)
-                return self.send_json({"status": "ok"})
-            return self.send_json({"error": "user not found"}, 404)
+            # Redirect back to the ruleta page
+            self.send_response(302)
+            self.send_header("Location", "/admin/ruleta?key=panther2026&saved=1")
+            self.end_headers()
+            return
 
         # ── GET /admin/debug?key=panther2026 ── ver tipos de misiones en DB
         elif path == "/admin/debug":
@@ -4599,7 +4576,19 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
         parsed  = urlparse(self.path)
         path    = parsed.path
         length  = int(self.headers.get("Content-Length", 0))
-        body    = json.loads(self.rfile.read(length)) if length else {}
+        content_type = self.headers.get("Content-Type", "")
+        raw_body = self.rfile.read(length) if length else b""
+
+        # Parse body — JSON or form data
+        if "application/x-www-form-urlencoded" in content_type:
+            from urllib.parse import parse_qs
+            form = parse_qs(raw_body.decode("utf-8"))
+            body = {k: v[0] for k, v in form.items()}
+        else:
+            try:
+                body = json.loads(raw_body) if raw_body else {}
+            except Exception:
+                body = {}
 
         # ── POST /checkin ──
         if path == "/checkin":

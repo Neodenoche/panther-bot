@@ -3679,7 +3679,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                         <td style='padding:8px 12px;border-bottom:1px solid #1e1e1e;color:#666;font-size:12px'>{s['uid']}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #eee'>{badge}</td>
                         <td style='padding:8px 12px;border-bottom:1px solid #eee' colspan='2'>
-                            <form method='POST' action='/admin/save_ruleta_uid?key=panther2026' style='display:flex;gap:6px;align-items:center'>
+                            <form method='GET' action='/admin/save_ruleta_uid' style='display:flex;gap:6px;align-items:center'>
+                                <input type='hidden' name='key' value='panther2026'>
                                 <input type='hidden' name='tg_id' value='{s["uid"]}'>
                                 <input type='text' name='panther_uid' placeholder='UID Panther Wallet' value='{saved_uid}'
                                     style='background:#fff;border:1px solid #ddd;color:#111;padding:4px 8px;border-radius:6px;width:160px;font-size:12px'>
@@ -3881,7 +3882,24 @@ tr:hover td{{background:#FFF8F5}}
             self.end_headers()
             return
 
-        # ── GET /admin/debug?key=panther2026 ── ver tipos de misiones en DB
+        # ── GET /admin/save_ruleta_uid ── guarda UID via GET y redirige
+        elif path == "/admin/save_ruleta_uid":
+            key        = params.get("key", [None])[0]
+            tg_id      = params.get("tg_id", [None])[0]
+            panther_uid = params.get("panther_uid", [""])[0].strip()
+            logger.info(f"save_ruleta_uid GET: tg_id={tg_id} panther_uid={panther_uid}")
+            if key == "panther2026" and tg_id:
+                db = load_db()
+                if tg_id in db:
+                    db[tg_id]["panther_uid"] = panther_uid
+                    save_db(db)
+                    logger.info(f"save_ruleta_uid: saved OK for {tg_id}")
+                else:
+                    logger.warning(f"save_ruleta_uid: {tg_id} not in DB")
+            self.send_response(302)
+            self.send_header("Location", "/admin/ruleta?key=panther2026")
+            self.end_headers()
+            return
         elif path == "/admin/debug":
             key = params.get("key", [None])[0]
             if key != "panther2026":

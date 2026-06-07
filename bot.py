@@ -309,6 +309,7 @@ def init_db():
         ("source",              "TEXT DEFAULT 'directo'"),
         ("evento_pnt_ganado",   "REAL DEFAULT 0"),
         ("panther_uid",         "TEXT DEFAULT ''"),
+        ("last_game",           "TEXT"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -4494,6 +4495,19 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 "total": 5,
             })
 
+        elif path == "/game-defender":
+            try:
+                with open("PNT Defender .html", "r", encoding="utf-8") as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "no-cache, no-store, must-revalidate")
+                self.end_headers()
+                self.wfile.write(html.encode())
+            except Exception as e:
+                self.send_json({"error": f"Game not found: {str(e)}"}, 404)
+
         elif path == "/app":
             try:
                 with open("Manada Panther .html", "r", encoding="utf-8") as f:
@@ -4508,6 +4522,19 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 self.wfile.write(html.encode())
             except Exception as e:
                 self.send_json({"error": f"App not found: {str(e)}"}, 404)
+
+        elif path == "/music-game":
+            try:
+                with open("pnt_defender_music.mp3", "rb") as f:
+                    data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "audio/mpeg")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+            except Exception as e:
+                self.send_json({"error": f"Music not found: {str(e)}"}, 404)
 
         elif path == "/music":
             try:
@@ -4596,8 +4623,28 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             except Exception:
                 body = {}
 
+        # ── POST /game — PNT Defender ──
+        if path == "/game":
+            uid     = body.get("id")
+            score   = int(body.get("score", 0))
+            bot_pts = int(body.get("bot_pts", 0))
+            if not uid:
+                return self.send_json({"ok": False, "error": "no id"})
+            db   = load_db()
+            today = date.today().isoformat()
+            data = db.get(uid)
+            if not data:
+                return self.send_json({"ok": False, "error": "user not found"})
+            if data.get("last_game") == today:
+                return self.send_json({"ok": False, "already_played": True})
+            bot_pts = max(0, min(50, bot_pts))
+            earned  = add_points(data, bot_pts)
+            data["last_game"] = today
+            save_db(db)
+            return self.send_json({"ok": True, "earned": earned, "score": score})
+
         # ── POST /checkin ──
-        if path == "/checkin":
+        elif path == "/checkin":
             uid = body.get("id")
             if not uid:
                 return self.send_json({"error": "Missing id"}, 400)

@@ -4497,7 +4497,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 
         elif path == "/game-defender":
             try:
-                with open("PNT Defender .html", "r", encoding="utf-8") as f:
+                with open("PNT_Defender_v2.html", "r", encoding="utf-8") as f:
                     html = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "text/html; charset=utf-8")

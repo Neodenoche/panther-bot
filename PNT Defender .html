@@ -31,6 +31,35 @@ canvas{display:block;touch-action:none}
 .btn-ghost{background:transparent;border:1px solid #333;color:#666}
 .stat-row{display:flex;justify-content:space-between;width:100%;max-width:260px;margin:6px 0;font-family:monospace;font-size:14px}
 .stat-val{color:var(--or);font-weight:700}
+
+/* ── NICKNAME SCREEN ─────────────────────────────────────────────────────── */
+#scr-nick{background:rgba(8,8,12,.97)}
+.nick-chars{display:flex;gap:8px;margin:20px 0 16px;justify-content:center}
+.nick-col{display:flex;flex-direction:column;align-items:center;gap:4px}
+.nick-cell{width:44px;height:52px;border:2px solid #333;border-radius:6px;display:flex;align-items:center;justify-content:center;font-family:'Press Start 2P',monospace;font-size:20px;color:#fff;background:#0f0f18;transition:all .1s}
+.nick-cell.active{border-color:var(--or);color:var(--or);background:#1a0a00;box-shadow:0 0 12px rgba(255,92,26,.4)}
+.nick-arrow{background:transparent;border:none;color:#555;font-size:22px;cursor:pointer;line-height:1;padding:2px 6px;font-family:monospace;transition:color .1s}
+.nick-arrow:active,.nick-arrow:hover{color:var(--or)}
+.nick-cursor-bar{width:2px;height:28px;background:var(--or);animation:blink .7s step-end infinite;display:none}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.nick-hint{font-size:9px;color:#444;font-family:monospace;margin-top:4px}
+
+/* ── LEADERBOARD ─────────────────────────────────────────────────────────── */
+#scr-lb{background:rgba(8,8,12,.97);overflow-y:auto}
+.lb-title-wrap{text-align:center;margin-bottom:16px}
+.lb-table{width:100%;max-width:300px;margin:0 auto}
+.lb-row{display:grid;grid-template-columns:32px 1fr auto;gap:8px;align-items:center;padding:8px 10px;border-radius:6px;font-family:monospace;font-size:12px;margin:4px 0;background:#0f0f18;border:1px solid #1a1a2a}
+.lb-row.lb-gold{border-color:#ffd700;background:#1a1500}
+.lb-row.lb-silver{border-color:#aaa;background:#111118}
+.lb-row.lb-bronze{border-color:#cd7f32;background:#130a00}
+.lb-row.lb-me{border-color:var(--or);background:#1a0800;box-shadow:0 0 8px rgba(255,92,26,.25)}
+.lb-rank{font-size:14px;text-align:center}
+.lb-name{color:#ccc;letter-spacing:1px;font-size:11px}
+.lb-score{color:var(--or);font-weight:700;text-align:right}
+.lb-empty{color:#333;font-family:monospace;font-size:11px;text-align:center;padding:24px 0}
+.lb-medals{font-size:16px}
+.lb-new-badge{font-size:8px;color:var(--or);font-family:monospace;margin-left:4px;animation:pulse .8s ease-in-out infinite alternate}
+@keyframes pulse{from{opacity:.4}to{opacity:1}}
 </style>
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 </head>
@@ -60,6 +89,43 @@ canvas{display:block;touch-action:none}
   <div style="font-size:10px;color:#444;margin-top:14px;font-family:monospace">🔊 Activá el sonido</div>
 </div>
 
+<!-- NICKNAME -->
+<div class="screen" id="scr-nick" style="display:none">
+  <div class="s-title">INGRESA TU<br>NOMBRE</div>
+  <div class="s-sub" style="margin-bottom:0;font-size:11px">ARCADE STYLE · 3 CARACTERES</div>
+  <div class="nick-chars" id="nick-chars">
+    <div class="nick-col">
+      <button class="nick-arrow" data-col="0" data-dir="up">▲</button>
+      <div class="nick-cell active" id="nc0">A</div>
+      <button class="nick-arrow" data-col="0" data-dir="dn">▼</button>
+    </div>
+    <div class="nick-col">
+      <button class="nick-arrow" data-col="1" data-dir="up">▲</button>
+      <div class="nick-cell" id="nc1">A</div>
+      <button class="nick-arrow" data-col="1" data-dir="dn">▼</button>
+    </div>
+    <div class="nick-col">
+      <button class="nick-arrow" data-col="2" data-dir="up">▲</button>
+      <div class="nick-cell" id="nc2">A</div>
+      <button class="nick-arrow" data-col="2" data-dir="dn">▼</button>
+    </div>
+  </div>
+  <div class="nick-hint">tocá ▲▼ para cambiar · deslizá en móvil</div>
+  <button class="btn" id="btn-nick-ok" style="margin-top:18px">✔ CONFIRMAR</button>
+  <button class="btn btn-ghost" id="btn-nick-skip" style="margin-top:6px">SALTAR</button>
+</div>
+
+<!-- LEADERBOARD -->
+<div class="screen" id="scr-lb" style="display:none">
+  <div class="lb-title-wrap">
+    <div class="s-title" style="font-size:22px">🏆 RANKING</div>
+    <div style="font-size:10px;color:#444;font-family:monospace;margin-top:4px">TOP LOCAL · ESTE DISPOSITIVO</div>
+  </div>
+  <div class="lb-table" id="lb-table"></div>
+  <button class="btn" id="btn-lb-retry" style="margin-top:20px">↺ JUGAR DE NUEVO</button>
+  <button class="btn btn-ghost" id="btn-lb-menu" style="margin-top:6px">MENÚ</button>
+</div>
+
 <!-- GAME OVER -->
 <div class="screen" id="scr-over" style="display:none">
   <img id="chest-img" style="width:140px;margin-bottom:12px">
@@ -71,6 +137,7 @@ canvas{display:block;touch-action:none}
   <div class="stat-row"><span>PTS AL BOT</span><span class="stat-val" id="over-bot">0</span></div>
   <div id="over-msg" style="font-size:11px;color:#22c55e;font-family:monospace;margin:10px 0;min-height:18px"></div>
   <button class="btn" id="btn-retry" style="margin-top:10px">↺ REINTENTAR</button>
+  <button class="btn" id="btn-ranking" style="margin-top:6px;background:#1a1a2a;border:1px solid #333">🏆 VER RANKING</button>
   <button class="btn btn-ghost" id="btn-menu">MENÚ</button>
 </div>
 
@@ -694,6 +761,10 @@ async function endGame(){
   document.getElementById("over-msg").textContent="";
   document.getElementById("scr-over").style.display="flex";
 
+  // Guardar para leaderboard
+  lastScore=score;
+  try{ lastNick=localStorage.getItem("pnt_nick")||"AAA"; }catch(e){ lastNick="AAA"; }
+
   if(USER_ID&&botPts>0){
     try{
       const r=await fetch(API_BASE+"/game",{
@@ -715,11 +786,165 @@ canvas.addEventListener("mousemove", e=>{ touchX=e.clientX; });
 canvas.addEventListener("mousedown", e=>{ touchX=e.clientX; tapping=true; });
 canvas.addEventListener("mouseup",   ()=>{ tapping=false; });
 
+// ── NICKNAME ARCADE ───────────────────────────────────────────────────────────
+const NICK_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!?#$".split("");
+let nickLetters = [0,0,0]; // índices en NICK_CHARS
+let nickActive = 0;
+
+function getNickname(){ return nickLetters.map(i=>NICK_CHARS[i]).join(""); }
+
+function renderNickCells(){
+  for(let i=0;i<3;i++){
+    const el=document.getElementById("nc"+i);
+    el.textContent=NICK_CHARS[nickLetters[i]];
+    el.classList.toggle("active", i===nickActive);
+  }
+}
+
+function nickChange(col, dir){
+  const len=NICK_CHARS.length;
+  nickLetters[col]=(nickLetters[col]+dir+len)%len;
+  nickActive=col;
+  renderNickCells();
+}
+
+// Botones ▲▼
+document.querySelectorAll(".nick-arrow").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    const col=+btn.dataset.col, dir=btn.dataset.dir==="up"?-1:1;
+    nickChange(col,dir);
+  });
+});
+
+// Swipe vertical en cada columna
+(()=>{
+  let sy=0,sc=-1;
+  document.getElementById("scr-nick").addEventListener("touchstart",e=>{
+    sy=e.touches[0].clientY; sc=-1;
+    for(let i=0;i<3;i++){
+      const r=document.getElementById("nc"+i).getBoundingClientRect();
+      if(e.touches[0].clientX>=r.left&&e.touches[0].clientX<=r.right) sc=i;
+    }
+  },{passive:true});
+  document.getElementById("scr-nick").addEventListener("touchend",e=>{
+    if(sc<0) return;
+    const dy=sy-e.changedTouches[0].clientY;
+    if(Math.abs(dy)>18) nickChange(sc,dy>0?-1:1);
+  },{passive:true});
+})();
+
+// Teclado físico (desktop)
+window.addEventListener("keydown",e=>{
+  if(document.getElementById("scr-nick").style.display==="none") return;
+  if(e.key==="ArrowLeft"){ nickActive=Math.max(0,nickActive-1); renderNickCells(); }
+  else if(e.key==="ArrowRight"){ nickActive=Math.min(2,nickActive+1); renderNickCells(); }
+  else if(e.key==="ArrowUp"){ nickChange(nickActive,-1); }
+  else if(e.key==="ArrowDown"){ nickChange(nickActive,1); }
+  else if(e.key==="Enter"){ confirmNick(); }
+  else if(e.key.length===1){
+    const idx=NICK_CHARS.indexOf(e.key.toUpperCase());
+    if(idx>=0){ nickLetters[nickActive]=idx; if(nickActive<2) nickActive++; renderNickCells(); }
+  }
+});
+
+function loadSavedNick(){
+  try{
+    const s=localStorage.getItem("pnt_nick");
+    if(s&&s.length===3){
+      for(let i=0;i<3;i++){
+        const idx=NICK_CHARS.indexOf(s[i]);
+        if(idx>=0) nickLetters[i]=idx;
+      }
+    }
+  }catch(e){}
+  renderNickCells();
+}
+
+function confirmNick(){
+  try{ localStorage.setItem("pnt_nick",getNickname()); }catch(e){}
+  showNickThenGame();
+}
+
+// ── LEADERBOARD LOCAL ─────────────────────────────────────────────────────────
+const LB_KEY="pnt_leaderboard";
+const LB_MAX=10;
+let lastScore=0, lastNick="";
+
+function loadLB(){
+  try{ return JSON.parse(localStorage.getItem(LB_KEY))||[]; }catch(e){ return []; }
+}
+function saveLB(lb){ try{ localStorage.setItem(LB_KEY,JSON.stringify(lb)); }catch(e){} }
+
+function addToLB(nick,sc){
+  const lb=loadLB();
+  lb.push({name:nick,score:sc,ts:Date.now()});
+  lb.sort((a,b)=>b.score-a.score);
+  const trimmed=lb.slice(0,LB_MAX);
+  saveLB(trimmed);
+  return trimmed;
+}
+
+const MEDALS=["🥇","🥈","🥉"];
+function renderLB(lb, myScore, myNick){
+  const el=document.getElementById("lb-table");
+  if(!lb.length){ el.innerHTML=`<div class="lb-empty">¡Sé el primero en jugar!</div>`; return; }
+  let html="";
+  lb.forEach((r,i)=>{
+    const isMe=r.score===myScore&&r.name===myNick&&(Date.now()-r.ts<5000);
+    const medal=MEDALS[i]||`<span style="color:#444;font-size:11px">#${i+1}</span>`;
+    const cls=i===0?"lb-gold":i===1?"lb-silver":i===2?"lb-bronze":isMe?"lb-me":"";
+    const badge=isMe?`<span class="lb-new-badge">NEW</span>`:"";
+    html+=`<div class="lb-row ${cls} ${isMe?"lb-me":""}">
+      <div class="lb-rank">${medal}</div>
+      <div class="lb-name">${r.name}${badge}</div>
+      <div class="lb-score">${r.score.toLocaleString()}</div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
+function showLeaderboard(){
+  const lb=addToLB(lastNick,lastScore);
+  renderLB(lb,lastScore,lastNick);
+  document.getElementById("scr-over").style.display="none";
+  document.getElementById("scr-lb").style.display="flex";
+}
+
+// ── FLUJO DE PANTALLAS ────────────────────────────────────────────────────────
+let pendingGame=false;
+
+function showNickScreen(){
+  loadSavedNick();
+  document.getElementById("scr-start").style.display="none";
+  document.getElementById("scr-over").style.display="none";
+  document.getElementById("scr-nick").style.display="flex";
+}
+
+function showNickThenGame(){
+  document.getElementById("scr-nick").style.display="none";
+  initGame();
+}
+
 // ── BOTONES ───────────────────────────────────────────────────────────────────
-document.getElementById("btn-start").onclick=initGame;
+document.getElementById("btn-start").onclick=showNickScreen;
+document.getElementById("btn-nick-ok").onclick=confirmNick;
+document.getElementById("btn-nick-skip").onclick=()=>{
+  document.getElementById("scr-nick").style.display="none";
+  initGame();
+};
 document.getElementById("btn-retry").onclick=initGame;
+document.getElementById("btn-ranking").onclick=showLeaderboard;
 document.getElementById("btn-menu").onclick=()=>{
   document.getElementById("scr-over").style.display="none";
+  document.getElementById("scr-lb").style.display="none";
+  document.getElementById("scr-start").style.display="flex";
+};
+document.getElementById("btn-lb-retry").onclick=()=>{
+  document.getElementById("scr-lb").style.display="none";
+  initGame();
+};
+document.getElementById("btn-lb-menu").onclick=()=>{
+  document.getElementById("scr-lb").style.display="none";
   document.getElementById("scr-start").style.display="flex";
 };
 </script>

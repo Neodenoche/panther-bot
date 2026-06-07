@@ -13,9 +13,9 @@ canvas{display:block;touch-action:none}
 #ui-pts{font-size:20px;font-weight:700;color:var(--or);font-family:monospace}
 #ui-nivel{font-size:13px;color:#aaa;font-family:monospace;text-align:center}
 #ui-timer{font-size:20px;font-weight:700;color:#fff;font-family:monospace}
-#hp-bar{position:fixed;bottom:70px;left:50%;transform:translateX(-50%);width:160px;height:8px;background:#222;border-radius:4px;z-index:10}
+#hp-bar{position:fixed;top:52px;right:14px;width:90px;height:6px;background:#222;border-radius:4px;z-index:10}
 #hp-fill{height:100%;background:var(--or);border-radius:4px;transition:width .2s}
-#hp-label{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);font-size:10px;color:#aaa;font-family:monospace;z-index:10;white-space:nowrap}
+#hp-label{position:fixed;top:44px;right:14px;font-size:9px;color:#aaa;font-family:monospace;z-index:10;white-space:nowrap}
 #boss-wrap{position:fixed;bottom:85px;left:14px;right:14px;z-index:10;display:none}
 #boss-label{font-size:10px;color:#ef4444;font-family:monospace;margin-bottom:3px;letter-spacing:1px}
 #boss-bar{height:8px;background:#222;border-radius:4px;overflow:hidden}
@@ -53,7 +53,7 @@ canvas{display:block;touch-action:none}
 
 <!-- INICIO -->
 <div class="screen" id="scr-start">
-  <div style="font-size:56px;margin-bottom:10px">🐆</div>
+  <img id="start-panther" style="width:80px;height:80px;object-fit:contain;margin-bottom:10px;image-rendering:pixelated">
   <div class="s-title">PNT DEFENDER</div>
   <div class="s-sub">Destruí los OVNIs bajistas<br>y llevá el PNT TO THE MOON 🚀<br><br>⬅️➡️ Mové · Tapéa para disparar</div>
   <button class="btn" id="btn-start">▶ JUGAR</button>
@@ -82,25 +82,30 @@ const API_BASE = "https://go.mypanther.io";
 const USER_ID  = new URLSearchParams(location.search).get("id")||"";
 
 // ── AUDIO ────────────────────────────────────────────────────────────────────
-function mkAudio(src){ const a=new Audio(src); a.preload="auto"; return a; }
+const audioPool = {};
+function mkPool(src, size=3){
+  const pool = Array.from({length:size}, ()=>{ const a=new Audio(src); a.preload="auto"; return a; });
+  let idx = 0;
+  return { play(vol=0.7){ 
+    const a = pool[idx % size]; idx++;
+    a.currentTime = 0; a.volume = vol;
+    a.play().catch(()=>{});
+  }};
+}
 const sfx = {
-  shoot:   mkAudio(ASSETS.SFX_SHOOT),
-  exp1:    mkAudio(ASSETS.SFX_EXPLOSION1),
-  exp2:    mkAudio(ASSETS.SFX_EXPLOSION2),
-  hit:     mkAudio(ASSETS.SFX_HIT),
-  over:    mkAudio(ASSETS.SFX_GAMEOVER),
-  powerup: mkAudio(ASSETS.SFX_POWERUP),
-  combo:   mkAudio(ASSETS.SFX_COMBO),
+  shoot:   mkPool(ASSETS.SFX_SHOOT, 4),
+  exp1:    mkPool(ASSETS.SFX_EXPLOSION1, 4),
+  exp2:    mkPool(ASSETS.SFX_EXPLOSION2, 2),
+  hit:     mkPool(ASSETS.SFX_HIT, 2),
+  over:    mkPool(ASSETS.SFX_GAMEOVER, 1),
+  powerup: mkPool(ASSETS.SFX_POWERUP, 2),
+  combo:   mkPool(ASSETS.SFX_COMBO, 1),
 };
 const bgm = new Audio("https://go.mypanther.io/music-game");
 bgm.loop = true; bgm.volume = 0.5;
 
 function play(key, vol=0.7){
-  try{
-    const s = sfx[key].cloneNode();
-    s.volume = vol;
-    s.play().catch(()=>{});
-  }catch(e){}
+  try{ sfx[key].play(vol); } catch(e){}
 }
 
 // ── IMÁGENES ──────────────────────────────────────────────────────────────────
@@ -108,6 +113,7 @@ const imgPanther = new Image(); imgPanther.src = ASSETS.IMG_PANTHER;
 const imgCoin    = new Image(); imgCoin.src    = ASSETS.IMG_COIN;
 const imgChest   = new Image(); imgChest.src   = ASSETS.IMG_CHEST;
 document.getElementById("chest-img").src = ASSETS.IMG_CHEST;
+document.getElementById("start-panther").src = ASSETS.IMG_PANTHER;
 
 // ── CANVAS ────────────────────────────────────────────────────────────────────
 const canvas = document.getElementById("c");

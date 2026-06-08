@@ -223,6 +223,7 @@ let running=false, score=0, nivelIdx=0, timer=90, timerAcc=0, lastTs=0, animId=n
 let playerHP=3, maxHP=3, combo=0, maxCombo=0, comboTimer=0;
 let screenShake=0, flashRed=0;
 let advancing=false; // flag para evitar doble nextLevel
+let totalKills=0, totalPlayTime=0; // para desempate por velocidad de kills
 
 const player = { x:0, y:0, w:52, h:52, speed:270, cooldown:0, maxCool:0.2,
                  powerup:null, powerTimer:0 };
@@ -286,6 +287,7 @@ function updateUI(){
 function initGame(){
   score=0; nivelIdx=0; timer=90; timerAcc=0; combo=0; maxCombo=0; comboTimer=0;
   playerHP=3; maxHP=3; screenShake=0; flashRed=0; advancing=false; bossDropTimer=0;
+  totalKills=0; totalPlayTime=0;
   bullets=[]; enemies=[]; eBullets=[]; particles=[]; powerups=[];
   boss=null;
   player.x=W/2; player.y=H-80; player.cooldown=0; player.powerup=null; player.powerTimer=0;
@@ -354,6 +356,7 @@ function loop(ts){
 function update(dt){
   // Timer
   timerAcc+=dt;
+  totalPlayTime+=dt; // acumular tiempo total jugado
   if(timerAcc>=1){
     timerAcc-=1; timer--;
     document.getElementById("ui-timer").textContent=timer;
@@ -500,7 +503,7 @@ function update(dt){
       if(Math.abs(b.x-e.x)<e.w/2&&Math.abs(b.y-e.y)<e.h/2){
         e.alive=false; hit=true;
         const pts=NIVELES[Math.min(nivelIdx,NIVELES.length-1)].pts;
-        score+=pts; updateUI();
+        score+=pts; totalKills++; updateUI();
         spawnParticles(e.x,e.y,"#FF5C1A",10);
         spawnParticles(e.x,e.y,"#ff8800",6);
         play("exp1",.6);
@@ -569,6 +572,19 @@ function nextLevel(){
   setTimeout(()=>{ advancing=false; spawnWave(); },700);
 }
 
+// ── BONUS DESEMPATE ───────────────────────────────────────────────────────────
+// Calcula bonus por vidas restantes y velocidad de eliminación.
+// Lo suficientemente pequeño para no alterar el ranking principal (~max 350 pts)
+// pero suficiente para romper empates de forma justa.
+function calcTiebreakerBonus(){
+  // Bonus por vidas: 50 pts por cada vida que no se perdió (max 150)
+  const lifeBonus = playerHP * 50;
+  // Bonus por velocidad: kills/segundo × 10, cap 200
+  const kps = totalPlayTime > 0 ? totalKills / totalPlayTime : 0;
+  const speedBonus = Math.min(200, Math.round(kps * 10));
+  return lifeBonus + speedBonus;
+}
+
 async function victoryGame(){
   running=false; bgm.pause();
   cancelAnimationFrame(animId);
@@ -579,6 +595,11 @@ async function victoryGame(){
   lastScore=score;
   try{ lastNick=localStorage.getItem("pnt_nick")||"AAA"; }catch(e){ lastNick="AAA"; }
   lastRank=0; // sin ranking exacto desde victory, se muestra genérico
+
+  // Aplicar bonus de desempate (vidas + velocidad)
+  const tiebonus = calcTiebreakerBonus();
+  score += tiebonus;
+  lastScore = score;
 
   const botPts=Math.min(100,Math.floor(score/80));
   document.getElementById("vic-pts").textContent=score;
@@ -892,6 +913,15 @@ async function endGame(){
   play("over",.8);
   document.getElementById("boss-wrap").style.display="none";
 
+  // Guardar para leaderboard
+  lastScore=score;
+  try{ lastNick=localStorage.getItem("pnt_nick")||"AAA"; }catch(e){ lastNick="AAA"; }
+
+  // Aplicar bonus de desempate (vidas + velocidad)
+  const tiebonus = calcTiebreakerBonus();
+  score += tiebonus;
+  lastScore = score;
+
   const botPts=Math.min(50,Math.floor(score/100));
   document.getElementById("over-pts").textContent=score;
   document.getElementById("over-nivel").textContent=nivelIdx+1;
@@ -899,10 +929,6 @@ async function endGame(){
   document.getElementById("over-bot").textContent=botPts+" pts";
   document.getElementById("over-msg").textContent="";
   document.getElementById("scr-over").style.display="flex";
-
-  // Guardar para leaderboard
-  lastScore=score;
-  try{ lastNick=localStorage.getItem("pnt_nick")||"AAA"; }catch(e){ lastNick="AAA"; }
 
   if(USER_ID&&botPts>0){
     try{

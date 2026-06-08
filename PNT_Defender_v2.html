@@ -119,11 +119,14 @@ canvas{display:block;touch-action:none}
 <div class="screen" id="scr-lb" style="display:none">
   <div class="lb-title-wrap">
     <div class="s-title" style="font-size:22px">🏆 RANKING</div>
-    <div style="font-size:10px;color:#444;font-family:monospace;margin-top:4px">TOP LOCAL · ESTE DISPOSITIVO</div>
+    <div style="font-size:10px;color:#FF5C1A;font-family:monospace;margin-top:4px;letter-spacing:1px">🌎 RANKING GLOBAL · MANADA PANTHER</div>
   </div>
   <div class="lb-table" id="lb-table"></div>
-  <button class="btn" id="btn-lb-retry" style="margin-top:20px">↺ JUGAR DE NUEVO</button>
+  <button class="btn" id="btn-lb-share" style="margin-top:20px;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);border:none">📸 COMPARTIR MI PUESTO</button>
+  <button class="btn" id="btn-lb-retry" style="margin-top:6px">↺ JUGAR DE NUEVO</button>
   <button class="btn btn-ghost" id="btn-lb-menu" style="margin-top:6px">MENÚ</button>
+  <!-- Canvas oculto para generar la imagen de compartir -->
+  <canvas id="share-canvas" style="display:none"></canvas>
 </div>
 
 <!-- GAME OVER -->
@@ -945,32 +948,17 @@ function confirmNick(){
   showNickThenGame();
 }
 
-// ── LEADERBOARD LOCAL ─────────────────────────────────────────────────────────
-const LB_KEY="pnt_leaderboard";
-const LB_MAX=10;
-let lastScore=0, lastNick="";
-
-function loadLB(){
-  try{ return JSON.parse(localStorage.getItem(LB_KEY))||[]; }catch(e){ return []; }
-}
-function saveLB(lb){ try{ localStorage.setItem(LB_KEY,JSON.stringify(lb)); }catch(e){} }
-
-function addToLB(nick,sc){
-  const lb=loadLB();
-  lb.push({name:nick,score:sc,ts:Date.now()});
-  lb.sort((a,b)=>b.score-a.score);
-  const trimmed=lb.slice(0,LB_MAX);
-  saveLB(trimmed);
-  return trimmed;
-}
+// ── LEADERBOARD GLOBAL (SQLite backend) ───────────────────────────────────────
+let lastScore=0, lastNick="", lastRank=0;
 
 const MEDALS=["🥇","🥈","🥉"];
 function renderLB(lb, myScore, myNick){
   const el=document.getElementById("lb-table");
-  if(!lb.length){ el.innerHTML=`<div class="lb-empty">¡Sé el primero en jugar!</div>`; return; }
+  if(!lb.length){ el.innerHTML=`<div class="lb-empty">¡Sé el primero en defender la Manada!</div>`; return; }
   let html="";
   lb.forEach((r,i)=>{
-    const isMe=r.score===myScore&&r.name===myNick&&(Date.now()-r.ts<5000);
+    const isMe=r.score===myScore&&r.name===myNick&&(Date.now()-r.ts<8000);
+    if(isMe) lastRank=i+1;
     const medal=MEDALS[i]||`<span style="color:#444;font-size:11px">#${i+1}</span>`;
     const cls=i===0?"lb-gold":i===1?"lb-silver":i===2?"lb-bronze":isMe?"lb-me":"";
     const badge=isMe?`<span class="lb-new-badge">NEW</span>`:"";
@@ -983,11 +971,185 @@ function renderLB(lb, myScore, myNick){
   el.innerHTML=html;
 }
 
-function showLeaderboard(){
-  const lb=addToLB(lastNick,lastScore);
-  renderLB(lb,lastScore,lastNick);
+async function showLeaderboard(){
   document.getElementById("scr-over").style.display="none";
   document.getElementById("scr-lb").style.display="flex";
+  lastRank=0;
+  const el=document.getElementById("lb-table");
+  el.innerHTML=`<div class="lb-empty" style="color:#555">Cargando ranking...</div>`;
+  try{
+    const payload={nick:lastNick, score:lastScore, id:USER_ID||""};
+    const r=await fetch(API_BASE+"/game-score",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    const d=await r.json();
+    if(d.ok) renderLB(d.leaderboard, lastScore, lastNick);
+    else el.innerHTML=`<div class="lb-empty">Error al guardar 😅</div>`;
+  } catch(e){
+    try{
+      const r2=await fetch(API_BASE+"/game-leaderboard");
+      const d2=await r2.json();
+      if(d2.ok) renderLB(d2.leaderboard, lastScore, lastNick);
+    } catch(e2){
+      el.innerHTML=`<div class="lb-empty">Sin conexión 📡</div>`;
+    }
+  }
+}
+
+// ── COMPARTIR 8-BIT ──────────────────────────────────────────────────────────
+function drawPixelBear(ctx, x, y, size){
+  // Oso pixel art simple 8x8 escalado
+  const p=[
+    [0,0,1,1,1,1,0,0],
+    [0,1,1,1,1,1,1,0],
+    [1,1,0,1,1,0,1,1],
+    [1,1,1,1,1,1,1,1],
+    [0,1,1,1,1,1,1,0],
+    [0,0,1,0,0,1,0,0],
+    [0,1,1,0,0,1,1,0],
+    [0,1,0,0,0,0,1,0],
+  ];
+  const s=size/8;
+  p.forEach((row,ry)=>row.forEach((col,cx)=>{
+    if(col){ ctx.fillStyle="#ef4444"; ctx.fillRect(x+cx*s,y+ry*s,s,s); }
+  }));
+  // X roja encima — muerto
+  ctx.strokeStyle="#fff"; ctx.lineWidth=s*0.6;
+  ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+size,y+size); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x+size,y); ctx.lineTo(x,y+size); ctx.stroke();
+}
+
+function drawPixelShip(ctx, x, y, size){
+  // Nave pixel art simple
+  const p=[
+    [0,0,0,1,1,0,0,0],
+    [0,0,1,1,1,1,0,0],
+    [0,1,1,1,1,1,1,0],
+    [1,1,1,1,1,1,1,1],
+    [0,1,0,1,1,0,1,0],
+    [0,0,0,1,1,0,0,0],
+  ];
+  const s=size/8;
+  p.forEach((row,ry)=>row.forEach((col,cx)=>{
+    if(col){ ctx.fillStyle="#FF5C1A"; ctx.fillRect(x+cx*s,y+ry*s,s,s); }
+  }));
+}
+
+function generateShareImage(){
+  const cv=document.getElementById("share-canvas");
+  const W2=1080, H2=1920; // stories ratio
+  cv.width=W2; cv.height=H2;
+  const ctx=cv.getContext("2d");
+
+  // Fondo negro pixel
+  ctx.fillStyle="#08080c";
+  ctx.fillRect(0,0,W2,H2);
+
+  // Grid pixel sutil
+  ctx.strokeStyle="rgba(255,255,255,0.03)";
+  ctx.lineWidth=1;
+  for(let gx=0;gx<W2;gx+=40){ ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H2);ctx.stroke(); }
+  for(let gy=0;gy<H2;gy+=40){ ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W2,gy);ctx.stroke(); }
+
+  // Estrellas
+  ctx.fillStyle="#fff";
+  for(let s=0;s<80;s++){
+    const sx=Math.random()*W2, sy=Math.random()*H2;
+    const sr=Math.random()*2+0.5;
+    ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+  }
+
+  // Osos caídos (decoración)
+  [150,350,700,900,400,600,820].forEach((bx,i)=>{
+    drawPixelBear(ctx, bx, 200+i*180, 48);
+  });
+
+  // Nave del jugador grande al centro
+  drawPixelShip(ctx, W2/2-80, H2/2-160, 160);
+
+  // Título
+  ctx.fillStyle="#FF5C1A";
+  ctx.font="bold 72px monospace";
+  ctx.textAlign="center";
+  ctx.fillText("PNT DEFENDER", W2/2, 160);
+
+  // Subtítulo épico
+  ctx.fillStyle="#aaa";
+  ctx.font="32px monospace";
+  ctx.fillText("PROTEGIENDO LA MANADA", W2/2, 210);
+  ctx.fillText("DE LA INVASIÓN BAJISTA 🐻📉", W2/2, 255);
+
+  // Nick del jugador
+  ctx.fillStyle="#fff";
+  ctx.font="bold 96px monospace";
+  ctx.fillText(lastNick||"???", W2/2, H2/2+20);
+
+  // Score
+  ctx.fillStyle="#ffd700";
+  ctx.font="bold 56px monospace";
+  ctx.fillText(lastScore.toLocaleString()+" PTS", W2/2, H2/2+110);
+
+  // Puesto
+  const rankText = lastRank>=1&&lastRank<=10
+    ? (lastRank===1?"🥇 CAMPEÓN DE LA MANADA":lastRank===2?"🥈 2DO DEFENSOR":lastRank===3?"🥉 3ER PUESTO":`#${lastRank} EN EL RANKING GLOBAL`)
+    : "TOP 10 GLOBAL";
+  ctx.fillStyle="#FF5C1A";
+  ctx.font="bold 52px monospace";
+  ctx.fillText(rankText, W2/2, H2/2+200);
+
+  // Barra separadora pixel
+  ctx.fillStyle="#FF5C1A";
+  ctx.fillRect(W2/2-200, H2/2+240, 400, 4);
+
+  // Mensaje épico random
+  const frases=[
+    "LOS OSOS NO PASAN.",
+    "BULLISH O MUERTE.",
+    "SIN CUARTEL PARA LOS BAJISTAS.",
+    "PNT TO THE MOON 🚀",
+    "CADA OSO CAÍDO ES UN PUMP.",
+  ];
+  const frase=frases[Math.floor(Math.random()*frases.length)];
+  ctx.fillStyle="#22c55e";
+  ctx.font="38px monospace";
+  ctx.fillText(frase, W2/2, H2/2+310);
+
+  // CTA
+  ctx.fillStyle="#555";
+  ctx.font="28px monospace";
+  ctx.fillText("¿Podés superarme?", W2/2, H2-200);
+  ctx.fillStyle="#FF5C1A";
+  ctx.font="bold 32px monospace";
+  ctx.fillText("go.mypanther.io", W2/2, H2-155);
+  ctx.fillStyle="#333";
+  ctx.font="24px monospace";
+  ctx.fillText("#ManadaPanther  #PNTDefender", W2/2, H2-100);
+
+  return cv.toDataURL("image/png");
+}
+
+async function shareScore(){
+  const dataUrl=generateShareImage();
+
+  // Intentar Web Share API con archivo (móvil nativo)
+  if(navigator.share && navigator.canShare){
+    try{
+      const blob=await(await fetch(dataUrl)).blob();
+      const file=new File([blob],"pnt-defender.png",{type:"image/png"});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({
+          files:[file],
+          text:`🐆 ${lastNick} con ${lastScore.toLocaleString()} pts defendiendo la Manada PNT de los osos bajistas. ¿Podés superarme? 👉 go.mypanther.io\n#ManadaPanther #PNTDefender`
+        });
+        return;
+      }
+    } catch(e){ /* fallback */ }
+  }
+
+  // Fallback: descargar imagen
+  const a=document.createElement("a");
+  a.href=dataUrl; a.download="pnt-defender-"+lastNick+".png"; a.click();
 }
 
 // ── FLUJO DE PANTALLAS ────────────────────────────────────────────────────────
@@ -1023,6 +1185,7 @@ document.getElementById("btn-menu").onclick=()=>{
   document.getElementById("scr-lb").style.display="none";
   document.getElementById("scr-start").style.display="flex";
 };
+document.getElementById("btn-lb-share").onclick=shareScore;
 document.getElementById("btn-lb-retry").onclick=()=>{
   document.getElementById("scr-lb").style.display="none";
   initGame();

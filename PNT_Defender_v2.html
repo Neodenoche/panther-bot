@@ -941,24 +941,8 @@ function confirmNick(){
   showNickThenGame();
 }
 
-// ── LEADERBOARD LOCAL ─────────────────────────────────────────────────────────
-const LB_KEY="pnt_leaderboard";
-const LB_MAX=10;
+// ── LEADERBOARD GLOBAL (SQLite backend) ───────────────────────────────────────
 let lastScore=0, lastNick="";
-
-function loadLB(){
-  try{ return JSON.parse(localStorage.getItem(LB_KEY))||[]; }catch(e){ return []; }
-}
-function saveLB(lb){ try{ localStorage.setItem(LB_KEY,JSON.stringify(lb)); }catch(e){} }
-
-function addToLB(nick,sc){
-  const lb=loadLB();
-  lb.push({name:nick,score:sc,ts:Date.now()});
-  lb.sort((a,b)=>b.score-a.score);
-  const trimmed=lb.slice(0,LB_MAX);
-  saveLB(trimmed);
-  return trimmed;
-}
 
 const MEDALS=["🥇","🥈","🥉"];
 function renderLB(lb, myScore, myNick){
@@ -979,11 +963,33 @@ function renderLB(lb, myScore, myNick){
   el.innerHTML=html;
 }
 
-function showLeaderboard(){
-  const lb=addToLB(lastNick,lastScore);
-  renderLB(lb,lastScore,lastNick);
+async function showLeaderboard(){
   document.getElementById("scr-over").style.display="none";
   document.getElementById("scr-lb").style.display="flex";
+  const el=document.getElementById("lb-table");
+  el.innerHTML=`<div class="lb-empty" style="color:#888">Cargando ranking...</div>`;
+
+  // Primero guardar score en el backend, luego mostrar top 10
+  try{
+    const payload={nick:lastNick, score:lastScore, id:USER_ID||""};
+    const r=await fetch(API_BASE+"/game-score",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    const d=await r.json();
+    if(d.ok) renderLB(d.leaderboard, lastScore, lastNick);
+    else      el.innerHTML=`<div class="lb-empty">Error al guardar 😅</div>`;
+  } catch(e){
+    // Fallback: solo cargar el ranking sin guardar
+    try{
+      const r2=await fetch(API_BASE+"/game-leaderboard");
+      const d2=await r2.json();
+      if(d2.ok) renderLB(d2.leaderboard, lastScore, lastNick);
+    } catch(e2){
+      el.innerHTML=`<div class="lb-empty">Sin conexión 📡</div>`;
+    }
+  }
 }
 
 // ── FLUJO DE PANTALLAS ────────────────────────────────────────────────────────

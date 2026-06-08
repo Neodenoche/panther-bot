@@ -223,12 +223,12 @@ let stars=[];
 const NIVELES=[
   {vel:1.1,cols:5,rows:2,boss:false,pts:10},  // Nivel 1 — naves
   {vel:1.4,cols:6,rows:2,boss:false,pts:13},  // Nivel 2 — naves
-  {vel:1.7,cols:6,rows:3,boss:true, pts:16},  // Nivel 3 — BOSS
-  {vel:2.0,cols:7,rows:3,boss:false,pts:20},  // Nivel 4 — naves
-  {vel:2.2,cols:7,rows:3,boss:false,pts:24},  // Nivel 5 — naves
-  {vel:2.5,cols:8,rows:3,boss:true, pts:28},  // Nivel 6 — BOSS
-  {vel:2.8,cols:8,rows:3,boss:false,pts:32},  // Nivel 7 — naves
-  {vel:3.2,cols:8,rows:4,boss:true, pts:40},  // Nivel 8 — BOSS FINAL
+  {vel:1.7,cols:6,rows:2,boss:true, pts:16},  // Nivel 3 — BOSS
+  {vel:2.0,cols:6,rows:2,boss:false,pts:20},  // Nivel 4 — naves
+  {vel:2.2,cols:7,rows:2,boss:false,pts:24},  // Nivel 5 — naves
+  {vel:2.5,cols:7,rows:2,boss:true, pts:28},  // Nivel 6 — BOSS
+  {vel:2.8,cols:7,rows:2,boss:false,pts:32},  // Nivel 7 — naves
+  {vel:3.2,cols:8,rows:3,boss:true, pts:40},  // Nivel 8 — BOSS FINAL
 ];
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -304,7 +304,7 @@ function spawnWave(){
     boss={x:W/2,y:100,w:80,h:80,
           vx:nv.vel*55*(Math.random()<.5?1:-1),
           shootT:0,shootI:Math.max(.6,1.5-nivelIdx*.1),alive:true,angle:0};
-    bossDropTimer=5; // primer drop a los 5 segundos
+    bossDropTimer=3; // primer drop a los 3 segundos
     document.getElementById("boss-wrap").style.display="block";
     updateBossBar();
     flashMsg("🐻 BEAR BOSS!", "#ef4444");
@@ -437,7 +437,7 @@ function update(dt){
     // Drops automáticos: cada 8-12s cae triple o heart
     bossDropTimer-=dt;
     if(bossDropTimer<=0){
-      bossDropTimer=8+Math.random()*4;
+      bossDropTimer=6+Math.random()*3;
       const dropKind=Math.random()<0.5?"triple":"heart";
       powerups.push({x:rand(W*0.15,W*0.85), y:0, kind:dropKind, vy:130});
     }
@@ -488,9 +488,13 @@ function update(dt){
         spawnParticles(e.x,e.y,"#ff8800",6);
         play("exp1",.6);
         hitCombo();
-        // Drop powerup (15% chance)
-        if(Math.random()<.15){
-          const kinds=["triple","coin","engulf"];
+        // Drop powerup — más frecuente y con corazones en niveles altos
+        const dropChance = nivelIdx>=3 ? 0.28 : 0.15;
+        if(Math.random()<dropChance){
+          let kinds;
+          if(nivelIdx>=4)      kinds=["triple","heart","heart","coin"];   // 50% corazón
+          else if(nivelIdx>=3) kinds=["triple","heart","coin","engulf"];  // 25% corazón
+          else                 kinds=["triple","coin","engulf"];
           powerups.push({x:e.x,y:e.y,kind:kinds[Math.floor(Math.random()*kinds.length)]});
         }
       }

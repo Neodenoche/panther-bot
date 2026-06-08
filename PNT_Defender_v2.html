@@ -221,13 +221,14 @@ let stars=[];
 
 // ── NIVELES ───────────────────────────────────────────────────────────────────
 const NIVELES=[
-  {vel:1.1,cols:5,rows:2,boss:false,pts:10},
-  {vel:1.4,cols:6,rows:2,boss:false,pts:13},
-  {vel:1.7,cols:6,rows:3,boss:true, pts:16},
-  {vel:2.0,cols:7,rows:3,boss:false,pts:20},
-  {vel:2.3,cols:7,rows:3,boss:true, pts:24},
-  {vel:2.6,cols:8,rows:3,boss:false,pts:28},
-  {vel:3.0,cols:8,rows:4,boss:true, pts:35},
+  {vel:1.1,cols:5,rows:2,boss:false,pts:10},  // Nivel 1 — naves
+  {vel:1.4,cols:6,rows:2,boss:false,pts:13},  // Nivel 2 — naves
+  {vel:1.7,cols:6,rows:3,boss:true, pts:16},  // Nivel 3 — BOSS
+  {vel:2.0,cols:7,rows:3,boss:false,pts:20},  // Nivel 4 — naves
+  {vel:2.2,cols:7,rows:3,boss:false,pts:24},  // Nivel 5 — naves
+  {vel:2.5,cols:8,rows:3,boss:true, pts:28},  // Nivel 6 — BOSS
+  {vel:2.8,cols:8,rows:3,boss:false,pts:32},  // Nivel 7 — naves
+  {vel:3.2,cols:8,rows:4,boss:true, pts:40},  // Nivel 8 — BOSS FINAL
 ];
 
 // ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -310,12 +311,12 @@ function spawnWave(){
   } else {
     const ew=40,eh=34,gx=12,gy=14;
     const tw=nv.cols*(ew+gx)-gx;
-    const sx=(W-tw)/2, sy=55;
+    const sx=(W-tw)/2, sy=48;
     for(let r=0;r<nv.rows;r++) for(let c=0;c<nv.cols;c++){
       enemies.push({x:sx+c*(ew+gx)+ew/2,y:sy+r*(eh+gy)+eh/2,
-        w:ew,h:eh,vx:nv.vel*40*(r%2?1:-1),alive:true,
+        w:ew,h:eh,vx:nv.vel*36*(r%2?1:-1),alive:true,
         type:((r*nv.cols+c)%3),
-        shootT:rand(0,3),shootI:rand(2.2,4.5)-nivelIdx*.12});
+        shootT:rand(0,3),shootI:rand(2.8,5.5)-nivelIdx*.06});
     }
     flashMsg("⚔️ NIVEL "+(nivelIdx+1), "#FF5C1A");
   }
@@ -425,10 +426,10 @@ function update(dt){
       }
     }
   });
-  if(hitWall){ enemies.forEach(e=>{ if(e.alive){e.vx*=-1;e.y+=6;} }); }
-  // Limitar Y de enemigos: no pueden pasar del 55% de la pantalla
-  enemies.forEach(e=>{ if(e.alive && e.y+e.h/2 > H*0.55) e.y=H*0.55-e.h/2; });
-  // Enemigos que lograron escapar igual → eliminar
+  if(hitWall){ enemies.forEach(e=>{ if(e.alive) e.vx*=-1; }); }
+  // Naves no pueden bajar más del 42% de pantalla
+  enemies.forEach(e=>{ if(e.alive && e.y+e.h/2 > H*0.42) e.y=H*0.42-e.h/2; });
+  // Eliminar si escaparon igual
   enemies.forEach(e=>{ if(e.alive && e.y-e.h/2 > H) e.alive=false; });
 
   // Boss

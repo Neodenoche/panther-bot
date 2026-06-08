@@ -51,6 +51,8 @@ CAMPAIGN_SOURCES = {
     "camp_mail": "Email",
     "camp_tk":   "TikTok",
     "camp_web":  "Sitio Web",
+    "game":      "PNT Defender",
+    "game-defender": "PNT Defender",
 }
 PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
 
@@ -885,7 +887,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             save_db(db)
         # Lanzar secuencia de bienvenida en background
-        asyncio.create_task(send_welcome_sequence(context.bot, uid, user.first_name or "Cazador"))
+        asyncio.create_task(send_welcome_sequence(context.bot, uid, user.first_name or "Cazador", source=data.get("source", "")))
     else:
         save_db(db)
 
@@ -2632,25 +2634,43 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
 # ONBOARDING — Mensajes de bienvenida secuenciales
 # ═══════════════════════════════════════════════════════════════
 
-async def send_welcome_sequence(bot, uid: str, first_name: str):
-    """Envía 3 mensajes de bienvenida con delays al usuario nuevo."""
+async def send_welcome_sequence(bot, uid: str, first_name: str, source: str = ""):
+    """Envía secuencia de bienvenida al usuario nuevo. Si viene del juego, adapta el mensaje."""
+
+    # ── Detectar si viene del juego ──────────────────────────────────────────
+    came_from_game = source in ("game", "game-defender")
+
+    # ── MSG 1: Bienvenida + pasos ────────────────────────────────────────────
+    if came_from_game:
+        intro = (
+            f"🎮 *¡Buena partida, {first_name}! Ahora hacés parte de la Manada Panther.*\n\n"
+            f"PNT Defender no es solo un juego — cada punto que ganás se convierte en "
+            f"recompensas reales dentro de la comunidad de Panther Wallet.\n\n"
+            f"Para que tus puntos de juego cuenten de verdad, completá estos pasos:\n\n"
+        )
+    else:
+        intro = (
+            f"🐆 *¡Bienvenido a la Manada Panther, {first_name}!*\n\n"
+            f"Este es el espacio donde la comunidad de Panther Wallet se reúne, "
+            f"aprende y gana recompensas reales.\n\n"
+            f"Para ser parte oficial de la Manada completá estos pasos:\n\n"
+        )
 
     msg1 = (
-        f"🐆 *¡Bienvenido a la Manada Panther, {first_name}!*\n\n"
-        f"Me alegra que estés acá. Este es el espacio donde la comunidad de "
-        f"Panther Wallet se reúne, aprende y gana recompensas reales.\n\n"
-        f"Para ser parte oficial de la Manada completá estos pasos:\n\n"
+        intro +
         f"*Paso 1:* Únete al chat general de la Manada\n"
         f"👉 {LINKS['chat']}\n\n"
-        f"*Paso 2:* Descarga Panther Wallet\n"
+        f"*Paso 2:* Descargá Panther Wallet\n"
         f"👉 https://mypanther.io/es/\n\n"
-        f"*Paso 3:* Activa tu cuenta y configura el Google 2FA\n"
+        f"*Paso 3:* Activá tu cuenta y configurá el Google 2FA\n"
         f"_(Configuración → Seguridad → Google Authenticator)_\n\n"
-        f"*Paso 4:* Toma una captura de pantalla mostrando el 2FA activo\n\n"
-        f"*Paso 5:* Envía esa captura acá al bot con el hashtag *#NuevoCazador*\n\n"
-        f"Un moderador la verificará y quedarás oficialmente como Cazador de la Manada. 🐾"
+        f"*Paso 4:* Tomá una captura de pantalla mostrando el 2FA activo\n\n"
+        f"*Paso 5:* Enviá esa captura acá al bot con el hashtag *#NuevoCazador*\n\n"
+        f"Un moderador la verificará y quedarás oficialmente como Cazador de la Manada 🐾\n\n"
+        f"{'🎮 Una vez registrado, tus partidas de PNT Defender acumulan puntos reales automáticamente.' if came_from_game else ''}"
     )
 
+    # ── MSG 2: Reglas (30 seg después) ──────────────────────────────────────
     msg2 = (
         f"📋 *Reglas de la Manada*\n\n"
         f"Para que este espacio funcione bien para todos, seguimos estas reglas:\n\n"
@@ -2666,6 +2686,7 @@ async def send_welcome_sequence(bot, uid: str, first_name: str):
         f"El equipo de moderación está siempre presente. Ante cualquier duda, escribinos. 🐆"
     )
 
+    # ── MSG 3: Redes + CTA final (60 seg después) ───────────────────────────
     msg3 = (
         f"🔗 *Seguinos en todas las plataformas*\n\n"
         f"Toda la actividad oficial de Panther Wallet pasa por acá:\n\n"
@@ -2675,15 +2696,16 @@ async def send_welcome_sequence(bot, uid: str, first_name: str):
         f"🌐 Sitio web: {LINKS['web']}\n"
         f"📢 Canal oficial: {LINKS['canal']}\n"
         f"💬 Chat general: {LINKS['chat']}\n\n"
-        f"Seguinos para no perderte ningún anuncio, sorteo ni novedad. 🐆"
+        f"Seguinos para no perderte ningún anuncio, sorteo ni novedad 🐆\n\n"
+        f"{'🎮 Y cuando quieras jugar de nuevo: go.mypanther.io/game-defender' if came_from_game else ''}"
     )
 
     try:
         await bot.send_message(chat_id=int(uid), text=msg1, parse_mode="Markdown",
                                disable_web_page_preview=True)
-        await asyncio.sleep(300)  # 5 minutos
+        await asyncio.sleep(30)   # 30 segundos
         await bot.send_message(chat_id=int(uid), text=msg2, parse_mode="Markdown")
-        await asyncio.sleep(300)  # 10 minutos
+        await asyncio.sleep(60)   # 1 minuto
         await bot.send_message(chat_id=int(uid), text=msg3, parse_mode="Markdown",
                                disable_web_page_preview=True)
     except Exception as e:
@@ -4623,6 +4645,22 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             lb = [{"name": r[0], "score": r[1], "ts": r[2]} for r in rows]
             return self.send_json({"ok": True, "leaderboard": lb})
 
+        elif path == "/user-info":
+            # Devuelve el referral_code del usuario para que el juego lo use en el share
+            uid = params.get("id", [None])[0]
+            if not uid:
+                return self.send_json({"ok": False, "error": "no id"})
+            db   = load_db()
+            data = db.get(uid)
+            if not data:
+                return self.send_json({"ok": False, "registered": False})
+            return self.send_json({
+                "ok": True,
+                "registered": True,
+                "referral_code": data.get("referral_code", ""),
+                "name": data.get("first_name", ""),
+            })
+
         else:
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
 
@@ -4655,7 +4693,14 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             today = date.today().isoformat()
             data = db.get(uid)
             if not data:
-                return self.send_json({"ok": False, "error": "user not found"})
+                # Usuario jugó pero no está registrado en el bot
+                # Le decimos que se una para que sus puntos cuenten
+                return self.send_json({
+                    "ok": False,
+                    "not_registered": True,
+                    "join_url": f"https://t.me/ManadaPantherBot?start=game",
+                    "message": "¡Buena partida! Uníte a la Manada para que tus puntos cuenten 🐆"
+                })
             if data.get("last_game") == today:
                 return self.send_json({"ok": False, "already_played": True})
             bot_pts = max(0, min(50, bot_pts))

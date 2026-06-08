@@ -293,6 +293,15 @@ def init_db():
                 value TEXT
             )
         """)
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS game_scores (
+                id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id  TEXT,
+                nick     TEXT NOT NULL,
+                score    INTEGER NOT NULL,
+                ts       INTEGER NOT NULL
+            )
+        """)
         conn.commit()
 
     # ── Migración de columnas nuevas (ALTER TABLE) ──
@@ -4602,6 +4611,18 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 "referrer_referrals_now": len(referrer_data["referrals"]),
             })
 
+        elif path == "/game-leaderboard":
+            with get_conn() as conn:
+                rows = conn.execute("""
+                    SELECT nick, MAX(score) as best, MAX(ts) as last_ts
+                    FROM game_scores
+                    GROUP BY nick
+                    ORDER BY best DESC
+                    LIMIT 10
+                """).fetchall()
+            lb = [{"name": r[0], "score": r[1], "ts": r[2]} for r in rows]
+            return self.send_json({"ok": True, "leaderboard": lb})
+
         else:
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
 
@@ -4756,6 +4777,27 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 "bonus":  bonus,
                 "points": data["points"],
             })
+
+        # ── POST /game-score — Guardar score en leaderboard global ──
+        elif path == "/game-score":
+            nick  = str(body.get("nick", "AAA"))[:3].upper()
+            score = int(body.get("score", 0))
+            uid   = str(body.get("id", ""))
+            ts    = int(__import__("time").time() * 1000)
+            with get_conn() as conn:
+                conn.execute(
+                    "INSERT INTO game_scores (user_id, nick, score, ts) VALUES (?,?,?,?)",
+                    (uid, nick, score, ts)
+                )
+                rows = conn.execute("""
+                    SELECT nick, MAX(score) as best, MAX(ts) as last_ts
+                    FROM game_scores
+                    GROUP BY nick
+                    ORDER BY best DESC
+                    LIMIT 10
+                """).fetchall()
+            lb = [{"name": r[0], "score": r[1], "ts": r[2]} for r in rows]
+            return self.send_json({"ok": True, "leaderboard": lb})
 
         else:
             self.send_json({"error": "Not found"}, 404)

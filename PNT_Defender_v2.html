@@ -146,7 +146,7 @@ canvas{display:block;touch-action:none}
 
 <!-- FIN DE LA PRIMERA INVASIÓN -->
 <div class="screen" id="scr-victory" style="display:none">
-  <div style="font-size:48px;margin-bottom:8px">🐆</div>
+  <canvas id="victory-panther-canvas" width="90" height="90" style="margin-bottom:8px;image-rendering:pixelated;filter:drop-shadow(0 0 14px #FF5C1A)"></canvas>
   <div class="s-title" style="color:#22c55e;font-size:28px;line-height:1.2">¡INVASIÓN<br>DERROTADA!</div>
   <div style="font-size:13px;color:#ffd700;font-family:monospace;margin:10px 0 4px;letter-spacing:2px">— FIN DE LA PRIMERA INVASIÓN —</div>
   <div style="font-size:11px;color:#555;font-family:monospace;margin-bottom:20px;line-height:1.8">La próxima invasión está en camino...<br>🛸 Pronto habrá más niveles</div>
@@ -575,6 +575,17 @@ async function victoryGame(){
   document.getElementById("vic-bot").textContent=botPts+" pts";
   document.getElementById("vic-msg").textContent="";
   document.getElementById("scr-victory").style.display="flex";
+  // Renderizar la pantera real en el canvas de victoria
+  (function(){
+    const vc=document.getElementById("victory-panther-canvas");
+    const vctx=vc.getContext("2d");
+    vctx.clearRect(0,0,90,90);
+    if(imgPanther.complete&&imgPanther.naturalWidth>0){
+      vctx.drawImage(imgPanther,0,0,90,90);
+    } else {
+      imgPanther.onload=function(){vctx.drawImage(imgPanther,0,0,90,90);};
+    }
+  })();
 
   if(USER_ID&&botPts>0){
     try{
@@ -1054,20 +1065,31 @@ function drawPixelBear(ctx, x, y, size){
   ctx.beginPath(); ctx.moveTo(x+size,y); ctx.lineTo(x,y+size); ctx.stroke();
 }
 
-function drawPixelShip(ctx, x, y, size){
-  // Nave pixel art simple
-  const p=[
-    [0,0,0,1,1,0,0,0],
-    [0,0,1,1,1,1,0,0],
-    [0,1,1,1,1,1,1,0],
-    [1,1,1,1,1,1,1,1],
-    [0,1,0,1,1,0,1,0],
-    [0,0,0,1,1,0,0,0],
-  ];
-  const s=size/8;
-  p.forEach((row,ry)=>row.forEach((col,cx)=>{
-    if(col){ ctx.fillStyle="#FF5C1A"; ctx.fillRect(x+cx*s,y+ry*s,s,s); }
-  }));
+// Dibuja UFO1 (el oso alien púrpura) escalado para el share
+function drawShareUFO1(ctx2, cx, cy, scale){
+  ctx2.save();
+  ctx2.shadowColor="#c084fc"; ctx2.shadowBlur=18*scale;
+  ctx2.fillStyle="#3b0764"; ctx2.strokeStyle="#c084fc"; ctx2.lineWidth=3*scale;
+  ctx2.beginPath();ctx2.ellipse(cx,cy+6*scale,32*scale,14*scale,0,0,Math.PI*2);ctx2.fill();ctx2.stroke();
+  ctx2.fillStyle="#4c1d95";
+  ctx2.beginPath();ctx2.ellipse(cx,cy+4*scale,28*scale,11*scale,0,0,Math.PI*2);ctx2.fill();
+  ctx2.fillStyle="rgba(196,132,252,0.2)";
+  ctx2.beginPath();ctx2.ellipse(cx-8*scale,cy+1*scale,12*scale,5*scale,-.3,0,Math.PI*2);ctx2.fill();
+  ctx2.fillStyle="#2d1657"; ctx2.strokeStyle="#a855f7"; ctx2.lineWidth=2*scale;
+  ctx2.beginPath();ctx2.ellipse(cx,cy-6*scale,16*scale,14*scale,0,0,Math.PI*2);ctx2.fill();ctx2.stroke();
+  ctx2.fillStyle="rgba(168,85,247,0.25)";
+  ctx2.beginPath();ctx2.ellipse(cx-4*scale,cy-10*scale,6*scale,5*scale,-.4,0,Math.PI*2);ctx2.fill();
+  ctx2.shadowBlur=0;
+  [[-18,12],[0,14],[18,12]].forEach(([lx,ly],i)=>{
+    const c=["#ef4444","#fbbf24","#34d399"][i];
+    ctx2.fillStyle=c; ctx2.beginPath();ctx2.arc(cx+lx*scale,cy+ly*scale,4*scale,0,Math.PI*2);ctx2.fill();
+    ctx2.fillStyle="#fff"; ctx2.beginPath();ctx2.arc(cx+(lx-1)*scale,cy+(ly-1)*scale,1.5*scale,0,Math.PI*2);ctx2.fill();
+  });
+  // Cruz de muerte
+  ctx2.strokeStyle="rgba(255,255,255,0.8)"; ctx2.lineWidth=4*scale;
+  ctx2.beginPath();ctx2.moveTo(cx-20*scale,cy-20*scale);ctx2.lineTo(cx+20*scale,cy+20*scale);ctx2.stroke();
+  ctx2.beginPath();ctx2.moveTo(cx+20*scale,cy-20*scale);ctx2.lineTo(cx-20*scale,cy+20*scale);ctx2.stroke();
+  ctx2.restore();
 }
 
 function generateShareImage(){
@@ -1094,35 +1116,65 @@ function generateShareImage(){
     ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
   }
 
-  // Osos caídos (decoración)
-  [150,350,700,900,400,600,820].forEach((bx,i)=>{
-    drawPixelBear(ctx, bx, 200+i*180, 48);
+  // UFOs derrotados decorativos (usando los sprites reales)
+  const scale=1.8;
+  const ufoPositions=[[150,220],[350,420],[700,180],[900,380],[400,620],[600,280],[820,520]];
+  ufoPositions.forEach(([ux,uy])=>{
+    drawShareUFO1(ctx, ux, uy, scale);
   });
 
-  // Nave del jugador grande al centro
-  drawPixelShip(ctx, W2/2-80, H2/2-160, 160);
+  // Pantera real (nave del jugador) grande al centro
+  const pSize=260;
+  const pX=W2/2-pSize/2;
+  const pY=H2/2-220;
+  if(imgPanther.complete && imgPanther.naturalWidth>0){
+    ctx.save();
+    ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=60;
+    ctx.drawImage(imgPanther, pX, pY, pSize, pSize);
+    ctx.restore();
+    // Segundo glow pass
+    ctx.save();
+    ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=30;
+    ctx.globalAlpha=0.4;
+    ctx.drawImage(imgPanther, pX, pY, pSize, pSize);
+    ctx.globalAlpha=1;
+    ctx.restore();
+  } else {
+    // Fallback pixel art si la imagen no cargó
+    const fa=[[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[0,0,0,1,1,0,0,0]];
+    const fs=pSize/8;
+    fa.forEach((row,ry)=>row.forEach((col,cx)=>{
+      if(col){ctx.fillStyle="#FF5C1A";ctx.fillRect(pX+cx*fs,pY+ry*fs,fs,fs);}
+    }));
+  }
 
   // Título
   ctx.fillStyle="#FF5C1A";
   ctx.font="bold 72px monospace";
   ctx.textAlign="center";
-  ctx.fillText("PNT DEFENDER", W2/2, 160);
+  ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=20;
+  ctx.fillText("PNT DEFENDER", W2/2, 140);
+  ctx.shadowBlur=0;
 
   // Subtítulo épico
   ctx.fillStyle="#aaa";
   ctx.font="32px monospace";
-  ctx.fillText("PROTEGIENDO LA MANADA", W2/2, 210);
-  ctx.fillText("DE LA INVASIÓN BAJISTA 🐻📉", W2/2, 255);
+  ctx.fillText("PROTEGIENDO LA MANADA", W2/2, 200);
+  ctx.fillText("DE LA INVASIÓN BAJISTA 🐻📉", W2/2, 245);
 
   // Nick del jugador
   ctx.fillStyle="#fff";
   ctx.font="bold 96px monospace";
-  ctx.fillText(lastNick||"???", W2/2, H2/2+20);
+  ctx.shadowColor="rgba(0,0,0,0.5)"; ctx.shadowBlur=8;
+  ctx.fillText(lastNick||"???", W2/2, H2/2+80);
+  ctx.shadowBlur=0;
 
   // Score
   ctx.fillStyle="#ffd700";
   ctx.font="bold 56px monospace";
-  ctx.fillText(lastScore.toLocaleString()+" PTS", W2/2, H2/2+110);
+  ctx.shadowColor="#ffd700"; ctx.shadowBlur=12;
+  ctx.fillText(lastScore.toLocaleString()+" PTS", W2/2, H2/2+165);
+  ctx.shadowBlur=0;
 
   // Puesto
   const rankText = lastRank>=1&&lastRank<=10
@@ -1130,11 +1182,11 @@ function generateShareImage(){
     : "TOP 10 GLOBAL";
   ctx.fillStyle="#FF5C1A";
   ctx.font="bold 52px monospace";
-  ctx.fillText(rankText, W2/2, H2/2+200);
+  ctx.fillText(rankText, W2/2, H2/2+265);
 
   // Barra separadora pixel
   ctx.fillStyle="#FF5C1A";
-  ctx.fillRect(W2/2-200, H2/2+240, 400, 4);
+  ctx.fillRect(W2/2-200, H2/2+300, 400, 4);
 
   // Mensaje épico random
   const frases=[
@@ -1147,7 +1199,7 @@ function generateShareImage(){
   const frase=frases[Math.floor(Math.random()*frases.length)];
   ctx.fillStyle="#22c55e";
   ctx.font="38px monospace";
-  ctx.fillText(frase, W2/2, H2/2+310);
+  ctx.fillText(frase, W2/2, H2/2+375);
 
   // CTA
   ctx.fillStyle="#555";

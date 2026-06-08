@@ -453,13 +453,13 @@ function update(dt){
     }
     // Hits boss
     bullets=bullets.filter(b=>{
+      if(!boss||!boss.alive) return true; // boss ya muerto, ignorar balas restantes
       const hit=Math.abs(b.x-boss.x)<boss.w/2&&Math.abs(b.y-boss.y)<boss.h/2;
       if(hit){
-        bossHP--; updateBossBar();
-        spawnParticles(b.x,b.y,"#ef4444",5);
         const dmg=b.type==="engulf"?4:b.type==="coin"?2:1;
-        bossHP-=dmg-1;
-        if(bossHP<=0){
+        bossHP-=dmg; updateBossBar();
+        spawnParticles(b.x,b.y,"#ef4444",5);
+        if(bossHP<=0 && boss.alive){
           boss.alive=false;
           score+=(NIVELES[Math.min(nivelIdx,NIVELES.length-1)].pts*8);
           spawnParticles(boss.x,boss.y,"#FF5C1A",25,true);

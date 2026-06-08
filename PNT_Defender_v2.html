@@ -215,7 +215,7 @@ let advancing=false; // flag para evitar doble nextLevel
 const player = { x:0, y:0, w:52, h:52, speed:270, cooldown:0, maxCool:0.2,
                  powerup:null, powerTimer:0 };
 let bullets=[], enemies=[], eBullets=[], particles=[], powerups=[];
-let boss=null, bossHP=0, bossMaxHP=0;
+let boss=null, bossHP=0, bossMaxHP=0, bossDropTimer=0;
 let touchX=null, tapping=false;
 let stars=[];
 
@@ -272,7 +272,7 @@ function updateUI(){
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function initGame(){
   score=0; nivelIdx=0; timer=90; timerAcc=0; combo=0; maxCombo=0; comboTimer=0;
-  playerHP=3; maxHP=3; screenShake=0; flashRed=0; advancing=false;
+  playerHP=3; maxHP=3; screenShake=0; flashRed=0; advancing=false; bossDropTimer=0;
   bullets=[]; enemies=[]; eBullets=[]; particles=[]; powerups=[];
   boss=null;
   player.x=W/2; player.y=H-80; player.cooldown=0; player.powerup=null; player.powerTimer=0;
@@ -303,6 +303,7 @@ function spawnWave(){
     boss={x:W/2,y:100,w:80,h:80,
           vx:nv.vel*55*(Math.random()<.5?1:-1),
           shootT:0,shootI:Math.max(.6,1.5-nivelIdx*.1),alive:true,angle:0};
+    bossDropTimer=5; // primer drop a los 5 segundos
     document.getElementById("boss-wrap").style.display="block";
     updateBossBar();
     flashMsg("🐻 BEAR BOSS!", "#ef4444");
@@ -392,10 +393,17 @@ function update(dt){
     p.y+=(p.vy||80)*dt;
     // Recoger
     if(Math.abs(p.x-player.x)<30 && Math.abs(p.y-player.y)<30){
-      player.powerup=p.kind; player.powerTimer=(p.kind==="shield"?10:6);
-      play("powerup");
-      const msgs={triple:"⚡ TRIPLE SHOT!",coin:"🪙 PNT SHOT!",engulf:"📈 ENGULFING!",shield:"🛡️ CAMPO DE FUERZA!"};
-      showPowerup(msgs[p.kind]||"POWER UP!");
+      if(p.kind==="heart"){
+        playerHP=Math.min(playerHP+1,5); maxHP=Math.max(maxHP,playerHP);
+        updateHPBar();
+        play("powerup");
+        showPowerup("❤️ +1 VIDA!");
+      } else {
+        player.powerup=p.kind; player.powerTimer=(p.kind==="shield"?10:6);
+        play("powerup");
+        const msgs={triple:"⚡ TRIPLE SHOT!",coin:"🪙 PNT SHOT!",engulf:"📈 ENGULFING!",shield:"🛡️ CAMPO DE FUERZA!"};
+        showPowerup(msgs[p.kind]||"POWER UP!");
+      }
       return false;
     }
     return p.y<H;
@@ -417,12 +425,21 @@ function update(dt){
       }
     }
   });
-  if(hitWall){ enemies.forEach(e=>{ if(e.alive){e.vx*=-1;e.y+=10;} }); }
-  // Enemigos que bajaron fuera de pantalla → eliminar
+  if(hitWall){ enemies.forEach(e=>{ if(e.alive){e.vx*=-1;e.y+=6;} }); }
+  // Limitar Y de enemigos: no pueden pasar del 55% de la pantalla
+  enemies.forEach(e=>{ if(e.alive && e.y+e.h/2 > H*0.55) e.y=H*0.55-e.h/2; });
+  // Enemigos que lograron escapar igual → eliminar
   enemies.forEach(e=>{ if(e.alive && e.y-e.h/2 > H) e.alive=false; });
 
   // Boss
   if(boss&&boss.alive){
+    // Drops automáticos: cada 8-12s cae triple o heart
+    bossDropTimer-=dt;
+    if(bossDropTimer<=0){
+      bossDropTimer=8+Math.random()*4;
+      const dropKind=Math.random()<0.5?"triple":"heart";
+      powerups.push({x:rand(W*0.15,W*0.85), y:0, kind:dropKind, vy:130});
+    }
     boss.x+=boss.vx*dt; boss.angle+=dt*1.5;
     if(boss.x-boss.w/2<0||boss.x+boss.w/2>W){ boss.vx*=-1; boss.y+=14; }
     // Limitar Y: el boss no puede bajar más de 2/3 de la pantalla
@@ -599,10 +616,10 @@ function draw(){
 
   // Power-ups en caída
   powerups.forEach(p=>{
-    const icons={triple:"⚡",coin:"🪙",engulf:"📈",shield:"🛡️"};
+    const icons={triple:"⚡",coin:"🪙",engulf:"📈",shield:"🛡️",heart:"❤️"};
     ctx.font="26px serif"; ctx.textAlign="center"; ctx.textBaseline="middle";
-    ctx.shadowColor=(p.kind==="shield"?"#4af":"#22c55e");
-    ctx.shadowBlur=(p.kind==="shield"?20:10);
+    ctx.shadowColor=(p.kind==="shield"?"#4af":p.kind==="heart"?"#ef4444":"#22c55e");
+    ctx.shadowBlur=(p.kind==="shield"||p.kind==="heart"?20:10);
     ctx.fillText(icons[p.kind]||"⭐",p.x,p.y);
     ctx.shadowBlur=0;
   });

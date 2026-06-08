@@ -1094,125 +1094,205 @@ function drawShareUFO1(ctx2, cx, cy, scale){
 
 function generateShareImage(){
   const cv=document.getElementById("share-canvas");
-  const W2=1080, H2=1920; // stories ratio
+  const W2=1080, H2=1920;
   cv.width=W2; cv.height=H2;
   const ctx=cv.getContext("2d");
 
-  // Fondo negro pixel
+  // ── FONDO ────────────────────────────────────────────────────────────────────
   ctx.fillStyle="#08080c";
   ctx.fillRect(0,0,W2,H2);
 
-  // Grid pixel sutil
-  ctx.strokeStyle="rgba(255,255,255,0.03)";
+  // Grid tenue
+  ctx.strokeStyle="rgba(255,255,255,0.025)";
   ctx.lineWidth=1;
-  for(let gx=0;gx<W2;gx+=40){ ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H2);ctx.stroke(); }
-  for(let gy=0;gy<H2;gy+=40){ ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W2,gy);ctx.stroke(); }
+  for(let gx=0;gx<W2;gx+=50){ ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H2);ctx.stroke(); }
+  for(let gy=0;gy<H2;gy+=50){ ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W2,gy);ctx.stroke(); }
 
   // Estrellas
-  ctx.fillStyle="#fff";
-  for(let s=0;s<80;s++){
-    const sx=Math.random()*W2, sy=Math.random()*H2;
-    const sr=Math.random()*2+0.5;
-    ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fill();
+  const rng=(a,b)=>Math.random()*(b-a)+a;
+  for(let s=0;s<120;s++){
+    const bri=rng(0.3,1);
+    ctx.fillStyle=`rgba(255,255,255,${bri})`;
+    ctx.beginPath();ctx.arc(rng(0,W2),rng(0,H2),rng(0.5,2.2),0,Math.PI*2);ctx.fill();
   }
 
-  // UFOs derrotados decorativos (usando los sprites reales)
-  const scale=1.8;
-  const ufoPositions=[[150,220],[350,420],[700,180],[900,380],[400,620],[600,280],[820,520]];
-  ufoPositions.forEach(([ux,uy])=>{
-    drawShareUFO1(ctx, ux, uy, scale);
-  });
+  // ── SECCIÓN SUPERIOR: TÍTULO ─────────────────────────────────────────────────
+  // Fondo sutil para el header
+  const hg=ctx.createLinearGradient(0,0,0,200);
+  hg.addColorStop(0,"rgba(255,92,26,0.15)");
+  hg.addColorStop(1,"transparent");
+  ctx.fillStyle=hg; ctx.fillRect(0,0,W2,200);
 
-  // Pantera real (nave del jugador) grande al centro
-  const pSize=260;
+  ctx.textAlign="center";
+
+  // "PNT DEFENDER"
+  ctx.font="bold 88px monospace";
+  ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=30;
+  ctx.fillStyle="#FF5C1A";
+  ctx.fillText("PNT DEFENDER",W2/2,110);
+  ctx.shadowBlur=0;
+
+  // Línea separadora bajo el título
+  ctx.fillStyle="#FF5C1A";
+  ctx.fillRect(W2/2-320,130,640,3);
+
+  // ── UFOs DERROTADOS ─ zona media-alta, en fila bien distribuida ───────────────
+  // Dos filas de 4 UFOs, por encima de la pantera. Sin tapar el texto.
+  const uScale=1.6;
+  const uRow1y=260, uRow2y=420;
+  [150,370,590,810,930].forEach((ux,i)=>{ drawShareUFO1(ctx,ux,uRow1y,uScale); });
+  [260,480,700,920].forEach((ux,i)=>{ drawShareUFO1(ctx,ux,uRow2y,uScale); });
+
+  // ── SUBTÍTULO — debajo de los UFOs, con fondo oscuro para legibilidad ────────
+  const subY=560;
+  // Pill de fondo
+  ctx.fillStyle="rgba(0,0,0,0.7)";
+  roundRect(ctx, W2/2-400, subY-52, 800, 110, 20);
+  ctx.fill();
+  ctx.strokeStyle="rgba(255,92,26,0.4)"; ctx.lineWidth=2;
+  roundRect(ctx, W2/2-400, subY-52, 800, 110, 20);
+  ctx.stroke();
+
+  ctx.font="36px monospace";
+  ctx.fillStyle="#ffffff";
+  ctx.shadowBlur=0;
+  ctx.fillText("PROTEGIENDO A LA MANADA",W2/2,subY-4);
+  ctx.fillStyle="#FF5C1A";
+  ctx.font="bold 36px monospace";
+  ctx.fillText("DE LA INVASIÓN ALIEN BAJISTA 🐻🛸",W2/2,subY+46);
+
+  // ── PANTERA CENTRAL ──────────────────────────────────────────────────────────
+  const pSize=300;
   const pX=W2/2-pSize/2;
-  const pY=H2/2-220;
-  if(imgPanther.complete && imgPanther.naturalWidth>0){
+  const pY=700;
+
+  // Glow ring detrás de la pantera
+  const pg=ctx.createRadialGradient(W2/2,pY+pSize/2,20,W2/2,pY+pSize/2,200);
+  pg.addColorStop(0,"rgba(255,92,26,0.35)");
+  pg.addColorStop(1,"rgba(255,92,26,0)");
+  ctx.fillStyle=pg;
+  ctx.beginPath();ctx.arc(W2/2,pY+pSize/2,200,0,Math.PI*2);ctx.fill();
+
+  if(imgPanther.complete&&imgPanther.naturalWidth>0){
     ctx.save();
-    ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=60;
-    ctx.drawImage(imgPanther, pX, pY, pSize, pSize);
-    ctx.restore();
-    // Segundo glow pass
-    ctx.save();
-    ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=30;
-    ctx.globalAlpha=0.4;
-    ctx.drawImage(imgPanther, pX, pY, pSize, pSize);
-    ctx.globalAlpha=1;
+    ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=55;
+    ctx.drawImage(imgPanther,pX,pY,pSize,pSize);
+    ctx.shadowBlur=25; ctx.globalAlpha=0.35;
+    ctx.drawImage(imgPanther,pX,pY,pSize,pSize);
     ctx.restore();
   } else {
-    // Fallback pixel art si la imagen no cargó
-    const fa=[[0,0,0,1,1,0,0,0],[0,0,1,1,1,1,0,0],[0,1,1,1,1,1,1,0],[1,1,1,1,1,1,1,1],[0,1,0,1,1,0,1,0],[0,0,0,1,1,0,0,0]];
-    const fs=pSize/8;
-    fa.forEach((row,ry)=>row.forEach((col,cx)=>{
-      if(col){ctx.fillStyle="#FF5C1A";ctx.fillRect(pX+cx*fs,pY+ry*fs,fs,fs);}
-    }));
+    ctx.fillStyle="#FF5C1A";
+    ctx.beginPath();ctx.arc(W2/2,pY+pSize/2,120,0,Math.PI*2);ctx.fill();
   }
 
-  // Título
-  ctx.fillStyle="#FF5C1A";
-  ctx.font="bold 72px monospace";
+  // ── STATS BLOCK ─ empieza justo debajo de la pantera ────────────────────────
+  const statsY = pY + pSize + 50; // 50px de respiro bajo la pantera
+
+  // Panel de fondo para los stats
+  ctx.fillStyle="rgba(10,10,20,0.85)";
+  roundRect(ctx, 80, statsY-20, W2-160, 480, 28);
+  ctx.fill();
+  ctx.strokeStyle="rgba(255,92,26,0.3)"; ctx.lineWidth=2;
+  roundRect(ctx, 80, statsY-20, W2-160, 480, 28);
+  ctx.stroke();
+
+  // NICK
   ctx.textAlign="center";
-  ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=20;
-  ctx.fillText("PNT DEFENDER", W2/2, 140);
+  ctx.font="bold 110px monospace";
+  ctx.fillStyle="#ffffff";
+  ctx.shadowColor="rgba(0,0,0,0.8)"; ctx.shadowBlur=12;
+  ctx.fillText(lastNick||"???", W2/2, statsY+100);
   ctx.shadowBlur=0;
 
-  // Subtítulo épico
-  ctx.fillStyle="#aaa";
-  ctx.font="32px monospace";
-  ctx.fillText("PROTEGIENDO LA MANADA", W2/2, 200);
-  ctx.fillText("DE LA INVASIÓN BAJISTA 🐻📉", W2/2, 245);
+  // Divider
+  ctx.fillStyle="rgba(255,92,26,0.4)";
+  ctx.fillRect(W2/2-280, statsY+120, 560, 2);
 
-  // Nick del jugador
-  ctx.fillStyle="#fff";
-  ctx.font="bold 96px monospace";
-  ctx.shadowColor="rgba(0,0,0,0.5)"; ctx.shadowBlur=8;
-  ctx.fillText(lastNick||"???", W2/2, H2/2+80);
-  ctx.shadowBlur=0;
-
-  // Score
+  // PUNTOS
+  ctx.font="bold 76px monospace";
   ctx.fillStyle="#ffd700";
-  ctx.font="bold 56px monospace";
-  ctx.shadowColor="#ffd700"; ctx.shadowBlur=12;
-  ctx.fillText(lastScore.toLocaleString()+" PTS", W2/2, H2/2+165);
+  ctx.shadowColor="#ffd700"; ctx.shadowBlur=16;
+  ctx.fillText(lastScore.toLocaleString()+" PTS", W2/2, statsY+215);
   ctx.shadowBlur=0;
 
-  // Puesto
-  const rankText = lastRank>=1&&lastRank<=10
-    ? (lastRank===1?"🥇 CAMPEÓN DE LA MANADA":lastRank===2?"🥈 2DO DEFENSOR":lastRank===3?"🥉 3ER PUESTO":`#${lastRank} EN EL RANKING GLOBAL`)
-    : "TOP 10 GLOBAL";
-  ctx.fillStyle="#FF5C1A";
+  // PUESTO
+  let rankLine, rankColor;
+  if(lastRank===1){      rankLine="🥇 #1 — CAMPEÓN DE LA MANADA"; rankColor="#ffd700"; }
+  else if(lastRank===2){ rankLine="🥈 #2 — DEFENSOR ÉLITE";        rankColor="#c0c0c0"; }
+  else if(lastRank===3){ rankLine="🥉 #3 — GUARDIÁN DE LA MANADA"; rankColor="#cd7f32"; }
+  else if(lastRank>=4&&lastRank<=10){ rankLine=`⚡ #${lastRank} EN EL RANKING GLOBAL`; rankColor="#FF5C1A"; }
+  else { rankLine="🚀 DEFENSOR DE LA MANADA PNT"; rankColor="#FF5C1A"; }
+
   ctx.font="bold 52px monospace";
-  ctx.fillText(rankText, W2/2, H2/2+265);
+  ctx.fillStyle=rankColor;
+  ctx.shadowColor=rankColor; ctx.shadowBlur=14;
+  ctx.fillText(rankLine, W2/2, statsY+310);
+  ctx.shadowBlur=0;
 
-  // Barra separadora pixel
-  ctx.fillStyle="#FF5C1A";
-  ctx.fillRect(W2/2-200, H2/2+300, 400, 4);
+  // Divider 2
+  ctx.fillStyle="rgba(255,92,26,0.4)";
+  ctx.fillRect(W2/2-200, statsY+340, 400, 2);
 
-  // Mensaje épico random
+  // FRASE ÉPICA
   const frases=[
-    "LOS OSOS NO PASAN.",
-    "BULLISH O MUERTE.",
-    "SIN CUARTEL PARA LOS BAJISTAS.",
-    "PNT TO THE MOON 🚀",
-    "CADA OSO CAÍDO ES UN PUMP.",
+    "¡LOS OSOS ALIENS NO PASAN!",
+    "BULLISH O MUERTE 🚀",
+    "¡NINGÚN OVNI BAJISTA SOBREVIVE!",
+    "PNT TO THE MOON 🚀🌕",
+    "¡CADA OSO ALIEN CAÍDO ES UN PUMP!",
+    "LA MANADA DEFIENDE EL PRECIO 💎",
   ];
   const frase=frases[Math.floor(Math.random()*frases.length)];
+  ctx.font="bold 44px monospace";
   ctx.fillStyle="#22c55e";
-  ctx.font="38px monospace";
-  ctx.fillText(frase, W2/2, H2/2+375);
+  ctx.shadowColor="#22c55e"; ctx.shadowBlur=10;
+  ctx.fillText(frase, W2/2, statsY+415);
+  ctx.shadowBlur=0;
 
-  // CTA
-  ctx.fillStyle="#555";
-  ctx.font="28px monospace";
-  ctx.fillText("¿Podés superarme?", W2/2, H2-200);
+  // ── CTA INFERIOR ─────────────────────────────────────────────────────────────
+  const ctaY=statsY+580;
+
+  // Pill CTA
+  ctx.fillStyle="rgba(255,92,26,0.12)";
+  roundRect(ctx, 120, ctaY-60, W2-240, 170, 24);
+  ctx.fill();
+  ctx.strokeStyle="rgba(255,92,26,0.5)"; ctx.lineWidth=2;
+  roundRect(ctx, 120, ctaY-60, W2-240, 170, 24);
+  ctx.stroke();
+
+  ctx.font="42px monospace";
+  ctx.fillStyle="#aaaaaa";
+  ctx.fillText("¿Podrás superarme?", W2/2, ctaY);
+
+  ctx.font="bold 54px monospace";
   ctx.fillStyle="#FF5C1A";
-  ctx.font="bold 32px monospace";
-  ctx.fillText("go.mypanther.io", W2/2, H2-155);
-  ctx.fillStyle="#333";
-  ctx.font="24px monospace";
-  ctx.fillText("#ManadaPanther  #PNTDefender", W2/2, H2-100);
+  ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=14;
+  ctx.fillText("go.mypanther.io", W2/2, ctaY+70);
+  ctx.shadowBlur=0;
+
+  // Hashtags con color
+  ctx.font="34px monospace";
+  ctx.fillStyle="#FF5C1A";
+  ctx.fillText("#ManadaPanther", W2/2-160, ctaY+150);
+  ctx.fillStyle="#a855f7";
+  ctx.fillText("#PNTDefender", W2/2+180, ctaY+150);
 
   return cv.toDataURL("image/png");
+}
+
+// Helper: rounded rect path
+function roundRect(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r,y);
+  ctx.lineTo(x+w-r,y);
+  ctx.arcTo(x+w,y,x+w,y+r,r);
+  ctx.lineTo(x+w,y+h-r);
+  ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
+  ctx.lineTo(x+r,y+h);
+  ctx.arcTo(x,y+h,x,y+h-r,r);
+  ctx.lineTo(x,y+r);
+  ctx.arcTo(x,y,x+r,y,r);
+  ctx.closePath();
 }
 
 async function shareScore(){

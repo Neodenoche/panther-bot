@@ -166,6 +166,17 @@ const ASSETS = {"SFX_EXPLOSION1": "data:audio/mp3;base64,SUQzAwAAAAEACVRJVDIAAAC
 const API_BASE = "https://go.mypanther.io";
 const USER_ID  = new URLSearchParams(location.search).get("id")||"";
 
+// Referral code del usuario — se carga al inicio para usarlo en la imagen de share
+let USER_REF_CODE = "";
+(async function loadUserInfo(){
+  if(!USER_ID) return;
+  try {
+    const r = await fetch(API_BASE+"/user-info?id="+USER_ID);
+    const d = await r.json();
+    if(d.ok && d.referral_code) USER_REF_CODE = d.referral_code;
+  } catch(e) { /* sin conexión, share igual funciona sin referral */ }
+})();
+
 // ── AUDIO ────────────────────────────────────────────────────────────────────
 const audioPool = {};
 function mkPool(src, size=3){
@@ -1254,10 +1265,10 @@ function generateShareImage(){
 
   // Pill CTA
   ctx.fillStyle="rgba(255,92,26,0.12)";
-  roundRect(ctx, 120, ctaY-60, W2-240, 170, 24);
+  roundRect(ctx, 120, ctaY-60, W2-240, 200, 24);
   ctx.fill();
   ctx.strokeStyle="rgba(255,92,26,0.5)"; ctx.lineWidth=2;
-  roundRect(ctx, 120, ctaY-60, W2-240, 170, 24);
+  roundRect(ctx, 120, ctaY-60, W2-240, 200, 24);
   ctx.stroke();
 
   ctx.font="42px monospace";
@@ -1267,15 +1278,26 @@ function generateShareImage(){
   ctx.font="bold 54px monospace";
   ctx.fillStyle="#FF5C1A";
   ctx.shadowColor="#FF5C1A"; ctx.shadowBlur=14;
-  ctx.fillText("go.mypanther.io", W2/2, ctaY+70);
+  ctx.fillText("go.mypanther.io/game-defender", W2/2, ctaY+70);
   ctx.shadowBlur=0;
+
+  // Link de referido personalizado
+  const refLink = USER_REF_CODE
+    ? `t.me/ManadaPantherBot?start=${USER_REF_CODE}`
+    : `t.me/ManadaPantherBot?start=game`;
+  ctx.font="30px monospace";
+  ctx.fillStyle="#888888";
+  ctx.fillText("Uníte a la Manada:", W2/2, ctaY+130);
+  ctx.fillStyle="#a855f7";
+  ctx.font="bold 32px monospace";
+  ctx.fillText(refLink, W2/2, ctaY+170);
 
   // Hashtags con color
   ctx.font="34px monospace";
   ctx.fillStyle="#FF5C1A";
-  ctx.fillText("#ManadaPanther", W2/2-160, ctaY+150);
+  ctx.fillText("#ManadaPanther", W2/2-160, ctaY+230);
   ctx.fillStyle="#a855f7";
-  ctx.fillText("#PNTDefender", W2/2+180, ctaY+150);
+  ctx.fillText("#PNTDefender", W2/2+180, ctaY+230);
 
   return cv.toDataURL("image/png");
 }
@@ -1298,6 +1320,13 @@ function roundRect(ctx, x, y, w, h, r){
 async function shareScore(){
   const dataUrl=generateShareImage();
 
+  // Link de referido personal — si no tiene cuenta usa link genérico del juego
+  const refLink = USER_REF_CODE
+    ? `https://t.me/ManadaPantherBot?start=${USER_REF_CODE}`
+    : `https://t.me/ManadaPantherBot?start=game`;
+
+  const shareText = `🐆 ${lastNick} defiende a la Manada PNT de los osos aliens con ${lastScore.toLocaleString()} pts en PNT Defender.\n¿Podés superarme? 👉 go.mypanther.io/game-defender\n#ManadaPanther #PNTDefender\n\n🎮 Jugá vos también y ganá recompensas reales: ${refLink}`;
+
   // Intentar Web Share API con archivo (móvil nativo)
   if(navigator.share && navigator.canShare){
     try{
@@ -1306,7 +1335,7 @@ async function shareScore(){
       if(navigator.canShare({files:[file]})){
         await navigator.share({
           files:[file],
-          text:`🐆 ${lastNick} con ${lastScore.toLocaleString()} pts defendiendo la Manada PNT de los osos bajistas. ¿Podés superarme? 👉 go.mypanther.io\n#ManadaPanther #PNTDefender`
+          text: shareText
         });
         return;
       }

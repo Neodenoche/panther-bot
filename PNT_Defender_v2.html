@@ -29,7 +29,7 @@ canvas{display:block;touch-action:none}
 .btn{background:var(--or);color:#fff;border:none;border-radius:12px;padding:14px 36px;font-size:17px;font-weight:700;cursor:pointer;font-family:monospace;width:100%;max-width:280px;margin-top:8px}
 .btn:active{transform:scale(.97)}
 .btn-ghost{background:transparent;border:1px solid #333;color:#666}
-.stat-row{display:flex;justify-content:space-between;width:100%;max-width:260px;margin:6px 0;font-family:monospace;font-size:14px}
+.stat-row{display:flex;justify-content:space-between;width:100%;max-width:260px;margin:6px 0;font-family:monospace;font-size:14px;color:#fff}
 .stat-val{color:var(--or);font-weight:700}
 
 /* ── NICKNAME SCREEN ─────────────────────────────────────────────────────── */
@@ -264,6 +264,8 @@ function initGame(){
   document.getElementById("boss-wrap").style.display="none";
   document.getElementById("scr-start").style.display="none";
   document.getElementById("scr-over").style.display="none";
+  document.getElementById("scr-nick").style.display="none";
+  document.getElementById("scr-lb").style.display="none";
   spawnWave();
   running=true; lastTs=performance.now();
   bgm.currentTime=0; bgm.play().catch(()=>{});

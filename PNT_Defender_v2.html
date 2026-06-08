@@ -311,13 +311,6 @@ function spawnWave(){
         shootT:rand(0,3),shootI:rand(2.2,4.5)-nivelIdx*.12});
     }
     flashMsg("⚔️ NIVEL "+(nivelIdx+1), "#FF5C1A");
-    // Nivel 4: drop garantizado de campo de fuerza
-    if(nivelIdx===3){
-      setTimeout(()=>{
-        powerups.push({x:W/2,y:60,kind:"shield"});
-        showPowerup("🛡️ ¡AGARRÁ EL ESCUDO!");
-      },1200);
-    }
   }
 }
 
@@ -390,7 +383,7 @@ function update(dt){
 
   // Mover powerups
   powerups=powerups.filter(p=>{
-    p.y+=80*dt;
+    p.y+=(p.vy||80)*dt;
     // Recoger
     if(Math.abs(p.x-player.x)<30 && Math.abs(p.y-player.y)<30){
       player.powerup=p.kind; player.powerTimer=(p.kind==="shield"?10:6);
@@ -513,9 +506,14 @@ function hitCombo(){
 
 function nextLevel(){
   if(nivelIdx>=NIVELES.length-1){
-    // Completó todos los niveles → pantalla de victoria
     setTimeout(victoryGame,900);
     return;
+  }
+  // Al completar nivel 3 (idx 2) → soltar escudo ANTES de que lleguen las naves
+  if(nivelIdx===2){
+    powerups=powerups.filter(p=>p.kind!=="shield"); // limpiar si quedó alguno
+    powerups.push({x:W/2, y:80, kind:"shield", vy:210});
+    flashMsg("🛡️ ¡AGARRÁ EL ESCUDO!", "#4af");
   }
   nivelIdx++;
   enemies=[]; eBullets=[]; boss=null;

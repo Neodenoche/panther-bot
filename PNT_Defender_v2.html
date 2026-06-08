@@ -630,6 +630,13 @@ async function victoryGame(){
       else if(d.already_played) document.getElementById("vic-msg").textContent="Ya jugaste hoy — volvé mañana 🐾";
     }catch(e){}
   }
+  // Guardar en leaderboard automáticamente (sin que el usuario toque nada)
+  try{
+    await fetch(API_BASE+"/game-score",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({nick:lastNick, score:lastScore, id:USER_ID||""})
+    });
+  }catch(e){}
 }
 
 // ── DRAW ──────────────────────────────────────────────────────────────────────
@@ -941,6 +948,13 @@ async function endGame(){
       else if(d.already_played) document.getElementById("over-msg").textContent="Ya jugaste hoy — volvé mañana 🐾";
     }catch(e){}
   }
+  // Guardar en leaderboard automáticamente (sin que el usuario toque nada)
+  try{
+    await fetch(API_BASE+"/game-score",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({nick:lastNick, score:lastScore, id:USER_ID||""})
+    });
+  }catch(e){}
 }
 
 // ── CONTROLES ─────────────────────────────────────────────────────────────────

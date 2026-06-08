@@ -418,6 +418,8 @@ function update(dt){
     }
   });
   if(hitWall){ enemies.forEach(e=>{ if(e.alive){e.vx*=-1;e.y+=10;} }); }
+  // Enemigos que bajaron fuera de pantalla → eliminar
+  enemies.forEach(e=>{ if(e.alive && e.y-e.h/2 > H) e.alive=false; });
 
   // Boss
   if(boss&&boss.alive){

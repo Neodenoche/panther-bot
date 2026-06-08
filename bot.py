@@ -56,6 +56,56 @@ CAMPAIGN_SOURCES = {
 }
 PENDING_MISSIONS: dict = {}  # uid -> tipo de misión pendiente de subir
 
+# ── Comandos que solo funcionan en privado ────────────────────────────────────
+PRIVATE_ONLY_COMMANDS = {
+    "start", "checkin", "puntos", "referido", "ruleta",
+    "misiones", "compartir", "ayuda",
+}
+
+async def redirect_to_private(update: Update) -> bool:
+    """
+    Si el mensaje viene de un grupo y es un comando privado,
+    borra el mensaje del usuario, manda un reply corto en el grupo
+    y retorna True para que el handler no continúe.
+    """
+    if update.effective_chat.type not in ("group", "supergroup"):
+        return False
+
+    user = update.effective_user
+    bot_username = (await update.get_bot().get_me()).username
+    url = f"https://t.me/{bot_username}"
+
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("🐆 Abrir bot en privado", url=url)
+    ]])
+
+    # Intentar borrar el mensaje del comando para no ensuciar el grupo
+    try:
+        await update.message.delete()
+    except Exception:
+        pass
+
+    try:
+        sent = await update.effective_chat.send_message(
+            f"👋 {user.mention_html()}, los comandos funcionan en privado 👇",
+            parse_mode="HTML",
+            reply_markup=keyboard,
+        )
+        # Auto-borrar el aviso después de 8 segundos
+        asyncio.get_event_loop().call_later(
+            8, lambda: asyncio.create_task(_delete_msg(sent))
+        )
+    except Exception:
+        pass
+
+    return True
+
+async def _delete_msg(msg):
+    try:
+        await msg.delete()
+    except Exception:
+        pass
+
 def save_pending_missions():
     """Persiste PENDING_MISSIONS en la tabla globals."""
     with DB_LOCK:
@@ -798,8 +848,61 @@ async def send_founder_badge(bot, uid: str, name: str, number: int):
         return False
 
 
+# ── Bienvenida a nuevos miembros ──────────────────────────────────────────────
+async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Detecta cuando alguien se une al grupo y lo saluda en el chat general."""
+    for member in update.message.new_chat_members:
+        if member.is_bot:
+            continue
+
+        uid = str(member.id)
+        db  = load_db()
+        data = db.get(uid, {})
+
+        # Borrar el mensaje de sistema "X se unió al grupo"
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+        # Construir mención y mensaje
+        mention = member.mention_html()
+        bot_username = (await context.bot.get_me()).username
+        bot_url = f"https://t.me/{bot_username}"
+
+        referred_by = data.get("referred_by")
+        if referred_by:
+            ref_data = db.get(str(referred_by), {})
+            ref_nombre = ref_data.get("username") or ref_data.get("first_name") or ""
+            ref_line = f"\nTraído por <b>@{ref_nombre}</b> 🐾" if ref_nombre else ""
+        else:
+            ref_line = ""
+
+        texto = (
+            f"🐆 ¡Bienvenido a la Manada, {mention}!\n"
+            f"Ya sos parte de los cazadores de Panther Wallet.{ref_line}\n\n"
+            f"Escribile al bot para empezar a ganar puntos y participar en el evento 👇"
+        )
+
+        keyboard = InlineKeyboardMarkup([[
+            InlineKeyboardButton("🚀 Empezar en el bot", url=bot_url)
+        ]])
+
+        try:
+            await context.bot.send_message(
+                chat_id=update.effective_chat.id,
+                text=texto,
+                parse_mode="HTML",
+                reply_markup=keyboard,
+            )
+        except Exception as e:
+            logger.warning(f"Error enviando bienvenida a {uid}: {e}")
+
+
 # ── /start ────────────────────────────────────────────────────────────────────
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)
@@ -985,12 +1088,16 @@ async def do_checkin(uid: str, user, context):
     return text, True
 
 async def cmd_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     user = update.effective_user
     text, _ = await do_checkin(str(user.id), user, context)
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=main_keyboard())
 
 # ── /puntos ───────────────────────────────────────────────────────────────────
 async def cmd_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)
@@ -1074,6 +1181,8 @@ async def cmd_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /referido ─────────────────────────────────────────────────────────────────
 async def cmd_referido(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)
@@ -1226,6 +1335,8 @@ async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /ruleta ───────────────────────────────────────────────────────────────────
 async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)
@@ -1339,6 +1450,8 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /misiones ─────────────────────────────────────────────────────────────────
 async def cmd_misiones(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     user = update.effective_user
     uid  = str(user.id)
     db   = load_db()
@@ -1493,6 +1606,8 @@ async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ── /compartir ────────────────────────────────────────────────────────────────
 async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     await update.message.reply_text(
         f"📸 *Verificación de contenido*\n\n"
         f"Para acreditar tus puntos:\n\n"
@@ -3372,6 +3487,8 @@ async def cmd_resetcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Usuario no encontrado.")
 
 async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if await redirect_to_private(update):
+        return
     await update.message.reply_text(
         "🐆 *CÓMO FUNCIONA LA MANADA PANTHER*\n\n"
         "*Ganás puntos haciendo:*\n"
@@ -4967,6 +5084,7 @@ def main():
     asyncio.get_event_loop().create_task(evento_scheduler()) if False else None
 
     app.add_handler(CommandHandler("start",      cmd_start))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_member))
     app.add_handler(CommandHandler("checkin",    cmd_checkin))
     app.add_handler(CommandHandler("puntos",     cmd_puntos))
     app.add_handler(CommandHandler("ranking",    cmd_ranking))

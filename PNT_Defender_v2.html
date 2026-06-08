@@ -207,6 +207,7 @@ resize(); addEventListener("resize", resize);
 let running=false, score=0, nivelIdx=0, timer=90, timerAcc=0, lastTs=0, animId=null;
 let playerHP=3, maxHP=3, combo=0, maxCombo=0, comboTimer=0;
 let screenShake=0, flashRed=0;
+let advancing=false; // flag para evitar doble nextLevel
 
 const player = { x:0, y:0, w:52, h:52, speed:270, cooldown:0, maxCool:0.2,
                  powerup:null, powerTimer:0 };
@@ -268,7 +269,7 @@ function updateUI(){
 // ── INIT ──────────────────────────────────────────────────────────────────────
 function initGame(){
   score=0; nivelIdx=0; timer=90; timerAcc=0; combo=0; maxCombo=0; comboTimer=0;
-  playerHP=3; maxHP=3; screenShake=0; flashRed=0;
+  playerHP=3; maxHP=3; screenShake=0; flashRed=0; advancing=false;
   bullets=[]; enemies=[]; eBullets=[]; particles=[]; powerups=[];
   boss=null;
   player.x=W/2; player.y=H-80; player.cooldown=0; player.powerup=null; player.powerTimer=0;
@@ -440,6 +441,7 @@ function update(dt){
           play("exp2");
           document.getElementById("boss-wrap").style.display="none";
           updateUI(); hitCombo();
+          advancing=true;
           setTimeout(nextLevel,900);
         }
       }
@@ -494,7 +496,9 @@ function update(dt){
 
   // Oleada completa
   const alive=enemies.filter(e=>e.alive).length;
-  if(alive===0&&(!boss||!boss.alive)&&enemies.length>0&&!boss){
+  const bossAlive = boss && boss.alive;
+  if(!advancing && alive===0 && enemies.length>0 && !bossAlive){
+    advancing=true;
     nextLevel();
     enemies=[];
   }
@@ -519,7 +523,7 @@ function nextLevel(){
   }
   nivelIdx++;
   enemies=[]; eBullets=[]; boss=null;
-  setTimeout(spawnWave,700);
+  setTimeout(()=>{ advancing=false; spawnWave(); },700);
 }
 
 async function victoryGame(){
@@ -941,8 +945,24 @@ function confirmNick(){
   showNickThenGame();
 }
 
-// ── LEADERBOARD GLOBAL (SQLite backend) ───────────────────────────────────────
+// ── LEADERBOARD LOCAL ─────────────────────────────────────────────────────────
+const LB_KEY="pnt_leaderboard";
+const LB_MAX=10;
 let lastScore=0, lastNick="";
+
+function loadLB(){
+  try{ return JSON.parse(localStorage.getItem(LB_KEY))||[]; }catch(e){ return []; }
+}
+function saveLB(lb){ try{ localStorage.setItem(LB_KEY,JSON.stringify(lb)); }catch(e){} }
+
+function addToLB(nick,sc){
+  const lb=loadLB();
+  lb.push({name:nick,score:sc,ts:Date.now()});
+  lb.sort((a,b)=>b.score-a.score);
+  const trimmed=lb.slice(0,LB_MAX);
+  saveLB(trimmed);
+  return trimmed;
+}
 
 const MEDALS=["🥇","🥈","🥉"];
 function renderLB(lb, myScore, myNick){
@@ -963,33 +983,11 @@ function renderLB(lb, myScore, myNick){
   el.innerHTML=html;
 }
 
-async function showLeaderboard(){
+function showLeaderboard(){
+  const lb=addToLB(lastNick,lastScore);
+  renderLB(lb,lastScore,lastNick);
   document.getElementById("scr-over").style.display="none";
   document.getElementById("scr-lb").style.display="flex";
-  const el=document.getElementById("lb-table");
-  el.innerHTML=`<div class="lb-empty" style="color:#888">Cargando ranking...</div>`;
-
-  // Primero guardar score en el backend, luego mostrar top 10
-  try{
-    const payload={nick:lastNick, score:lastScore, id:USER_ID||""};
-    const r=await fetch(API_BASE+"/game-score",{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify(payload)
-    });
-    const d=await r.json();
-    if(d.ok) renderLB(d.leaderboard, lastScore, lastNick);
-    else      el.innerHTML=`<div class="lb-empty">Error al guardar 😅</div>`;
-  } catch(e){
-    // Fallback: solo cargar el ranking sin guardar
-    try{
-      const r2=await fetch(API_BASE+"/game-leaderboard");
-      const d2=await r2.json();
-      if(d2.ok) renderLB(d2.leaderboard, lastScore, lastNick);
-    } catch(e2){
-      el.innerHTML=`<div class="lb-empty">Sin conexión 📡</div>`;
-    }
-  }
 }
 
 // ── FLUJO DE PANTALLAS ────────────────────────────────────────────────────────

@@ -154,7 +154,8 @@ canvas{display:block;touch-action:none}
   <div class="stat-row"><span>COMBO MÁX</span><span class="stat-val" id="vic-combo">0</span></div>
   <div class="stat-row"><span>PTS AL BOT</span><span class="stat-val" id="vic-bot">0</span></div>
   <div id="vic-msg" style="font-size:11px;color:#22c55e;font-family:monospace;margin:10px 0;min-height:18px"></div>
-  <button class="btn" id="btn-victory" style="margin-top:10px;background:#22c55e">▶ JUGAR DE NUEVO</button>
+  <button class="btn" id="btn-victory-share" style="margin-top:10px;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);border:none">📸 COMPARTIR MI VICTORIA</button>
+  <button class="btn" id="btn-victory" style="margin-top:6px;background:#22c55e">▶ JUGAR DE NUEVO</button>
 </div>
 
 
@@ -468,7 +469,12 @@ function update(dt){
           document.getElementById("boss-wrap").style.display="none";
           updateUI(); hitCombo();
           advancing=true;
-          setTimeout(nextLevel,900);
+          // Si es el último nivel → victoria, si no → siguiente nivel
+          if(nivelIdx>=NIVELES.length-1){
+            setTimeout(victoryGame,900);
+          } else {
+            setTimeout(nextLevel,900);
+          }
         }
       }
       return !hit;
@@ -541,10 +547,6 @@ function hitCombo(){
 }
 
 function nextLevel(){
-  if(nivelIdx>=NIVELES.length-1){
-    setTimeout(victoryGame,900);
-    return;
-  }
   // Al completar nivel 3 (idx 2) → soltar escudo ANTES de que lleguen las naves
   if(nivelIdx===2){
     powerups=powerups.filter(p=>p.kind!=="shield"); // limpiar si quedó alguno
@@ -561,6 +563,11 @@ async function victoryGame(){
   cancelAnimationFrame(animId);
   play("over",.8);
   document.getElementById("boss-wrap").style.display="none";
+
+  // Setear lastScore/lastNick para que shareScore funcione
+  lastScore=score;
+  try{ lastNick=localStorage.getItem("pnt_nick")||"AAA"; }catch(e){ lastNick="AAA"; }
+  lastRank=0; // sin ranking exacto desde victory, se muestra genérico
 
   const botPts=Math.min(100,Math.floor(score/80));
   document.getElementById("vic-pts").textContent=score;
@@ -1202,6 +1209,7 @@ document.getElementById("btn-nick-skip").onclick=()=>{
   initGame();
 };
 document.getElementById("btn-retry").onclick=initGame;
+document.getElementById("btn-victory-share").onclick=shareScore;
 document.getElementById("btn-victory").onclick=()=>{
   document.getElementById("scr-victory").style.display="none";
   initGame();

@@ -425,6 +425,9 @@ function update(dt){
   if(boss&&boss.alive){
     boss.x+=boss.vx*dt; boss.angle+=dt*1.5;
     if(boss.x-boss.w/2<0||boss.x+boss.w/2>W){ boss.vx*=-1; boss.y+=14; }
+    // Limitar Y: el boss no puede bajar más de 2/3 de la pantalla
+    const bossMaxY = H*0.65 - boss.h/2;
+    if(boss.y > bossMaxY){ boss.y = bossMaxY; }
     boss.shootT-=dt;
     if(boss.shootT<=0){
       boss.shootT=boss.shootI;

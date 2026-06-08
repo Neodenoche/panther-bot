@@ -291,6 +291,8 @@ function initGame(){
 // ── SPAWN WAVE ────────────────────────────────────────────────────────────────
 function spawnWave(){
   enemies=[]; eBullets=[]; boss=null;
+  // Reiniciar timer en cada nuevo nivel (salvo el nivel 1 que ya arrancó con 90)
+  if(nivelIdx>0){ timer=90; timerAcc=0; document.getElementById("ui-timer").style.color="#fff"; }
   const nv=NIVELES[Math.min(nivelIdx,NIVELES.length-1)];
   if(nv.boss){
     bossMaxHP=15+nivelIdx*5; bossHP=bossMaxHP;

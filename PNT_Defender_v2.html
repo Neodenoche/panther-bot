@@ -382,7 +382,11 @@ function spawnWave(){
     boss={x:W/2,y:100,w:80,h:80,
           vx:nv.vel*55*(Math.random()<.5?1:-1),
           shootT:0,shootI:Math.max(.6,1.5-nivelIdx*.1),alive:true,angle:0};
-    bossDropTimer=3;
+    bossDropTimer=2;
+    // Items gratuitos al iniciar el boss: 2 corazones + 1 triple
+    setTimeout(()=>{ powerups.push({x:W*0.25,y:0,kind:"heart",vy:120}); },400);
+    setTimeout(()=>{ powerups.push({x:W*0.75,y:0,kind:"heart",vy:120}); },900);
+    setTimeout(()=>{ powerups.push({x:W*0.50,y:0,kind:"triple",vy:120}); },1400);
     document.getElementById("boss-wrap").style.display="block";
     document.getElementById("boss-label").textContent="🐻 BEAR BOSS";
     updateBossBar();
@@ -520,11 +524,12 @@ function update(dt){
 
   // Boss
   if(boss&&boss.alive){
-    // Drops automáticos: cada 8-12s cae triple o heart
+    // Drops automáticos: cada 3-5s cae un item variado
     bossDropTimer-=dt;
     if(bossDropTimer<=0){
-      bossDropTimer=6+Math.random()*3;
-      const dropKind=Math.random()<0.5?"triple":"heart";
+      bossDropTimer=3+Math.random()*2;
+      const dropPool=["triple","heart","heart","shield","engulf","coin"];
+      const dropKind=dropPool[Math.floor(Math.random()*dropPool.length)];
       powerups.push({x:rand(W*0.15,W*0.85), y:0, kind:dropKind, vy:130});
     }
     boss.x+=boss.vx*dt; boss.angle+=dt*1.5;

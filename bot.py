@@ -170,25 +170,43 @@ def save_chat_stars():
 
 # ── Puntos por acción ─────────────────────────────────────────────────────────
 PTS = {
-    "checkin_1_3":       5,
-    "checkin_4_6":      10,
-    "streak_7":         50,
-    "streak_14":       150,
-    "streak_30":       500,
-    "referral_join":    25,
-    "referral_wallet": 150,
-    "share_reel":       30,
-    "follow_ig":        15,
-    "follow_x":         15,
-    "follow_tiktok":    15,
-    "follow_facebook":  15,
-    "follow_youtube":   15,
-    "follow_all_bonus": 20,
-    "share_story":      20,
-    "own_content":     100,
-    "wallet_activate": 175,
-    "review_store":    175,
-    "review_trust":    175,
+    "checkin_1_3":          5,
+    "checkin_4_6":         10,
+    "streak_7":            50,
+    "streak_14":          150,
+    "streak_30":          500,
+    "referral_join":       25,
+    "referral_wallet":    150,
+    "share_reel":          30,
+    "follow_ig":           15,
+    "follow_x":            15,
+    "follow_tiktok":       15,
+    "follow_facebook":     15,
+    "follow_youtube":      15,
+    "follow_all_bonus":    20,
+    "share_story":         20,
+    "own_content":         40,
+    "wallet_activate":    175,
+    "review_store":       175,
+    "review_trust":       175,
+    "follow_emb_emi":      35,
+    "follow_emb_lorena":   35,
+    "story_mention":       20,
+    "first_deposit":      100,
+    "emoji_tg":            20,
+}
+
+DAILY_LIMIT_MISSIONS = {
+    "share_reel", "share_story", "own_content",
+    "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last",
+    "story_mention",
+}
+DAILY_LIMIT = 3
+
+ONCE_MISSIONS = {
+    "wallet_activate", "review_store", "review_trust",
+    "follow_emb_emi", "follow_emb_lorena",
+    "first_deposit", "emoji_tg",
 }
 
 # ── Niveles actualizados ──────────────────────────────────────────────────────
@@ -371,6 +389,13 @@ def init_db():
         ("evento_pnt_ganado",   "REAL DEFAULT 0"),
         ("panther_uid",         "TEXT DEFAULT ''"),
         ("last_game",           "TEXT"),
+        ("comment_ig_count",    "INTEGER DEFAULT 0"),
+        ("comment_tt_count",    "INTEGER DEFAULT 0"),
+        ("story_mention_count", "INTEGER DEFAULT 0"),
+        ("follow_emb_emi",      "INTEGER DEFAULT 0"),
+        ("follow_emb_lorena",   "INTEGER DEFAULT 0"),
+        ("first_deposit_done",  "INTEGER DEFAULT 0"),
+        ("emoji_tg_done",       "INTEGER DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -671,6 +696,57 @@ def add_points(data, amount: int):
             data["double_pts_until"] = None
     data["points"] += amount * multiplier
     return amount * multiplier
+
+DAILY_COUNT_FIELD = {
+    "share_reel":       "reel_count_today",
+    "share_story":      "story_count_today",
+    "own_content":      "content_count_today",
+    "comment_ig":       "comment_ig_count",
+    "comment_ig_last":  "comment_ig_count",
+    "comment_tt":       "comment_tt_count",
+    "comment_tt_last":  "comment_tt_count",
+    "story_mention":    "story_mention_count",
+}
+
+def reset_daily_counts_if_needed(data):
+    today = date.today().isoformat()
+    if data.get("last_mission_date") != today:
+        for field in DAILY_COUNT_FIELD.values():
+            data[field] = 0
+        data["last_mission_date"] = today
+
+def can_do_daily_mission(data, mission_type):
+    """Retorna True si el usuario puede hacer esta misión hoy (límite 3/día)."""
+    reset_daily_counts_if_needed(data)
+    field = DAILY_COUNT_FIELD.get(mission_type)
+    if not field:
+        return True
+    return data.get(field, 0) < DAILY_LIMIT
+
+def register_daily_mission(data, mission_type):
+    """Incrementa el contador diario de la misión."""
+    field = DAILY_COUNT_FIELD.get(mission_type)
+    if field:
+        data[field] = data.get(field, 0) + 1
+
+def is_once_mission_done(data, mission_type):
+    """Retorna True si una misión de una sola vez ya fue completada."""
+    field_map = {
+        "wallet_activate":  "wallet_activated",
+        "review_store":     "review_store_done",
+        "review_trust":     "review_trust_done",
+        "follow_emb_emi":   "follow_emb_emi",
+        "follow_emb_lorena":"follow_emb_lorena",
+        "first_deposit":    "first_deposit_done",
+        "emoji_tg":         "emoji_tg_done",
+    }
+    field = field_map.get(mission_type)
+    return bool(data.get(field)) if field else False
+
+def check_emoji_tg(user) -> bool:
+    """Verifica si el usuario tiene 🐆 o 🐾 en su nombre de Telegram."""
+    name = (user.first_name or "") + (user.last_name or "")
+    return "🐆" in name or "🐾" in name
 
 def has_won_this_month(data, prize_type):
     """Verifica si el usuario ya ganó USDT o PNT este mes"""
@@ -1740,59 +1816,66 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     mission_type = PENDING_MISSIONS.pop(uid, None)
     save_pending_missions()
-    MAX_DAILY = 3
 
     # ── Foto sin contexto — rechazar con explicación ──
     if mission_type is None:
         await update.message.reply_text(
             "⚠️ Esta imagen no fue enviada desde una misión del gamebot.\n\n"
             "Para que cuente, tenés que entrar a la Mini App → Misiones → "
-            "seleccionar la misión correspondiente (Reel, Historia, Contenido propio, "
-            "Comentario IG, Comentario TikTok, etc.) y subir la captura desde ahí.\n\n"
-            "Las imágenes enviadas sin contexto no son válidas y serán ignoradas. "
-            "Tenés un límite de 3 capturas por misión por día."
+            "seleccionar la misión correspondiente y subir la captura desde ahí.\n\n"
+            "Las imágenes enviadas sin contexto no son válidas. "
+            "Las misiones sociales tienen un límite de 3 capturas por día."
         )
         return
 
     tipo_labels = {
-        "reel":            "🎬 Reel de Panther",
-        "story":           "📸 Historia de Panther",
-        "content":         "✏️ Contenido propio",
+        "reel":             "🎬 Reel de Panther",
+        "story":            "📸 Historia de Panther",
+        "content":          "✏️ Contenido propio",
         "wallet_activate":  "🔐 Activación de Wallet",
         "review_store":     "⭐ Review en Tienda (Play/App Store)",
         "review_trust":     "🌟 Review en Trustpilot",
         "comment_ig":       "💬 Comentario en Instagram",
-        "comment_ig_last":  "💬 Comentario en Ultimo Post IG (+30 pts)",
+        "comment_ig_last":  "💬 Comentario en Último Post IG (+30 pts)",
         "comment_tt":       "💬 Comentario en TikTok",
-        "comment_tt_last":  "💬 Comentario en Ultimo Video TikTok (+30 pts)",
+        "comment_tt_last":  "💬 Comentario en Último Video TikTok (+30 pts)",
+        "follow_emb_emi":   "🐆 Seguir Embajador @neodenoche",
+        "follow_emb_lorena":"🐆 Seguir Embajadora @pegandolavuelta",
+        "story_mention":    "📣 Historia mencionando a un amigo",
+        "first_deposit":    "💰 Primer depósito en Panther Wallet",
         None:               "📎 Sin clasificar",
     }
     tipo_label = tipo_labels.get(mission_type, "📎 Sin clasificar")
 
-    # Misiones de wallet no tienen límite diario
-    wallet_missions = ["wallet_activate", "review_store", "review_trust", "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last"]
-    if mission_type in wallet_missions:
-        count_key = None  # Sin límite diario
-    elif mission_type in ["reel", "story", "content"]:
-        count_key = f"{mission_type}_count_today"
-    else:
-        # Sin tipo registrado — usar content como fallback
-        mission_type = "content"
-        count_key = "content_count_today"
-    
+    # ── Verificar misiones de una sola vez ──
+    if mission_type in ONCE_MISSIONS and mission_type != "emoji_tg":
+        if is_once_mission_done(data, mission_type):
+            await update.message.reply_text(
+                f"⚠️ Ya completaste la misión *{tipo_label}* anteriormente.\n"
+                "Solo se puede hacer una vez 🐾",
+                parse_mode="Markdown"
+            )
+            return
+
+    # ── Verificar límite diario ──
+    mission_key = mission_type
+    if mission_type in ["reel", "story", "content"]:
+        mission_key = {"reel": "share_reel", "story": "share_story", "content": "own_content"}[mission_type]
+
+    if mission_key in DAILY_LIMIT_MISSIONS:
+        reset_daily_counts_if_needed(data)
+        if not can_do_daily_mission(data, mission_key):
+            await update.message.reply_text(
+                f"⚠️ Ya alcanzaste el límite de {DAILY_LIMIT} capturas para esta misión hoy.\n"
+                "Volvé mañana para seguir ganando puntos 🐾"
+            )
+            return
+
+    count_key = DAILY_COUNT_FIELD.get(mission_key)
     current_count = data.get(count_key, 0) if count_key else 0
 
-    if count_key and current_count >= MAX_DAILY:
-        type_name = {"reel": "reels", "story": "historias", "content": "contenidos"}.get(mission_type, "misiones")
-        await update.message.reply_text(
-            f"⚠️ Ya alcanzaste el límite de {MAX_DAILY} {type_name} por hoy.\n"
-            f"Volvé mañana para seguir ganando puntos 🐾"
-        )
-        return
-
     if count_key:
-        data[count_key] = current_count + 1
-        remaining = MAX_DAILY - data[count_key]
+        remaining = DAILY_LIMIT - (current_count + 1)
     else:
         remaining = None
 
@@ -1802,8 +1885,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error guardando contadores en handle_photo: {e}")
 
     if count_key and remaining is not None:
-        type_name = {"reel": "reels", "story": "historias", "content": "contenidos"}.get(mission_type, "misiones")
-        counter_msg = f"\n\n📊 {tipo_label}: *{data[count_key]}/{MAX_DAILY}* hoy · te quedan *{remaining}* restantes."
+        counter_msg = f"\n\n📊 {tipo_label}: *{current_count + 1}/{DAILY_LIMIT}* hoy · te quedan *{remaining}* restantes."
     else:
         counter_msg = ""
 
@@ -1896,7 +1978,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     target_uid = context.args[0]
     tipo       = context.args[1].lower()
-    pts_map    = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175, "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30}
+    pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"]}
 
     if tipo not in pts_map:
         await update.message.reply_text("Tipo inválido. Usá: reel, story o content")
@@ -2020,7 +2102,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mod_name = query.from_user.first_name or str(query.from_user.id)
 
         if action == "approve" and tipo:
-            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": 175, "review_store": 175, "review_trust": 175, "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30}
+            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"]}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
 
             # Acciones especiales por tipo
@@ -2049,6 +2131,14 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 db[target_uid]["review_store_done"] = True
             elif tipo == "review_trust":
                 db[target_uid]["review_trust_done"] = True
+            elif tipo == "follow_emb_emi":
+                db[target_uid]["follow_emb_emi"] = True
+            elif tipo == "follow_emb_lorena":
+                db[target_uid]["follow_emb_lorena"] = True
+            elif tipo == "first_deposit":
+                db[target_uid]["first_deposit_done"] = True
+            elif tipo == "story_mention":
+                register_daily_mission(db[target_uid], "story_mention")
 
             # ── Guardar en historial con tipo correcto ──
             today = date.today().isoformat()
@@ -2064,7 +2154,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             save_db(db)
 
-            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot", "comment_ig": "Comentario IG", "comment_ig_last": "Comentario Ultimo Post IG", "comment_tt": "Comentario TikTok", "comment_tt_last": "Comentario Ultimo Video TikTok"}
+            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot", "comment_ig": "Comentario IG", "comment_ig_last": "Comentario Ultimo Post IG", "comment_tt": "Comentario TikTok", "comment_tt_last": "Comentario Ultimo Video TikTok", "follow_emb_emi": "Seguir @neodenoche", "follow_emb_lorena": "Seguir @pegandolavuelta", "story_mention": "Historia con mención", "first_deposit": "Primer Depósito"}
             approve_text = (
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"
@@ -3222,8 +3312,50 @@ async def cmd_misiones_recientes(update: Update, context: ContextTypes.DEFAULT_T
     await update.message.reply_text("\n".join(lineas))
 
 
-async def cmd_star(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Dar una estrella a un usuario respondiendo su mensaje"""
+async def cmd_quiensoy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    await update.message.reply_text(f"Tu ID es: `{user.id}`", parse_mode="Markdown")
+
+
+async def cmd_emoji_pantera(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Misión automática: verifica si el usuario tiene 🐆 o 🐾 en su nombre de TG."""
+    if await redirect_to_private(update):
+        return
+    user = update.effective_user
+    db   = load_db()
+    uid  = str(user.id)
+    data = get_user(db, uid, user)
+
+    if is_once_mission_done(data, "emoji_tg"):
+        await update.message.reply_text(
+            "✅ Ya completaste esta misión anteriormente.\n"
+            "¡Gracias por llevar la Manada en tu nombre! 🐾"
+        )
+        return
+
+    if check_emoji_tg(user):
+        earned = add_points(data, PTS["emoji_tg"])
+        data["emoji_tg_done"] = True
+        db[uid] = data
+        save_db(db)
+        await update.message.reply_text(
+            f"🐆 *¡Misión completada!*\n\n"
+            f"Tenés el emoji de la Manada en tu nombre de Telegram.\n"
+            f"*+{earned} puntos* acreditados 🐾\n"
+            f"⭐ Total: *{data['points']} puntos*",
+            parse_mode="Markdown"
+        )
+    else:
+        await update.message.reply_text(
+            "🐾 *Misión: Emoji Pantera*\n\n"
+            "Agregá el emoji 🐆 o 🐾 a tu nombre de Telegram y volvé a ejecutar /emoji_pantera.\n\n"
+            "_Para cambiar tu nombre: Configuración → Editar perfil → Nombre_\n\n"
+            "*+20 puntos* por completarla (solo una vez)",
+            parse_mode="Markdown"
+        )
+
+
+
     if not update.message.reply_to_message:
         await update.message.reply_text("⭐ Respondé el mensaje del usuario al que querés dar una estrella.")
         return
@@ -5108,6 +5240,8 @@ def main():
     app.add_handler(CommandHandler("cazadores",       cmd_cazadores))
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
+    app.add_handler(CommandHandler("quiensoy",       cmd_quiensoy))
+    app.add_handler(CommandHandler("emoji_pantera",  cmd_emoji_pantera))
     app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))

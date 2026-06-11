@@ -5242,7 +5242,6 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
     app.add_handler(CommandHandler("quiensoy",       cmd_quiensoy))
     app.add_handler(CommandHandler("emoji_pantera",  cmd_emoji_pantera))
-    app.add_handler(CommandHandler("star",          cmd_star))
     app.add_handler(CommandHandler("award",         cmd_award))
     app.add_handler(CommandHandler("leaderboard",    cmd_leaderboard))
     app.add_handler(CommandHandler("mis_estrellas",  cmd_mis_estrellas))

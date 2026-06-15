@@ -1329,10 +1329,26 @@ async def cmd_verificar_follow(update: Update, context: ContextTypes.DEFAULT_TYP
 async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
         return
+
+    # Leer horas del argumento: /ruleta_on 8
+    horas = 8  # default
+    if context.args:
+        try:
+            horas = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("⚠️ Uso: /ruleta_on <horas> (ej: /ruleta_on 8)")
+            return
+
     db = load_db()
     if "_global" not in db:
         db["_global"] = {}
     db["_global"]["ruleta_override"] = "on"
+
+    # Guardar hora de fin para el countdown
+    from datetime import datetime, timedelta
+    ruleta_end = (datetime.utcnow() + timedelta(hours=horas)).isoformat()
+    db["_global"]["ruleta_end"] = ruleta_end
+
     # Resetear giros de todos los usuarios al activar
     count = 0
     for uid, data in db.items():
@@ -1341,7 +1357,114 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data["spins_used_this_event"] = 0
         count += 1
     save_db(db)
-    await update.message.reply_text(f"✅ Ruleta ACTIVADA. Giros reseteados para {count} usuarios (3 giros c/u).")
+
+    # Mandar mensaje inicial al grupo con countdown
+    end_dt = datetime.fromisoformat(ruleta_end)
+
+    def fmt_hora(dt, offset):
+        local = dt + timedelta(hours=offset)
+        return local.strftime("%H:%M")
+
+
+    mx  = fmt_hora(end_dt, -6)
+    col = fmt_hora(end_dt, -5)
+    ar  = fmt_hora(end_dt, -3)
+    es  = fmt_hora(end_dt, +2)
+    horas_zonas = (
+        "🇲🇽 México: " + mx + "\n"
+        + "🇨🇴🇪🇨🇵🇪 Col/Ecu/Perú: " + col + "\n"
+        + "🇦🇷 Argentina: " + ar + "\n"
+        + "🇪🇸 España: " + es
+    )
+    msg = (
+        "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
+        + f"Tienen *{horas} horas* para girar. 3 giros por usuario.\n\n"
+        + "💰 Premios reales en USDT y PNT esperando.\n\n"
+        + "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+        + "⏳ *Cierra a las:*\n" + horas_zonas
+    )
+    try:
+        sent = await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID,
+            text=msg,
+            parse_mode="Markdown"
+        )
+        # Guardar message_id para editarlo después
+        db = load_db()
+        db["_global"]["ruleta_countdown_msg_id"] = sent.message_id
+        save_db(db)
+    except Exception as e:
+        logger.warning(f"No se pudo enviar mensaje de ruleta al grupo: {e}")
+
+    # Lanzar tarea de countdown (actualiza cada 30 min)
+    asyncio.create_task(ruleta_countdown_task(context.bot, horas))
+
+    await update.message.reply_text(
+        f"✅ Ruleta ACTIVADA por {horas}h. Giros reseteados para {count} usuarios. Mensaje enviado al grupo 🐾"
+    )
+
+
+async def ruleta_countdown_task(bot, horas_total: int):
+    """Edita el mensaje del grupo cada 30 minutos con el tiempo restante."""
+    from datetime import datetime, timedelta
+    interval = 30 * 60  # 30 minutos
+    steps = (horas_total * 60) // 30  # cuántas actualizaciones
+    for i in range(steps):
+        await asyncio.sleep(interval)
+        db = load_db()
+        msg_id = db.get("_global", {}).get("ruleta_countdown_msg_id")
+        ruleta_end_str = db.get("_global", {}).get("ruleta_end")
+        if not msg_id or not ruleta_end_str:
+            break
+        end_dt = datetime.fromisoformat(ruleta_end_str)
+        now = datetime.utcnow()
+        remaining = end_dt - now
+        if remaining.total_seconds() <= 0:
+            # Tiempo agotado
+            try:
+                await bot.edit_message_text(
+                    chat_id=MAIN_GROUP_ID,
+                    message_id=msg_id,
+                    text="🎰 *¡La Ruleta se cerró!* 🐾\n\nGracias a todos los que giraron. Hasta la próxima 🐆",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.warning(f"Error editando mensaje cierre ruleta: {e}")
+            break
+        total_mins = int(remaining.total_seconds() // 60)
+        horas_left = total_mins // 60
+        mins_left = total_mins % 60
+        tiempo_str = f"{horas_left}h {mins_left}m" if horas_left > 0 else f"{mins_left}m"
+        def fmt_hora(dt, offset):
+            local = dt + timedelta(hours=offset)
+            return local.strftime("%H:%M")
+
+        mx  = fmt_hora(end_dt, -6)
+        col = fmt_hora(end_dt, -5)
+        ar  = fmt_hora(end_dt, -3)
+        es  = fmt_hora(end_dt, +2)
+        horas_zonas = (
+            "🇲🇽 México: " + mx + "\n"
+            "🇨🇴🇪🇨🇵🇪 Col/Ecu/Perú: " + col + "\n"
+            "🇦🇷 Argentina: " + ar + "\n"
+            "🇪🇸 España: " + es
+        )
+        msg_edit = (
+            "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
+            f"Tienen *{horas_total} horas* para girar. 3 giros por usuario.\n\n"
+            "💰 Premios reales en USDT y PNT esperando.\n\n"
+            "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+            f"⏳ Cierra en *{tiempo_str}* a las:\n" + horas_zonas
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=MAIN_GROUP_ID,
+                message_id=msg_id,
+                text=msg_edit,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.warning(f"Error actualizando countdown ruleta: {e}")
 
 async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
@@ -1622,10 +1745,26 @@ async def cmd_verificar_follow(update: Update, context: ContextTypes.DEFAULT_TYP
 async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
         return
+
+    # Leer horas del argumento: /ruleta_on 8
+    horas = 8  # default
+    if context.args:
+        try:
+            horas = int(context.args[0])
+        except ValueError:
+            await update.message.reply_text("⚠️ Uso: /ruleta_on <horas> (ej: /ruleta_on 8)")
+            return
+
     db = load_db()
     if "_global" not in db:
         db["_global"] = {}
     db["_global"]["ruleta_override"] = "on"
+
+    # Guardar hora de fin para el countdown
+    from datetime import datetime, timedelta
+    ruleta_end = (datetime.utcnow() + timedelta(hours=horas)).isoformat()
+    db["_global"]["ruleta_end"] = ruleta_end
+
     # Resetear giros de todos los usuarios al activar
     count = 0
     for uid, data in db.items():
@@ -1634,7 +1773,113 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
         data["spins_used_this_event"] = 0
         count += 1
     save_db(db)
-    await update.message.reply_text(f"✅ Ruleta ACTIVADA. Giros reseteados para {count} usuarios (3 giros c/u).")
+
+    # Mandar mensaje inicial al grupo con countdown
+    end_dt = datetime.fromisoformat(ruleta_end)
+
+    def fmt_hora(dt, offset):
+        local = dt + timedelta(hours=offset)
+        return local.strftime("%H:%M")
+
+    mx  = fmt_hora(end_dt, -6)
+    col = fmt_hora(end_dt, -5)
+    ar  = fmt_hora(end_dt, -3)
+    es  = fmt_hora(end_dt, +2)
+    horas_zonas = (
+        "🇲🇽 México: " + mx + "\n"
+        + "🇨🇴🇪🇨🇵🇪 Col/Ecu/Perú: " + col + "\n"
+        + "🇦🇷 Argentina: " + ar + "\n"
+        + "🇪🇸 España: " + es
+    )
+    msg = (
+        "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
+        + f"Tienen *{horas} horas* para girar. 3 giros por usuario.\n\n"
+        + "💰 Premios reales en USDT y PNT esperando.\n\n"
+        + "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+        + "⏳ *Cierra a las:*\n" + horas_zonas
+    )
+    try:
+        sent = await context.bot.send_message(
+            chat_id=MAIN_GROUP_ID,
+            text=msg,
+            parse_mode="Markdown"
+        )
+        # Guardar message_id para editarlo después
+        db = load_db()
+        db["_global"]["ruleta_countdown_msg_id"] = sent.message_id
+        save_db(db)
+    except Exception as e:
+        logger.warning(f"No se pudo enviar mensaje de ruleta al grupo: {e}")
+
+    # Lanzar tarea de countdown (actualiza cada 30 min)
+    asyncio.create_task(ruleta_countdown_task(context.bot, horas))
+
+    await update.message.reply_text(
+        f"✅ Ruleta ACTIVADA por {horas}h. Giros reseteados para {count} usuarios. Mensaje enviado al grupo 🐾"
+    )
+
+
+async def ruleta_countdown_task(bot, horas_total: int):
+    """Edita el mensaje del grupo cada 30 minutos con el tiempo restante."""
+    from datetime import datetime, timedelta
+    interval = 30 * 60  # 30 minutos
+    steps = (horas_total * 60) // 30  # cuántas actualizaciones
+    for i in range(steps):
+        await asyncio.sleep(interval)
+        db = load_db()
+        msg_id = db.get("_global", {}).get("ruleta_countdown_msg_id")
+        ruleta_end_str = db.get("_global", {}).get("ruleta_end")
+        if not msg_id or not ruleta_end_str:
+            break
+        end_dt = datetime.fromisoformat(ruleta_end_str)
+        now = datetime.utcnow()
+        remaining = end_dt - now
+        if remaining.total_seconds() <= 0:
+            # Tiempo agotado
+            try:
+                await bot.edit_message_text(
+                    chat_id=MAIN_GROUP_ID,
+                    message_id=msg_id,
+                    text="🎰 *¡La Ruleta se cerró!* 🐾\n\nGracias a todos los que giraron. Hasta la próxima 🐆",
+                    parse_mode="Markdown"
+                )
+            except Exception as e:
+                logger.warning(f"Error editando mensaje cierre ruleta: {e}")
+            break
+        total_mins = int(remaining.total_seconds() // 60)
+        horas_left = total_mins // 60
+        mins_left = total_mins % 60
+        tiempo_str = f"{horas_left}h {mins_left}m" if horas_left > 0 else f"{mins_left}m"
+        def fmt_hora(dt, offset):
+            local = dt + timedelta(hours=offset)
+            return local.strftime("%H:%M")
+
+        mx  = fmt_hora(end_dt, -6)
+        col = fmt_hora(end_dt, -5)
+        ar  = fmt_hora(end_dt, -3)
+        es  = fmt_hora(end_dt, +2)
+        horas_zonas = (
+            "🇲🇽 México: " + mx + "\n"
+            "🇨🇴🇪🇨🇵🇪 Col/Ecu/Perú: " + col + "\n"
+            "🇦🇷 Argentina: " + ar + "\n"
+            "🇪🇸 España: " + es
+        )
+        msg_edit = (
+            "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
+            f"Tienen *{horas_total} horas* para girar. 3 giros por usuario.\n\n"
+            "💰 Premios reales en USDT y PNT esperando.\n\n"
+            "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+            f"⏳ Cierra en *{tiempo_str}* a las:\n" + horas_zonas
+        )
+        try:
+            await bot.edit_message_text(
+                chat_id=MAIN_GROUP_ID,
+                message_id=msg_id,
+                text=msg_edit,
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logger.warning(f"Error actualizando countdown ruleta: {e}")
 
 async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:

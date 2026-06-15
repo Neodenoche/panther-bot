@@ -1333,8 +1333,15 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "_global" not in db:
         db["_global"] = {}
     db["_global"]["ruleta_override"] = "on"
+    # Resetear giros de todos los usuarios al activar
+    count = 0
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        data["spins_used_this_event"] = 0
+        count += 1
     save_db(db)
-    await update.message.reply_text("✅ Ruleta ACTIVADA manualmente")
+    await update.message.reply_text(f"✅ Ruleta ACTIVADA. Giros reseteados para {count} usuarios (3 giros c/u).")
 
 async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
@@ -1619,8 +1626,15 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if "_global" not in db:
         db["_global"] = {}
     db["_global"]["ruleta_override"] = "on"
+    # Resetear giros de todos los usuarios al activar
+    count = 0
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        data["spins_used_this_event"] = 0
+        count += 1
     save_db(db)
-    await update.message.reply_text("✅ Ruleta ACTIVADA manualmente")
+    await update.message.reply_text(f"✅ Ruleta ACTIVADA. Giros reseteados para {count} usuarios (3 giros c/u).")
 
 async def cmd_ruleta_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:

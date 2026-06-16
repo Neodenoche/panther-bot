@@ -4179,8 +4179,14 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                             "monto":  h.get("prize_amount", ""),
                         })
 
-            # Filtrar solo giros del evento actual (desde 01 junio 2026)
-            all_spins = [s for s in all_spins if s["fecha"] >= "2026-06-01"]
+            # Filtrar solo giros de la ruleta del dia especificado (param ?fecha=YYYY-MM-DD)
+            from datetime import datetime, timedelta
+            fecha_param = params.get("fecha", [None])[0]
+            if fecha_param:
+                fecha_ruleta = fecha_param
+            else:
+                fecha_ruleta = (datetime.utcnow() - timedelta(days=1)).strftime("%Y-%m-%d")
+            all_spins = [s for s in all_spins if s["fecha"] == fecha_ruleta]
             # Ordenar por fecha y hora desc
             all_spins.sort(key=lambda x: (x["fecha"], x["hora"]), reverse=True)
 
@@ -4256,8 +4262,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
               .saving{{border-color:#FF5A0E !important}}
               .toast{{position:fixed;bottom:20px;right:20px;background:#e6f4ea;color:#2e7d32;padding:10px 18px;border-radius:10px;font-size:13px;display:none;border:1px solid #a5d6a7}}
             </style></head><body>
-            <h1>🎰 Ganadores de Ruleta</h1>
-            <div class='sub'>Manada Panther · {len(all_spins)} giros totales · {len(usdt_spins)} USDT · {len(pnt_spins)} PNT</div>
+            <h1>🎰 Ganadores de Ruleta — {fecha_ruleta}</h1>
+            <div class='sub'>Manada Panther · {len(all_spins)} giros totales · {len(usdt_spins)} USDT · {len(pnt_spins)} PNT · <a href='/admin/ruleta?key=panther2026&fecha=2026-06-15' style='color:#FF5A0E'>15 Jun</a> · <a href='/admin/ruleta?key=panther2026' style='color:#FF5A0E'>Ayer</a></div>
 
             <h2>💵 Ganadores USDT — {len(usdt_spins)}</h2>
             <table><tr>{headers}</tr>{usdt_rows}</table>

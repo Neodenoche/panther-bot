@@ -133,6 +133,79 @@ STAR_COOLDOWN: dict = {}    # uid -> list of timestamps (máx 5 por hora)
 CHAT_STARS: dict = {}       # uid -> {stars, pts, username, first_name} — persistido en SQLite
 CHAT_AWARDS: dict = {}      # uid -> list of awards — persistido en SQLite
 
+# ── Antiflood ─────────────────────────────────────────────────────────────────
+FLOOD_TRACKER: dict = {}    # uid -> list of timestamps
+FLOOD_MUTED: dict = {}      # uid -> datetime de fin de mute
+
+FLOOD_MAX_MSGS  = 5         # máx mensajes permitidos...
+FLOOD_WINDOW    = 8         # ...en X segundos
+FLOOD_MUTE_SECS = 300       # duración del mute automático (5 minutos)
+
+async def antiflood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Detecta flood: si un usuario manda más de FLOOD_MAX_MSGS mensajes
+    en FLOOD_WINDOW segundos, lo mutea por FLOOD_MUTE_SECS segundos.
+    Solo actúa en grupos. Ignora a mods y admins.
+    """
+    if not update.message or update.effective_chat.type not in ("group", "supergroup"):
+        return
+
+    user = update.effective_user
+    if not user or user.id in MOD_IDS:
+        return
+
+    uid = user.id
+    now = datetime.now()
+
+    # Si ya está muteado y el mute sigue vigente, borrar el mensaje
+    if uid in FLOOD_MUTED:
+        if now < FLOOD_MUTED[uid]:
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+            return
+        else:
+            del FLOOD_MUTED[uid]
+
+    # Registrar timestamp actual
+    timestamps = FLOOD_TRACKER.get(uid, [])
+    timestamps.append(now)
+
+    # Limpiar timestamps fuera de la ventana
+    cutoff = now - timedelta(seconds=FLOOD_WINDOW)
+    timestamps = [t for t in timestamps if t > cutoff]
+    FLOOD_TRACKER[uid] = timestamps
+
+    # Evaluar si superó el límite
+    if len(timestamps) >= FLOOD_MAX_MSGS:
+        FLOOD_MUTED[uid] = now + timedelta(seconds=FLOOD_MUTE_SECS)
+        FLOOD_TRACKER[uid] = []
+
+        try:
+            await context.bot.restrict_chat_member(
+                chat_id=update.effective_chat.id,
+                user_id=uid,
+                permissions={"can_send_messages": False},
+                until_date=int(FLOOD_MUTED[uid].timestamp()),
+            )
+        except Exception as e:
+            logger.warning(f"Antiflood: no se pudo mutear a {uid}: {e}")
+
+        try:
+            await update.message.delete()
+        except Exception:
+            pass
+
+        nombre = user.first_name or "Usuario"
+        aviso = await update.effective_chat.send_message(
+            f"⚠️ {nombre} fue muteado 5 minutos por flood. Respira y volvé con buena energía 🐆"
+        )
+        # Auto-borrar aviso después de 10 segundos
+        asyncio.get_event_loop().call_later(
+            10, lambda: asyncio.create_task(_delete_msg(aviso))
+        )
+
 def load_chat_stars():
     """Carga CHAT_STARS y CHAT_AWARDS desde SQLite"""
     global CHAT_STARS, CHAT_AWARDS
@@ -5479,6 +5552,12 @@ def main():
                 logger.warning(f"Error en evento scheduler: {e}")
 
     asyncio.get_event_loop().create_task(evento_scheduler()) if False else None
+
+    # ── Antiflood (debe ir PRIMERO, group=-1 para ejecutarse antes que todo) ──
+    app.add_handler(MessageHandler(
+        filters.ChatType.GROUPS & ~filters.COMMAND,
+        antiflood_handler
+    ), group=-1)
 
     app.add_handler(CommandHandler("start",      cmd_start))
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, handle_new_member))

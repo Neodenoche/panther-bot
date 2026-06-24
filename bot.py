@@ -350,6 +350,11 @@ def get_usdt_prize():
 # ── DB — SQLite ──────────────────────────────────────────────────────────────
 DB_LOCK = threading.Lock()
 
+# ── Integración Milton / Mundial ──────────────────────────────────────────────
+MILTON_API_KEY = os.environ.get("MILTON_API_KEY", "")
+# Tokens temporales: {token: {telegram_id, panther_uid, expires}}
+AUTH_TOKENS: dict = {}
+
 def get_conn():
     """Retorna una conexión SQLite thread-safe."""
     conn = sqlite3.connect(SQLITE_FILE, check_same_thread=False)
@@ -5166,6 +5171,26 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 self.wfile.write(data)
             except Exception as e:
                 self.send_json({"error": f"Music not found: {str(e)}"}, 404)
+        # ── GET /auth/validate?token=xxx — Milton valida token ───────────────
+        elif path == "/auth/validate":
+            import time
+            token = params.get("token", [None])[0]
+            if not token:
+                return self.send_json({"error": "Token requerido"}, 400)
+            entry = AUTH_TOKENS.get(token)
+            if not entry:
+                return self.send_json({"valid": False, "error": "Token no encontrado"}, 404)
+            if entry["expires"] < time.time():
+                del AUTH_TOKENS[token]
+                return self.send_json({"valid": False, "error": "Token expirado"}, 401)
+            # Token válido — lo eliminamos para que sea de un solo uso
+            del AUTH_TOKENS[token]
+            return self.send_json({
+                "valid":       True,
+                "telegram_id": entry["telegram_id"],
+                "panther_uid": entry["panther_uid"],
+            })
+
         elif path == "/debug":
             import os
             db_exists = os.path.exists(DB_FILE)
@@ -5430,6 +5455,95 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 """).fetchall()
             lb = [{"name": r[0], "score": r[1], "ts": r[2]} for r in rows]
             return self.send_json({"ok": True, "leaderboard": lb})
+
+        # ── POST /award_points — Milton suma puntos a un usuario ──────────────
+        elif path == "/award_points":
+            # Verificar API key
+            auth_header = self.headers.get("Authorization", "")
+            expected = f"Bearer {MILTON_API_KEY}"
+            if not MILTON_API_KEY or auth_header != expected:
+                return self.send_json({"error": "Unauthorized"}, 401)
+
+            telegram_id = str(body.get("telegram_id", ""))
+            amount      = int(body.get("amount", 0))
+            reason      = str(body.get("reason", "Premio Mundial"))
+
+            if not telegram_id or amount <= 0 or amount > 5000:
+                return self.send_json({"error": "Params invalidos"}, 400)
+
+            db = load_db()
+            if telegram_id not in db:
+                return self.send_json({"error": "Usuario no encontrado"}, 404)
+
+            data = db[telegram_id]
+            earned = add_points(data, amount)
+
+            if "history" not in data:
+                data["history"] = []
+            data["history"].append({
+                "type":   "award_mundial",
+                "pts":    earned,
+                "reason": reason,
+                "date":   date.today().isoformat(),
+                "time":   datetime.now().strftime("%H:%M"),
+            })
+            data["history"] = data["history"][-50:]
+            db[telegram_id] = data
+            save_db(db)
+
+            # Notificar al usuario por Telegram
+            if CombinedHandler.tg_app and CombinedHandler.tg_loop:
+                async def _notify(tid, pts, rsn):
+                    try:
+                        await CombinedHandler.tg_app.bot.send_message(
+                            chat_id=int(tid),
+                            text=(
+                                f"⚽ *¡Premio Mundial!*\n\n"
+                                f"*+{pts} PNT* acreditados en tu cuenta Manada Panther\n"
+                                f"Motivo: {rsn}\n\n"
+                                f"🐆 Seguí adivinando para ganar más!"
+                            ),
+                            parse_mode="Markdown"
+                        )
+                    except Exception as e:
+                        logger.warning(f"No se pudo notificar a {tid}: {e}")
+                asyncio.run_coroutine_threadsafe(
+                    _notify(telegram_id, earned, reason),
+                    CombinedHandler.tg_loop
+                )
+
+            logger.info(f"[award_points] {telegram_id} +{earned} pts — {reason}")
+            return self.send_json({
+                "ok":     True,
+                "earned": earned,
+                "total":  data["points"],
+            })
+
+        # ── POST /auth/token — Mini App genera token temporal ─────────────────
+        elif path == "/auth/token":
+            telegram_id = str(body.get("telegram_id", ""))
+            panther_uid = str(body.get("panther_uid", "")).strip()
+
+            if not telegram_id or not panther_uid:
+                return self.send_json({"error": "Faltan parametros"}, 400)
+
+            import uuid, time
+            token = uuid.uuid4().hex
+            AUTH_TOKENS[token] = {
+                "telegram_id": telegram_id,
+                "panther_uid": panther_uid,
+                "expires":     time.time() + 300,  # 5 minutos
+            }
+            # Limpiar tokens vencidos
+            now = time.time()
+            expired = [t for t, v in AUTH_TOKENS.items() if v["expires"] < now]
+            for t in expired:
+                del AUTH_TOKENS[t]
+
+            return self.send_json({"token": token})
+
+        # ── GET /auth/validate?token=xxx — Milton valida el token ─────────────
+        # (se maneja en do_GET, ver abajo)
 
         else:
             self.send_json({"error": "Not found"}, 404)

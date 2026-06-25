@@ -2979,9 +2979,12 @@ async function submitWorldCupUID() {
   document.getElementById('wc-btn-text').textContent = isEN ? 'Connecting...' : 'Conectando...';
 
   try {
-    const tgId = USER_ID || (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user ? Telegram.WebApp.initDataUnsafe.user.id : null);
+    const tgUser = window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user ? Telegram.WebApp.initDataUnsafe.user : null;
+    const tgId = USER_ID || (tgUser ? tgUser.id : null);
+    const tgName = tgUser ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ") || tgUser.username || "" : "";
     const body = { panther_uid: uid };
     if (tgId) body.telegram_id = tgId;
+    if (tgName) body.telegram_name = tgName;
 
     const res = await fetch(API_BASE + '/auth/token', {
       method: 'POST',

@@ -353,6 +353,37 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="xp-row"><span class="xp-lbl" id="xp-min">0 pts</span><span class="xp-lbl" id="xp-max">150 pts</span></div>
   </div>
   <div class="strip"><span class="strip-t">Misiones completadas hoy</span><span class="strip-n">1 / 5</span></div>
+  <!-- ⚽ PNT WORLD CUP CHALLENGE BANNER -->
+  <div id="wc-banner" onclick="openWorldCupModal()" style="margin:8px 14px 4px;cursor:pointer;background:linear-gradient(135deg,#0a1a00,#001a0a,#0a0d1a);border:1px solid #2a5a1a;border-radius:16px;padding:0;overflow:hidden;position:relative">
+    <!-- Fondo decorativo -->
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(255,215,0,.08) 0%,transparent 65%);pointer-events:none"></div>
+    <div style="position:absolute;top:-10px;right:-10px;font-size:80px;opacity:.06;pointer-events:none">⚽</div>
+    <!-- Badge NUEVO + LIVE -->
+    <div style="position:absolute;top:10px;right:12px;display:flex;gap:5px;z-index:2">
+      <span style="background:#ff6b1a;color:#000;font-size:7px;font-weight:900;border-radius:4px;padding:2px 6px;letter-spacing:.5px">NUEVO</span>
+      <span style="background:#22c55e;color:#000;font-size:7px;font-weight:900;border-radius:4px;padding:2px 6px;letter-spacing:.5px;animation:pulse 2s ease-in-out infinite">LIVE</span>
+    </div>
+    <!-- Contenido -->
+    <div style="padding:16px 14px 14px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:36px;flex-shrink:0;filter:drop-shadow(0 0 8px rgba(255,215,0,.4))">🏆</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:10px;color:#4ade80;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px" id="wc-eyebrow">FIFA WORLD CUP 2026</div>
+        <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#fff;line-height:1.1;margin-bottom:4px">PNT World Cup<br>Challenge ⚽</div>
+        <div style="font-size:11px;color:#aaa;line-height:1.4" id="wc-sub">Predice resultados · gana PNT</div>
+      </div>
+      <div style="text-align:center;flex-shrink:0">
+        <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#ffd700;line-height:1">500</div>
+        <div style="font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px">PNT pool</div>
+      </div>
+    </div>
+    <!-- Botón inferior -->
+    <div style="background:rgba(74,222,128,.12);border-top:1px solid rgba(74,222,128,.2);padding:10px 14px;display:flex;align-items:center;justify-content:space-between">
+      <span style="font-size:12px;color:#4ade80;font-weight:600" id="wc-cta-text">⚽ PARTICIPAR AHORA</span>
+      <span style="color:#4ade80;font-size:16px">→</span>
+    </div>
+  </div>
+  <!-- FIN BANNER MUNDIAL -->
+
   <div onclick="openGlosario()" style="margin:8px 18px 0;background:#111;border:1px solid #2a1500;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .2s" onmouseover="this.style.borderColor='#FF5C1A'" onmouseout="this.style.borderColor='#2a1500'">
     <span style="font-size:22px">📖</span>
     <div style="flex:1">
@@ -370,6 +401,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     </div>
     <span style="color:#FF5C1A;font-size:18px">→</span>
   </div>
+  <!-- ⚽ PNT WORLD CUP CHALLENGE BANNER -->
   <div class="sec">
     <div class="stitle">Diarias</div>
     <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
@@ -968,6 +1000,7 @@ function t(key) {
 }
 
 function applyTranslations() {
+  applyWCLang();
   // Nav
   const navItems = document.querySelectorAll('.ni-lb');
   const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','eventoTitle','referidoTitle'];
@@ -2874,6 +2907,121 @@ function openSpecialMission(type) {
   setTimeout(() => { const b = document.getElementById('btn-ir-al-bot'); if(b) b.onclick = goToBot; }, 50);
 }
 
+
+// ── PNT WORLD CUP CHALLENGE ──
+function openWorldCupModal() {
+  const modal = document.getElementById('wc-modal');
+  modal.style.display = 'flex';
+  document.getElementById('wc-uid-input').value = '';
+  document.getElementById('wc-uid-error').style.display = 'none';
+  document.getElementById('wc-submit-btn').disabled = false;
+  document.getElementById('wc-submit-btn').style.opacity = '1';
+  applyWCLang();
+}
+
+function closeWorldCupModal() {
+  document.getElementById('wc-modal').style.display = 'none';
+}
+
+function applyWCLang() {
+  const lang = window._lang || 'es';
+  const isEN = lang === 'en';
+  // banner
+  const eyebrow = document.getElementById('wc-eyebrow');
+  const sub = document.getElementById('wc-sub');
+  const ctaText = document.getElementById('wc-cta-text');
+  if (eyebrow) eyebrow.textContent = 'FIFA WORLD CUP 2026';
+  if (sub) sub.textContent = isEN ? 'Predict results · earn PNT' : 'Predice resultados · gana PNT';
+  if (ctaText) ctaText.textContent = isEN ? '⚽ JOIN NOW' : '⚽ PARTICIPAR AHORA';
+  // modal
+  const mEyebrow = document.getElementById('wc-modal-eyebrow');
+  const uidLabel = document.getElementById('wc-uid-label');
+  const step1 = document.getElementById('wc-step1');
+  const step2 = document.getElementById('wc-step2');
+  const step3 = document.getElementById('wc-step3');
+  const pool = document.getElementById('wc-pool-label');
+  const btnText = document.getElementById('wc-btn-text');
+  const cancelText = document.getElementById('wc-cancel-text');
+  const uidInput = document.getElementById('wc-uid-input');
+  if (mEyebrow) mEyebrow.textContent = 'FIFA WORLD CUP 2026';
+  if (uidLabel) uidLabel.textContent = isEN ? 'Your Panther UID' : 'Tu Panther UID';
+  if (step1) step1.textContent = isEN ? 'Enter your Panther UID' : 'Ingresá tu Panther UID';
+  if (step2) step2.textContent = isEN ? 'Predict the match result' : 'Predecí el resultado del partido';
+  if (step3) step3.textContent = isEN ? 'Earn PNT if you\'re right' : 'Ganá PNT si acertás';
+  if (pool) pool.innerHTML = isEN ? '🏅 Total pool: <b style="color:#ffd700">500 PNT</b> · 92 matches' : '🏅 Pool total: <b style="color:#ffd700">500 PNT</b> · 92 partidos';
+  if (btnText) btnText.textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
+  if (cancelText) cancelText.textContent = isEN ? 'Cancel' : 'Cancelar';
+  if (uidInput) uidInput.placeholder = isEN ? 'E.g.: abc123' : 'Ej: abc123';
+}
+
+async function submitWorldCupUID() {
+  const lang = window._lang || 'es';
+  const isEN = lang === 'en';
+  const uid = document.getElementById('wc-uid-input').value.trim();
+  const errEl = document.getElementById('wc-uid-error');
+  const btn = document.getElementById('wc-submit-btn');
+
+  errEl.style.display = 'none';
+
+  if (!uid) {
+    errEl.textContent = isEN ? 'Please enter your Panther UID.' : 'Por favor ingresá tu Panther UID.';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (!/^[a-zA-Z0-9]+$/.test(uid)) {
+    errEl.textContent = isEN ? 'UID can only contain letters and numbers.' : 'El UID solo puede tener letras y números.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  document.getElementById('wc-btn-text').textContent = isEN ? 'Connecting...' : 'Conectando...';
+
+  try {
+    const tgId = USER_ID || (window.Telegram && Telegram.WebApp && Telegram.WebApp.initDataUnsafe && Telegram.WebApp.initDataUnsafe.user ? Telegram.WebApp.initDataUnsafe.user.id : null);
+    const body = { panther_uid: uid };
+    if (tgId) body.telegram_id = tgId;
+
+    const res = await fetch(API_BASE + '/auth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    if (res.ok && data.token) {
+      closeWorldCupModal();
+      const url = 'https://mundial.mypanther.io?token=' + encodeURIComponent(data.token);
+      if (window.Telegram && Telegram.WebApp) {
+        Telegram.WebApp.openLink(url);
+      } else {
+        window.open(url, '_blank');
+      }
+    } else {
+      errEl.textContent = data.error || (isEN ? 'Could not verify UID. Try again.' : 'No se pudo verificar el UID. Intentá de nuevo.');
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      document.getElementById('wc-btn-text').textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
+    }
+  } catch (e) {
+    errEl.textContent = isEN ? 'Connection error. Try again.' : 'Error de conexión. Intentá de nuevo.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    document.getElementById('wc-btn-text').textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
+  }
+}
+
+// Cerrar modal si toca fuera del card
+document.addEventListener('DOMContentLoaded', function() {
+  const wcModal = document.getElementById('wc-modal');
+  if (wcModal) wcModal.addEventListener('click', function(e) {
+    if (e.target === this) closeWorldCupModal();
+  });
+});
+
 function openEmojiMission() {
   if (userData && userData.emoji_tg_done) {
     alert('✅ Ya completaste esta misión. ¡La Manada vive en tu nombre! 🐾');
@@ -2898,6 +3046,46 @@ function openEmojiMission() {
   modal.style.display = 'flex';
 }
 </script>
+<!-- ⚽ MODAL PNT WORLD CUP CHALLENGE -->
+<div id="wc-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.93);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#0f1a0a;border:1px solid #2a5a1a;border-radius:22px;padding:28px 22px;max-width:360px;width:100%;position:relative;overflow:hidden">
+    <!-- Fondo decorativo -->
+    <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 50% 0%,rgba(74,222,128,.08) 0%,transparent 65%);pointer-events:none"></div>
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:20px;position:relative">
+      <div style="font-size:44px;margin-bottom:6px">🏆</div>
+      <div style="font-size:10px;color:#4ade80;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px" id="wc-modal-eyebrow">FIFA WORLD CUP 2026</div>
+      <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#fff;line-height:1.1">PNT World Cup<br>Challenge</div>
+    </div>
+    <!-- Descripción -->
+    <div style="background:rgba(74,222,128,.07);border:1px solid rgba(74,222,128,.15);border-radius:12px;padding:12px 14px;margin-bottom:18px;font-size:13px;color:#ccc;line-height:1.7" id="wc-modal-desc">
+      1️⃣ <span id="wc-step1">Ingresá tu Panther UID</span><br>
+      2️⃣ <span id="wc-step2">Predecí el resultado del partido</span><br>
+      3️⃣ <span id="wc-step3">Ganá PNT si acertás</span><br>
+      <span style="display:block;margin-top:8px;font-size:11px;color:#4ade80;font-weight:600" id="wc-pool-label">🏅 Pool total: <b style="color:#ffd700">500 PNT</b> · 92 partidos</span>
+    </div>
+    <!-- Input UID -->
+    <div style="margin-bottom:14px">
+      <div style="font-size:11px;color:#888;font-weight:600;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px" id="wc-uid-label">Tu Panther UID</div>
+      <input id="wc-uid-input" type="text" placeholder="Ej: abc123"
+        style="width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .2s"
+        onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='#2a2a2a'">
+      <div id="wc-uid-error" style="display:none;font-size:11px;color:#ff6b6b;margin-top:5px;padding-left:2px"></div>
+    </div>
+    <!-- Botón principal -->
+    <button id="wc-submit-btn" onclick="submitWorldCupUID()"
+      style="width:100%;background:linear-gradient(135deg,#22c55e,#16a34a);color:#000;border:none;border-radius:12px;padding:14px 0;font-family:'Rajdhani',sans-serif;font-size:17px;font-weight:700;letter-spacing:1px;cursor:pointer;margin-bottom:10px;transition:opacity .2s" id="wc-submit-btn">
+      ⚽ <span id="wc-btn-text">IR A PREDECIR</span>
+    </button>
+    <!-- Cancelar -->
+    <button onclick="closeWorldCupModal()"
+      style="width:100%;background:transparent;color:#555;border:1px solid #2a2a2a;border-radius:12px;padding:11px 0;font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif">
+      <span id="wc-cancel-text">Cancelar</span>
+    </button>
+  </div>
+</div>
+<!-- FIN MODAL MUNDIAL -->
+
 <div id="niveles-screen" style="display:none;position:fixed;inset:0;background:#0a0a0a;z-index:9998;overflow-y:auto;padding:16px">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-top:8px">
     <button onclick="closeNiveles()" style="background:#1a1a1a;border:1px solid #333;border-radius:8px;padding:6px 12px;color:#fff;font-size:13px;cursor:pointer">← Volver</button>

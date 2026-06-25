@@ -354,7 +354,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
   <div class="strip"><span class="strip-t">Misiones completadas hoy</span><span class="strip-n">1 / 5</span></div>
   <!-- ⚽ PNT WORLD CUP CHALLENGE BANNER -->
-  <div id="wc-banner" onclick="alert((window._lang||'es')==='en' ? 'Coming soon! Stay tuned 🏆' : '¡Próximamente! Seguí atento a la Manada 🏆')" style="margin:8px 14px 4px;cursor:pointer;background:linear-gradient(135deg,#111,#0d0d0d,#111);border:1px solid #2a2a2a;border-radius:16px;padding:0;overflow:hidden;position:relative">
+  <div id="wc-banner" onclick="openWorldCupModal()" style="margin:8px 14px 4px;cursor:pointer;background:linear-gradient(135deg,#0a1a00,#001a0a,#0a0d1a);border:1px solid #2a5a1a;border-radius:16px;padding:0;overflow:hidden;position:relative">
     <!-- Fondo decorativo -->
     <div style="position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(255,215,0,.08) 0%,transparent 65%);pointer-events:none"></div>
     <div style="position:absolute;top:-10px;right:-10px;font-size:80px;opacity:.06;pointer-events:none">⚽</div>
@@ -369,7 +369,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
       <div style="flex:1;min-width:0">
         <div style="font-size:10px;color:#4ade80;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:3px" id="wc-eyebrow">FIFA WORLD CUP 2026</div>
         <div style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;color:#fff;line-height:1.1;margin-bottom:4px">PNT World Cup<br>Challenge ⚽</div>
-        <div style="font-size:11px;color:#666;line-height:1.4" id="wc-sub">Predice resultados · gana PNT</div>
+        <div style="font-size:11px;color:#aaa;line-height:1.4" id="wc-sub">Predice resultados · gana PNT</div>
       </div>
       <div style="text-align:center;flex-shrink:0">
         <div style="font-family:'Rajdhani',sans-serif;font-size:22px;font-weight:700;color:#ffd700;line-height:1">500</div>

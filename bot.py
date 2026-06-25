@@ -5186,9 +5186,10 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             # Token válido — lo eliminamos para que sea de un solo uso
             del AUTH_TOKENS[token]
             return self.send_json({
-                "valid":       True,
-                "telegram_id": entry["telegram_id"],
-                "panther_uid": entry["panther_uid"],
+                "valid":         True,
+                "telegram_id":   entry["telegram_id"],
+                "telegram_name": entry.get("telegram_name", ""),
+                "panther_uid":   entry["panther_uid"],
             })
 
         elif path == "/debug":
@@ -5523,6 +5524,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
         elif path == "/auth/token":
             telegram_id = str(body.get("telegram_id", ""))
             panther_uid = str(body.get("panther_uid", "")).strip()
+            telegram_name = str(body.get("telegram_name", "")).strip()
 
             if not telegram_id or not panther_uid:
                 return self.send_json({"error": "Faltan parametros"}, 400)
@@ -5530,9 +5532,10 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             import uuid, time
             token = uuid.uuid4().hex
             AUTH_TOKENS[token] = {
-                "telegram_id": telegram_id,
-                "panther_uid": panther_uid,
-                "expires":     time.time() + 300,  # 5 minutos
+                "telegram_id":   telegram_id,
+                "panther_uid":   panther_uid,
+                "telegram_name": telegram_name,
+                "expires":       time.time() + 300,  # 5 minutos
             }
             # Limpiar tokens vencidos
             now = time.time()

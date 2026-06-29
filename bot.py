@@ -13,6 +13,7 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     ContextTypes, MessageHandler, filters
 )
+from sorteo import *
 
 # Webhook configuration
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")  # e.g. https://panther-bot-production.up.railway.app
@@ -552,7 +553,7 @@ def init_db():
                 os.rename(DB_FILE, DB_FILE + ".migrated")
         except Exception as e:
             logger.error(f"Error en migración JSON→SQLite: {e}")
-
+init_sorteo_db()
 def _row_to_dict(row):
     """Convierte una fila SQLite al dict que usa el resto del código."""
     if row is None:
@@ -2058,17 +2059,18 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only handle photos in private chats
     if update.effective_chat.type != "private":
         return
-
+    if await handle_sorteo_fotos(update, context):
+        return
+    user = update.effective_user
+    db   = load_db()
+    uid  = str(user.id)
+    data = get_user(db, uid, user)
     # Detectar #NuevoCazador en privado
     caption = (update.message.caption or "").lower()
     if "#nuevocazador" in caption:
         await handle_nuevo_cazador_privado(update, context)
         return
 
-    user = update.effective_user
-    db   = load_db()
-    uid  = str(user.id)
-    data = get_user(db, uid, user)
 
     raw_name = f"@{user.username}" if user.username else user.first_name
     name = raw_name  # Para mensajes sin Markdown
@@ -5718,7 +5720,13 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
-
+    app.add_handler(CommandHandler("sorteo",          cmd_sorteo_info))
+    app.add_handler(CommandHandler("sorteo_entrar",   cmd_sorteo_entrar))
+    app.add_handler(CommandHandler("sorteo_estado",   cmd_sorteo_estado))
+    app.add_handler(CommandHandler("sorteo_lista",    cmd_sorteo_lista))
+    app.add_handler(CommandHandler("sorteo_activar",  cmd_sorteo_activar))
+    app.add_handler(CommandHandler("sorteo_cancelar", cmd_sorteo_cancelar))
+    app.add_handler(CallbackQueryHandler(handle_sorteo_callback, pattern="^sorteo_"))
     port = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:

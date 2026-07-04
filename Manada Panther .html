@@ -3128,14 +3128,40 @@ function openSpecialMission(type) {
 
 
 // ── PNT WORLD CUP CHALLENGE ──
+const WC_UID_KEY = 'panther_uid_saved';
+
 function openWorldCupModal() {
   const modal = document.getElementById('wc-modal');
   modal.style.display = 'flex';
-  document.getElementById('wc-uid-input').value = '';
   document.getElementById('wc-uid-error').style.display = 'none';
   document.getElementById('wc-submit-btn').disabled = false;
   document.getElementById('wc-submit-btn').style.opacity = '1';
   applyWCLang();
+
+  const savedUid = localStorage.getItem(WC_UID_KEY);
+  const uidInput = document.getElementById('wc-uid-input');
+  const changeLink = document.getElementById('wc-uid-change');
+  const isEN = (window._lang || 'es') === 'en';
+  if (savedUid) {
+    // Ya lo ingresó antes: lo precargamos y lo mandamos directo, sin que tenga que escribir de nuevo
+    uidInput.value = savedUid;
+    if (changeLink) {
+      changeLink.textContent = isEN ? "Not you? Change UID" : "¿No sos vos? Cambiar UID";
+      changeLink.style.display = 'block';
+    }
+    submitWorldCupUID(true);
+  } else {
+    uidInput.value = '';
+    if (changeLink) changeLink.style.display = 'none';
+  }
+}
+
+function clearWorldCupUID() {
+  localStorage.removeItem(WC_UID_KEY);
+  document.getElementById('wc-uid-input').value = '';
+  document.getElementById('wc-uid-input').focus();
+  const changeLink = document.getElementById('wc-uid-change');
+  if (changeLink) changeLink.style.display = 'none';
 }
 
 function closeWorldCupModal() {
@@ -3173,7 +3199,7 @@ function applyWCLang() {
   if (uidInput) uidInput.placeholder = isEN ? 'E.g.: abc123' : 'Ej: abc123';
 }
 
-async function submitWorldCupUID() {
+async function submitWorldCupUID(auto) {
   const lang = window._lang || 'es';
   const isEN = lang === 'en';
   const uid = document.getElementById('wc-uid-input').value.trim();
@@ -3183,13 +3209,20 @@ async function submitWorldCupUID() {
   errEl.style.display = 'none';
 
   if (!uid) {
-    errEl.textContent = isEN ? 'Please enter your Panther UID.' : 'Por favor ingresá tu Panther UID.';
-    errEl.style.display = 'block';
+    if (!auto) {
+      errEl.textContent = isEN ? 'Please enter your Panther UID.' : 'Por favor ingresá tu Panther UID.';
+      errEl.style.display = 'block';
+    }
     return;
   }
   if (!/^[a-zA-Z0-9]+$/.test(uid)) {
-    errEl.textContent = isEN ? 'UID can only contain letters and numbers.' : 'El UID solo puede tener letras y números.';
-    errEl.style.display = 'block';
+    if (!auto) {
+      errEl.textContent = isEN ? 'UID can only contain letters and numbers.' : 'El UID solo puede tener letras y números.';
+      errEl.style.display = 'block';
+    } else {
+      // UID guardado quedó corrupto: lo borramos para que pida uno nuevo
+      localStorage.removeItem(WC_UID_KEY);
+    }
     return;
   }
 
@@ -3213,6 +3246,8 @@ async function submitWorldCupUID() {
     const data = await res.json();
 
     if (res.ok && data.token) {
+      // Guardamos el UID para que la próxima vez no tenga que volver a escribirlo
+      localStorage.setItem(WC_UID_KEY, uid);
       closeWorldCupModal();
       const url = 'https://mundial.mypanther.io?token=' + encodeURIComponent(data.token);
       if (window.Telegram && Telegram.WebApp) {
@@ -3221,6 +3256,15 @@ async function submitWorldCupUID() {
         window.open(url, '_blank');
       }
     } else {
+      if (auto) {
+        // El UID guardado ya no sirve (por ejemplo lo cambiaron): lo borramos y dejamos que escriba uno nuevo
+        localStorage.removeItem(WC_UID_KEY);
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        document.getElementById('wc-btn-text').textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
+        document.getElementById('wc-uid-input').value = '';
+        return;
+      }
       errEl.textContent = data.error || (isEN ? 'Could not verify UID. Try again.' : 'No se pudo verificar el UID. Intentá de nuevo.');
       errEl.style.display = 'block';
       btn.disabled = false;
@@ -3228,6 +3272,12 @@ async function submitWorldCupUID() {
       document.getElementById('wc-btn-text').textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
     }
   } catch (e) {
+    if (auto) {
+      btn.disabled = false;
+      btn.style.opacity = '1';
+      document.getElementById('wc-btn-text').textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
+      return;
+    }
     errEl.textContent = isEN ? 'Connection error. Try again.' : 'Error de conexión. Intentá de nuevo.';
     errEl.style.display = 'block';
     btn.disabled = false;
@@ -3293,6 +3343,7 @@ function openEmojiMission() {
         style="width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .2s"
         onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='#2a2a2a'">
       <div id="wc-uid-error" style="display:none;font-size:11px;color:#ff6b6b;margin-top:5px;padding-left:2px"></div>
+      <div id="wc-uid-change" onclick="clearWorldCupUID()" style="display:none;font-size:11px;color:#888;margin-top:6px;padding-left:2px;cursor:pointer;text-decoration:underline"></div>
     </div>
     <!-- Botón principal -->
     <button id="wc-submit-btn" onclick="submitWorldCupUID()"

@@ -383,6 +383,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     </div>
   </div>
   <!-- FIN BANNER MUNDIAL -->
+  <div id="wc-uid-change-banner" onclick="event.stopPropagation(); clearWorldCupUID();" style="display:none;margin:2px 18px 8px;font-size:11px;color:#888;text-decoration:underline;cursor:pointer;text-align:right"></div>
 
   <!-- 🎫 SORTEO MANADA PANTHER BANNER -->
   <div onclick="goTo('sorteo')" style="margin:8px 14px 4px;cursor:pointer;background:linear-gradient(135deg,#1a0800,#0d0d0d);border:1px solid #ff6b1a55;border-radius:16px;padding:0;overflow:hidden;position:relative">
@@ -3130,6 +3131,19 @@ function openSpecialMission(type) {
 // ── PNT WORLD CUP CHALLENGE ──
 const WC_UID_KEY = 'panther_uid_saved';
 
+function updateWCUidChangeBanner() {
+  const el = document.getElementById('wc-uid-change-banner');
+  if (!el) return;
+  const isEN = (window._lang || 'es') === 'en';
+  const savedUid = localStorage.getItem(WC_UID_KEY);
+  if (savedUid) {
+    el.textContent = isEN ? 'Not you? Change Panther UID' : '¿No sos vos? Cambiar Panther UID';
+    el.style.display = 'block';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function openWorldCupModal() {
   const modal = document.getElementById('wc-modal');
   modal.style.display = 'flex';
@@ -3140,28 +3154,20 @@ function openWorldCupModal() {
 
   const savedUid = localStorage.getItem(WC_UID_KEY);
   const uidInput = document.getElementById('wc-uid-input');
-  const changeLink = document.getElementById('wc-uid-change');
-  const isEN = (window._lang || 'es') === 'en';
   if (savedUid) {
     // Ya lo ingresó antes: lo precargamos y lo mandamos directo, sin que tenga que escribir de nuevo
     uidInput.value = savedUid;
-    if (changeLink) {
-      changeLink.textContent = isEN ? "Not you? Change UID" : "¿No sos vos? Cambiar UID";
-      changeLink.style.display = 'block';
-    }
     submitWorldCupUID(true);
   } else {
     uidInput.value = '';
-    if (changeLink) changeLink.style.display = 'none';
   }
 }
 
 function clearWorldCupUID() {
   localStorage.removeItem(WC_UID_KEY);
-  document.getElementById('wc-uid-input').value = '';
-  document.getElementById('wc-uid-input').focus();
-  const changeLink = document.getElementById('wc-uid-change');
-  if (changeLink) changeLink.style.display = 'none';
+  const input = document.getElementById('wc-uid-input');
+  if (input) { input.value = ''; input.focus(); }
+  updateWCUidChangeBanner();
 }
 
 function closeWorldCupModal() {
@@ -3197,6 +3203,7 @@ function applyWCLang() {
   if (btnText) btnText.textContent = isEN ? 'GO PREDICT' : 'IR A PREDECIR';
   if (cancelText) cancelText.textContent = isEN ? 'Cancel' : 'Cancelar';
   if (uidInput) uidInput.placeholder = isEN ? 'E.g.: abc123' : 'Ej: abc123';
+  updateWCUidChangeBanner();
 }
 
 async function submitWorldCupUID(auto) {
@@ -3248,6 +3255,7 @@ async function submitWorldCupUID(auto) {
     if (res.ok && data.token) {
       // Guardamos el UID para que la próxima vez no tenga que volver a escribirlo
       localStorage.setItem(WC_UID_KEY, uid);
+      updateWCUidChangeBanner();
       closeWorldCupModal();
       const url = 'https://mundial.mypanther.io?token=' + encodeURIComponent(data.token);
       if (window.Telegram && Telegram.WebApp) {
@@ -3292,6 +3300,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (wcModal) wcModal.addEventListener('click', function(e) {
     if (e.target === this) closeWorldCupModal();
   });
+  updateWCUidChangeBanner();
 });
 
 function openEmojiMission() {
@@ -3343,7 +3352,6 @@ function openEmojiMission() {
         style="width:100%;background:#161616;border:1px solid #2a2a2a;border-radius:10px;padding:12px 14px;color:#fff;font-size:15px;outline:none;font-family:'DM Sans',sans-serif;transition:border-color .2s"
         onfocus="this.style.borderColor='#4ade80'" onblur="this.style.borderColor='#2a2a2a'">
       <div id="wc-uid-error" style="display:none;font-size:11px;color:#ff6b6b;margin-top:5px;padding-left:2px"></div>
-      <div id="wc-uid-change" onclick="clearWorldCupUID()" style="display:none;font-size:11px;color:#888;margin-top:6px;padding-left:2px;cursor:pointer;text-decoration:underline"></div>
     </div>
     <!-- Botón principal -->
     <button id="wc-submit-btn" onclick="submitWorldCupUID()"

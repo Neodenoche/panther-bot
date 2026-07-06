@@ -846,10 +846,9 @@ def is_ruleta_active():
     override = db.get("_global", {}).get("ruleta_override")
     if override == "on":
         return True
-    if override == "off":
-        return False
-    # Default: auto based on day 15 or 30
-    return date.today().day in [15, 30]
+    # Default (incluye override == "off" o sin override): INACTIVA.
+    # La ruleta ya NO se activa sola los días 15/30 — solo manualmente con /ruleta_on.
+    return False
 
 def can_access_ruleta(data):
     # Sin requisito de racha durante el evento
@@ -1563,7 +1562,10 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db["_global"] = {}
     db["_global"]["ruleta_override"] = None
     save_db(db)
-    await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
+    await update.message.reply_text(
+        "🔴 Ruleta reseteada a INACTIVA.\n\n"
+        "Ya no existe el modo automático de días 15/30 — la ruleta solo se activa manualmente con /ruleta_on."
+    )
 
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1978,7 +1980,10 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db["_global"] = {}
     db["_global"]["ruleta_override"] = None
     save_db(db)
-    await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
+    await update.message.reply_text(
+        "🔴 Ruleta reseteada a INACTIVA.\n\n"
+        "Ya no existe el modo automático de días 15/30 — la ruleta solo se activa manualmente con /ruleta_on."
+    )
 
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):

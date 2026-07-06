@@ -553,7 +553,7 @@ def init_db():
                 os.rename(DB_FILE, DB_FILE + ".migrated")
         except Exception as e:
             logger.error(f"Error en migración JSON→SQLite: {e}")
-init_sorteo_db()
+
 def _row_to_dict(row):
     """Convierte una fila SQLite al dict que usa el resto del código."""
     if row is None:
@@ -5603,6 +5603,7 @@ def main():
     # Descargar fuentes y inicializar SQLite
     download_fonts()
     init_db()
+    init_sorteo_db()
     load_pending_missions()
 
     # ── Migración: poblar cazadores_evento desde referidos con wallet activa ──

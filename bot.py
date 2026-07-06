@@ -4260,7 +4260,6 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                         })
 
             # Filtrar solo giros de la ruleta del dia especificado (param ?fecha=YYYY-MM-DD)
-            from datetime import datetime, timedelta
             fecha_param = params.get("fecha", [None])[0]
             if fecha_param:
                 fecha_ruleta = fecha_param

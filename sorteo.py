@@ -377,13 +377,12 @@ async def handle_sorteo_fotos(update: Update, context: ContextTypes.DEFAULT_TYPE
         return False
 
     import os
-    from bot import MOD_IDS, get_conn, DB_LOCK
+    from bot import MOD_IDS, MOD_GROUP_ID, get_conn, DB_LOCK
 
     user = update.effective_user
     uid = str(user.id)
     foto = update.message.photo[-1]  # la más grande
     file_id = foto.file_id
-    admin_id = int(os.environ.get("ADMIN_SORTEO_ID", MOD_IDS[0] if MOD_IDS else 0))
 
     if step == "esperando_foto_compra":
         context.user_data["sorteo_foto_compra"] = file_id
@@ -465,14 +464,14 @@ async def handle_sorteo_fotos(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         try:
             await context.bot.send_photo(
-                chat_id    = admin_id,
+                chat_id    = MOD_GROUP_ID,
                 photo      = foto_compra_id,
                 caption    = caption_compra,
                 parse_mode = "Markdown",
                 reply_markup = kb_compra,
             )
             await context.bot.send_photo(
-                chat_id    = admin_id,
+                chat_id    = MOD_GROUP_ID,
                 photo      = foto_staking_id,
                 caption    = f"📸 *Captura 2/2 — Staking activo*\n👤 {nombre_display} (`{uid}`)",
                 parse_mode = "Markdown",

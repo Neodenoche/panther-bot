@@ -5722,13 +5722,6 @@ def main():
     app.add_handler(CommandHandler("ruleta_off", cmd_ruleta_off))
     app.add_handler(CommandHandler("ruleta_auto", cmd_ruleta_auto))
     app.add_handler(CommandHandler("broadcast",  cmd_broadcast))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
-        handle_sorteo_texto_wrapper
-    ))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     app.add_handler(CommandHandler("sorteo",          cmd_sorteo_info))
     app.add_handler(CommandHandler("sorteo_entrar",   cmd_sorteo_entrar))
     app.add_handler(CommandHandler("sorteo_estado",   cmd_sorteo_estado))
@@ -5736,6 +5729,13 @@ def main():
     app.add_handler(CommandHandler("sorteo_activar",  cmd_sorteo_activar))
     app.add_handler(CommandHandler("sorteo_cancelar", cmd_sorteo_cancelar))
     app.add_handler(CallbackQueryHandler(handle_sorteo_callback, pattern="^sorteo_"))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
+        handle_sorteo_texto_wrapper
+    ))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     port = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:

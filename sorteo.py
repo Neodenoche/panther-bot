@@ -569,6 +569,38 @@ async def cmd_sorteo_estado(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── Comandos admin ─────────────────────────────────────────════════════════════
 # ══════════════════════════════════════════════════════════════════════════════
 
+async def cmd_sorteo_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    /sorteo_reset <user_id> — Admin: resetea el estado de un usuario a 'rechazado'
+    para que pueda volver a registrarse en el sorteo.
+    """
+    user = update.effective_user
+    if not _es_admin(user.id):
+        await update.message.reply_text("❌ Solo admins.")
+        return
+
+    args = context.args or []
+    if not args:
+        await update.message.reply_text(
+            "Uso: `/sorteo_reset <user_id>`\nEjemplo: `/sorteo_reset 840016974`",
+            parse_mode="Markdown"
+        )
+        return
+
+    uid = args[0].strip()
+    p = _get_participante(uid)
+
+    if not p:
+        await update.message.reply_text(f"❌ No se encontró ningún participante con ID `{uid}`.", parse_mode="Markdown")
+        return
+
+    _upsert_participante(uid, status="rechazado", notas_admin="Reset manual por admin")
+    await update.message.reply_text(
+        f"✅ Usuario `{uid}` reseteado.\n"
+        f"Ahora puede volver a hacer `/sorteo_entrar` para registrarse de nuevo.",
+        parse_mode="Markdown"
+    )
+
 async def cmd_sorteo_lista(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     /sorteo_lista — Admin: lista de todos los participantes con su estado.

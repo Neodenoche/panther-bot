@@ -281,14 +281,19 @@ async def cmd_sorteo_entrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(user.id)
     participante = _get_participante(uid)
 
-    # Ya está aprobado
+    # Ya está aprobado — permitir sumar más tickets
     if participante and participante.get("status") == "aprobado":
         tickets = participante.get("tickets", 0)
         await update.message.reply_text(
-            f"✅ Ya estás participando del sorteo con *{tickets} ticket{'s' if tickets != 1 else ''}* 🎫\n\n"
-            f"Podés ver tu estado con /sorteo\\_estado",
+            f"🎫 Ya tenés *{tickets} ticket{'s' if tickets != 1 else ''}* en el sorteo.\n\n"
+            f"Si compraste más PNT, podés sumar tickets enviando las capturas de la nueva compra.\n\n"
+            f"📝 *¿Cuántos USDT adicionales compraste?*\n"
+            f"Respondé con un número (ej: `100`, `250`)\n\n"
+            f"_Ingresá solo el monto de la compra nueva, no el total anterior._",
             parse_mode="Markdown"
         )
+        context.user_data["sorteo_step"] = "esperando_usdt"
+        context.user_data["sorteo_acumulando"] = True
         return
 
     # Ya tiene capturas pendientes
@@ -402,9 +407,21 @@ async def handle_sorteo_fotos(update: Update, context: ContextTypes.DEFAULT_TYPE
         foto_compra_id  = context.user_data.get("sorteo_foto_compra", "")
         foto_staking_id = file_id
         usdt            = context.user_data.get("sorteo_usdt", 0)
-        tickets         = context.user_data.get("sorteo_tickets", 0)
+        tickets_nuevos  = context.user_data.get("sorteo_tickets", 0)
+        acumulando      = context.user_data.get("sorteo_acumulando", False)
         username        = user.username or ""
         first_name      = user.first_name or ""
+
+        # Si está acumulando, sumar tickets al total anterior
+        participante_actual = _get_participante(uid)
+        if acumulando and participante_actual:
+            tickets_anteriores = participante_actual.get("tickets", 0)
+            usdt_anteriores    = participante_actual.get("usdt_declarados", 0)
+            tickets            = tickets_anteriores + tickets_nuevos
+            usdt_total         = usdt_anteriores + usdt
+        else:
+            tickets      = tickets_nuevos
+            usdt_total   = usdt
 
         # Guardar en DB como pendiente
         _upsert_participante(
@@ -412,7 +429,7 @@ async def handle_sorteo_fotos(update: Update, context: ContextTypes.DEFAULT_TYPE
             username        = username,
             first_name      = first_name,
             tickets         = tickets,
-            usdt_declarados = usdt,
+            usdt_declarados = usdt_total,
             wallet          = "",
             status          = "pendiente",
             foto_compra_id  = foto_compra_id,
@@ -423,29 +440,42 @@ async def handle_sorteo_fotos(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
         # Limpiar estado de conversación
-        for key in ("sorteo_step", "sorteo_usdt", "sorteo_tickets", "sorteo_foto_compra"):
+        for key in ("sorteo_step", "sorteo_usdt", "sorteo_tickets", "sorteo_foto_compra", "sorteo_acumulando"):
             context.user_data.pop(key, None)
 
         # Notificar al usuario
-        await update.message.reply_text(
-            f"🎫 *¡Listo! Tu registro fue enviado.*\n\n"
-            f"📊 Resumen:\n"
-            f"  • USDT declarados: *{usdt:.0f} USDT*\n"
-            f"  • Tickets: *{tickets} 🎫*\n\n"
-            f"⏳ Tus capturas están siendo revisadas. "
-            f"Te notificamos cuando queden aprobadas.\n\n"
-            f"_Recordá mantener el staking activo durante 60 días._",
-            parse_mode="Markdown"
-        )
+        if acumulando:
+            msg_usuario = (
+                f"🎫 *¡Compra adicional enviada!*\n\n"
+                f"📊 Resumen:\n"
+                f"  • USDT nuevos: *{usdt:.0f} USDT*\n"
+                f"  • Tickets nuevos: *+{tickets_nuevos} 🎫*\n"
+                f"  • Total de tickets (si se aprueba): *{tickets} 🎫*\n\n"
+                f"⏳ Tus capturas están siendo revisadas.\n\n"
+                f"_Recordá mantener el staking activo durante 60 días._"
+            )
+        else:
+            msg_usuario = (
+                f"🎫 *¡Listo! Tu registro fue enviado.*\n\n"
+                f"📊 Resumen:\n"
+                f"  • USDT declarados: *{usdt:.0f} USDT*\n"
+                f"  • Tickets: *{tickets} 🎫*\n\n"
+                f"⏳ Tus capturas están siendo revisadas. "
+                f"Te notificamos cuando queden aprobadas.\n\n"
+                f"_Recordá mantener el staking activo durante 60 días._"
+            )
+        await update.message.reply_text(msg_usuario, parse_mode="Markdown")
 
-        # Notificar al admin con ambas fotos y botones
+        # Notificar al grupo de mods con ambas fotos y botones
         nombre_display = f"@{username}" if username else first_name
+        tipo_solicitud = "➕ *ACUMULACIÓN DE TICKETS*" if acumulando else "🎫 *SORTEO — Nueva solicitud*"
         caption_compra = (
-            f"🎫 *SORTEO — Nueva solicitud*\n"
+            f"{tipo_solicitud}\n"
             f"━━━━━━━━━━━━━━━━━━━━━\n"
             f"👤 {nombre_display} (`{uid}`)\n"
-            f"💰 USDT declarados: *{usdt:.0f}*\n"
-            f"🎫 Tickets: *{tickets}*\n\n"
+            f"💰 USDT nuevos: *{usdt:.0f}*\n"
+            f"🎫 Tickets nuevos: *+{tickets_nuevos}*\n"
+            f"🎟 Total si se aprueba: *{tickets}*\n\n"
             f"📸 *Captura 1/2 — Compra de PNT*"
         )
 

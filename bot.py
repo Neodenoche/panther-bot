@@ -553,7 +553,7 @@ def init_db():
                 os.rename(DB_FILE, DB_FILE + ".migrated")
         except Exception as e:
             logger.error(f"Error en migración JSON→SQLite: {e}")
-
+init_sorteo_db()
 def _row_to_dict(row):
     """Convierte una fila SQLite al dict que usa el resto del código."""
     if row is None:
@@ -846,9 +846,10 @@ def is_ruleta_active():
     override = db.get("_global", {}).get("ruleta_override")
     if override == "on":
         return True
-    # Default (incluye override == "off" o sin override): INACTIVA.
-    # La ruleta ya NO se activa sola los días 15/30 — solo manualmente con /ruleta_on.
-    return False
+    if override == "off":
+        return False
+    # Default: auto based on day 15 or 30
+    return date.today().day in [15, 30]
 
 def can_access_ruleta(data):
     # Sin requisito de racha durante el evento
@@ -1562,10 +1563,7 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db["_global"] = {}
     db["_global"]["ruleta_override"] = None
     save_db(db)
-    await update.message.reply_text(
-        "🔴 Ruleta reseteada a INACTIVA.\n\n"
-        "Ya no existe el modo automático de días 15/30 — la ruleta solo se activa manualmente con /ruleta_on."
-    )
+    await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
 
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -1980,10 +1978,7 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db["_global"] = {}
     db["_global"]["ruleta_override"] = None
     save_db(db)
-    await update.message.reply_text(
-        "🔴 Ruleta reseteada a INACTIVA.\n\n"
-        "Ya no existe el modo automático de días 15/30 — la ruleta solo se activa manualmente con /ruleta_on."
-    )
+    await update.message.reply_text("🔄 Ruleta en modo AUTOMÁTICO (días 15 y 30)")
 
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -2058,6 +2053,11 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
     except Exception as e:
         logger.error(f"Error handling web_app_data: {e}")
+
+# ── Manejo de texto del sorteo ───────────────────────────────────────────────
+async def handle_sorteo_texto_wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Captura los mensajes de texto durante el flujo de registro del sorteo."""
+    await handle_sorteo_texto(update, context)
 
 # ── Manejo de fotos (capturas de misiones) ────────────────────────────────────
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -4265,6 +4265,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                         })
 
             # Filtrar solo giros de la ruleta del dia especificado (param ?fecha=YYYY-MM-DD)
+            from datetime import datetime, timedelta
             fecha_param = params.get("fecha", [None])[0]
             if fecha_param:
                 fecha_ruleta = fecha_param
@@ -5607,7 +5608,6 @@ def main():
     # Descargar fuentes y inicializar SQLite
     download_fonts()
     init_db()
-    init_sorteo_db()
     load_pending_missions()
 
     # ── Migración: poblar cazadores_evento desde referidos con wallet activa ──
@@ -5723,6 +5723,10 @@ def main():
     app.add_handler(CommandHandler("ruleta_auto", cmd_ruleta_auto))
     app.add_handler(CommandHandler("broadcast",  cmd_broadcast))
     app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(
+        filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
+        handle_sorteo_texto_wrapper
+    ))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     app.add_handler(CommandHandler("sorteo",          cmd_sorteo_info))

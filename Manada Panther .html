@@ -829,6 +829,12 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     </div>
   </div>
 
+  <!-- Ranking de tickets -->
+  <div id="sorteo-ranking-wrap" style="margin:0 14px 20px;display:none">
+    <div style="font-size:9px;font-weight:600;color:var(--t3);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">🏆 Ranking de tickets</div>
+    <div id="sorteo-ranking-list"></div>
+  </div>
+
 </div>
 
 <!-- MODAL INSTRUCCIONES SORTEO -->
@@ -3430,6 +3436,33 @@ async function loadSorteoData() {
         const info = estadoMap[mio.estado] || ['Sorteo activo', 'Tu registro está siendo procesado'];
         if (txt) txt.textContent = info[0];
         if (sub) sub.textContent = info[1];
+      }
+    }
+
+    // Ranking de tickets
+    if (data.ranking && data.ranking.length > 0) {
+      const rankWrap = document.getElementById('sorteo-ranking-wrap');
+      const rankList = document.getElementById('sorteo-ranking-list');
+      if (rankWrap && rankList) {
+        rankWrap.style.display = 'block';
+        const medals = ['🥇','🥈','🥉'];
+        rankList.innerHTML = data.ranking.map((r, i) => {
+          const pos = medals[i] || `${r.pos}°`;
+          const isMe = USER_ID && data.usuarios &&
+            data.usuarios.find(u => String(u.telegram_id) === String(USER_ID) && u.estado === 'aprobado') &&
+            r.nombre === (data.usuarios.find(u => String(u.telegram_id) === String(USER_ID)) || {}).nombre;
+          const highlight = (i < 3) ? 'border-color:#ff6b1a55' : 'border-color:#222';
+          return `<div style="display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid;${highlight};border-radius:12px;padding:10px 14px;margin-bottom:6px">
+            <span style="font-family:'Rajdhani',sans-serif;font-size:18px;font-weight:700;width:28px;flex-shrink:0;text-align:center">${pos}</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;font-weight:600;color:var(--t);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.nombre}</div>
+            </div>
+            <div style="text-align:right;flex-shrink:0">
+              <div style="font-family:'Rajdhani',sans-serif;font-size:16px;font-weight:700;color:var(--or)">${r.tickets}</div>
+              <div style="font-size:9px;color:var(--t3)">ticket${r.tickets !== 1 ? 's' : ''}</div>
+            </div>
+          </div>`;
+        }).join('');
       }
     }
   } catch(e) {

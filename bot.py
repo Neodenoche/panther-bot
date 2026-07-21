@@ -4240,6 +4240,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
         # ── GET /sorteo/estado ──
         elif path == "/sorteo/estado":
             try:
+                from sorteo import _get_config, _count_aprobados, SORTEO_MIN_PARTICIPANTES as _SMP
                 config    = _get_config()
                 aprobados = _count_aprobados()
 
@@ -4261,7 +4262,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 return self.send_json({
                     "participantes": aprobados,
                     "estado":        config.get("estado", "cerrado"),
-                    "min_partic":    config.get("min_partic", SORTEO_MIN_PARTICIPANTES),
+                    "min_partic":    config.get("min_partic", _SMP),
                     "usuarios":      usuarios,
                 })
             except Exception as _e:

@@ -4247,23 +4247,34 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 # Traer todos los participantes (aprobados y pendientes)
                 conn = get_conn()
                 rows = conn.execute(
-                    "SELECT user_id, status, tickets FROM sorteo_participantes"
+                    "SELECT user_id, username, first_name, status, tickets FROM sorteo_participantes"
                 ).fetchall()
                 conn.close()
-                usuarios = [
-                    {
+                usuarios  = []
+                ranking   = []
+                for r in rows:
+                    usuarios.append({
                         "telegram_id": r["user_id"],
                         "estado":      r["status"],
                         "tickets":     r["tickets"],
-                    }
-                    for r in rows
-                ]
+                    })
+                    if r["status"] == "aprobado":
+                        nombre = r["username"] or r["first_name"] or f"Jugador #{str(r['user_id'])[-4:]}"
+                        ranking.append({
+                            "nombre":  nombre,
+                            "tickets": r["tickets"],
+                        })
+                # Ordenar por tickets de mayor a menor
+                ranking.sort(key=lambda x: x["tickets"], reverse=True)
+                for i, item in enumerate(ranking):
+                    item["pos"] = i + 1
 
                 return self.send_json({
                     "participantes": aprobados,
                     "estado":        config.get("estado", "cerrado"),
                     "min_partic":    config.get("min_partic", _SMP),
                     "usuarios":      usuarios,
+                    "ranking":       ranking,
                 })
             except Exception as _e:
                 logger.error(f"Error GET /sorteo/estado: {_e}")

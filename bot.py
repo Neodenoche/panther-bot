@@ -4239,32 +4239,40 @@ class MiniAppHandler(BaseHTTPRequestHandler):
 
         # ── GET /sorteo/estado ──
         elif path == "/sorteo/estado":
-            config     = _get_config()
-            aprobados  = _count_aprobados()
+            try:
+                config    = _get_config()
+                aprobados = _count_aprobados()
 
-            # Traer todos los participantes para el array "usuarios"
-            todos = _get_all_aprobados()
-            # También incluir pendientes para que el usuario vea su estado
-            from bot import get_conn as _gc
-            with _gc() as _conn:
-                _todos = _conn.execute(
+                # Traer todos los participantes (aprobados y pendientes)
+                conn = get_conn()
+                rows = conn.execute(
                     "SELECT user_id, status, tickets FROM sorteo_participantes"
                 ).fetchall()
+                conn.close()
                 usuarios = [
                     {
                         "telegram_id": r["user_id"],
                         "estado":      r["status"],
                         "tickets":     r["tickets"],
                     }
-                    for r in _todos
+                    for r in rows
                 ]
 
-            return self.send_json({
-                "participantes": aprobados,
-                "estado":        config.get("estado", "cerrado"),
-                "min_partic":    config.get("min_partic", SORTEO_MIN_PARTICIPANTES),
-                "usuarios":      usuarios,
-            })
+                return self.send_json({
+                    "participantes": aprobados,
+                    "estado":        config.get("estado", "cerrado"),
+                    "min_partic":    config.get("min_partic", SORTEO_MIN_PARTICIPANTES),
+                    "usuarios":      usuarios,
+                })
+            except Exception as _e:
+                logger.error(f"Error GET /sorteo/estado: {_e}")
+                return self.send_json({
+                    "participantes": 0,
+                    "estado":        "cerrado",
+                    "min_partic":    50,
+                    "usuarios":      [],
+                    "error":         str(_e),
+                })
 
         # ── GET /admin/ruleta?key=panther2026 ── ganadores ruleta con campo UID editable
         elif path == "/admin/ruleta":

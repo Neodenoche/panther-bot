@@ -4237,6 +4237,35 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 },
             })
 
+        # ── GET /sorteo?id=123456 ──
+        elif path == "/sorteo":
+            uid = params.get("id", [None])[0]
+
+            config      = _get_config()
+            aprobados   = _count_aprobados()
+            estado      = config.get("estado", "cerrado")
+            min_partic  = config.get("min_partic", SORTEO_MIN_PARTICIPANTES)
+
+            # Datos del usuario en el sorteo (si se pasa id)
+            participante = _get_participante(uid) if uid else None
+            user_sorteo = {}
+            if participante:
+                user_sorteo = {
+                    "status":          participante.get("status", ""),
+                    "tickets":         participante.get("tickets", 0),
+                    "usdt_declarados": participante.get("usdt_declarados", 0),
+                    "joined_at":       participante.get("joined_at", ""),
+                    "aprobado_at":     participante.get("aprobado_at", ""),
+                }
+
+            return self.send_json({
+                "estado":      estado,
+                "aprobados":   aprobados,
+                "min_partic":  min_partic,
+                "premios":     {str(k): v for k, v in SORTEO_PREMIOS.items()},
+                "participante": user_sorteo,
+            })
+
         # ── GET /admin/ruleta?key=panther2026 ── ganadores ruleta con campo UID editable
         elif path == "/admin/ruleta":
             key = params.get("key", [None])[0]

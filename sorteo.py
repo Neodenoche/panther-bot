@@ -271,10 +271,9 @@ async def cmd_sorteo_entrar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     config = _get_config()
-    if config.get("estado") != SORTEO_ESTADO_ABIERTO:
+    if config.get("estado") == SORTEO_ESTADO_FINALIZADO:
         await update.message.reply_text(
-            "⏳ El sorteo no está activo en este momento.\n"
-            "Seguí atento al grupo para saber cuándo arranca 🐆"
+            "🏆 El sorteo ya finalizó. ¡Seguí atento a la Manada para el próximo! 🐆"
         )
         return
 

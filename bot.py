@@ -2054,11 +2054,6 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.error(f"Error handling web_app_data: {e}")
 
-# ── Manejo de texto del sorteo ───────────────────────────────────────────────
-async def handle_sorteo_texto_wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Captura los mensajes de texto durante el flujo de registro del sorteo."""
-    await handle_sorteo_texto(update, context)
-
 # ── Manejo de fotos (capturas de misiones) ────────────────────────────────────
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only handle photos in private chats
@@ -2345,6 +2340,87 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
                  f"Tu captura fue aprobada.\n"
                  f"➕ *+{earned} puntos* acreditados 🐾\n"
                  f"⭐ Total: *{db[target_uid]['points']} puntos*",
+            parse_mode="Markdown"
+        )
+    except Exception:
+        pass
+
+# ── /transferir — traspaso de puntos entre usuarios (solo mods) ──────────────
+async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("❌ No tenés permisos para usar este comando.")
+        return
+
+    if len(context.args) < 3:
+        await update.message.reply_text(
+            "Uso: `/transferir <id_origen> <id_destino> <puntos|all>`\n"
+            "Ejemplo: `/transferir 5251081083 7836597271 all`",
+            parse_mode="Markdown"
+        )
+        return
+
+    origen_id  = context.args[0].strip()
+    destino_id = context.args[1].strip()
+    cantidad   = context.args[2].strip().lower()
+
+    db = load_db()
+
+    if origen_id not in db:
+        await update.message.reply_text(f"❌ Usuario origen `{origen_id}` no encontrado.", parse_mode="Markdown")
+        return
+
+    if destino_id not in db:
+        await update.message.reply_text(f"❌ Usuario destino `{destino_id}` no encontrado.", parse_mode="Markdown")
+        return
+
+    data_origen  = db[origen_id]
+    data_destino = db[destino_id]
+    puntos_disponibles = data_origen.get("points", 0)
+
+    if cantidad == "all":
+        puntos_a_mover = puntos_disponibles
+    else:
+        try:
+            puntos_a_mover = int(cantidad)
+        except ValueError:
+            await update.message.reply_text("❌ La cantidad debe ser un número entero o `all`.", parse_mode="Markdown")
+            return
+
+    if puntos_a_mover <= 0:
+        await update.message.reply_text("⚠️ El usuario origen tiene 0 puntos. No hay nada que transferir.")
+        return
+
+    if puntos_a_mover > puntos_disponibles:
+        await update.message.reply_text(
+            f"⚠️ El origen solo tiene *{puntos_disponibles} puntos* y querés mover *{puntos_a_mover}*.",
+            parse_mode="Markdown"
+        )
+        return
+
+    nombre_origen  = data_origen.get("username") or data_origen.get("first_name") or origen_id
+    nombre_destino = data_destino.get("username") or data_destino.get("first_name") or destino_id
+    pts_destino_antes = data_destino.get("points", 0)
+
+    data_origen["points"]  -= puntos_a_mover
+    data_destino["points"] += puntos_a_mover
+    save_db(db)
+
+    await update.message.reply_text(
+        f"✅ *Traspaso completado*\n\n"
+        f"📤 *Origen:* {nombre_origen} (`{origen_id}`)\n"
+        f"   {puntos_disponibles} → *{data_origen['points']} pts*\n\n"
+        f"📥 *Destino:* {nombre_destino} (`{destino_id}`)\n"
+        f"   {pts_destino_antes} → *{data_destino['points']} pts*\n\n"
+        f"💰 Transferidos: *{puntos_a_mover} puntos*",
+        parse_mode="Markdown"
+    )
+
+    try:
+        await context.bot.send_message(
+            chat_id=int(destino_id),
+            text=f"🎉 *¡Recibiste puntos!*\n\n"
+                 f"Un administrador transfirió *{puntos_a_mover} puntos* a tu cuenta.\n"
+                 f"⭐ Tu nuevo saldo: *{data_destino['points']} puntos* 🐾",
             parse_mode="Markdown"
         )
     except Exception:
@@ -4237,55 +4313,6 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 },
             })
 
-        # ── GET /sorteo/estado ──
-        elif path == "/sorteo/estado":
-            try:
-                from sorteo import _get_config, _count_aprobados, SORTEO_MIN_PARTICIPANTES as _SMP
-                config    = _get_config()
-                aprobados = _count_aprobados()
-
-                # Traer todos los participantes (aprobados y pendientes)
-                conn = get_conn()
-                rows = conn.execute(
-                    "SELECT user_id, username, first_name, status, tickets FROM sorteo_participantes"
-                ).fetchall()
-                conn.close()
-                usuarios  = []
-                ranking   = []
-                for r in rows:
-                    usuarios.append({
-                        "telegram_id": r["user_id"],
-                        "estado":      r["status"],
-                        "tickets":     r["tickets"],
-                    })
-                    if r["status"] == "aprobado":
-                        nombre = r["username"] or r["first_name"] or f"Jugador #{str(r['user_id'])[-4:]}"
-                        ranking.append({
-                            "nombre":  nombre,
-                            "tickets": r["tickets"],
-                        })
-                # Ordenar por tickets de mayor a menor
-                ranking.sort(key=lambda x: x["tickets"], reverse=True)
-                for i, item in enumerate(ranking):
-                    item["pos"] = i + 1
-
-                return self.send_json({
-                    "participantes": aprobados,
-                    "estado":        config.get("estado", "cerrado"),
-                    "min_partic":    config.get("min_partic", _SMP),
-                    "usuarios":      usuarios,
-                    "ranking":       ranking,
-                })
-            except Exception as _e:
-                logger.error(f"Error GET /sorteo/estado: {_e}")
-                return self.send_json({
-                    "participantes": 0,
-                    "estado":        "cerrado",
-                    "min_partic":    50,
-                    "usuarios":      [],
-                    "error":         str(_e),
-                })
-
         # ── GET /admin/ruleta?key=panther2026 ── ganadores ruleta con campo UID editable
         elif path == "/admin/ruleta":
             key = params.get("key", [None])[0]
@@ -5744,6 +5771,7 @@ def main():
     app.add_handler(CommandHandler("compartir",  cmd_compartir))
     app.add_handler(CommandHandler("ayuda",      cmd_ayuda))
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
+    app.add_handler(CommandHandler("transferir", cmd_transferir))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CommandHandler("dar_puntos", cmd_dar_puntos))
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))
@@ -5771,21 +5799,16 @@ def main():
     app.add_handler(CommandHandler("ruleta_off", cmd_ruleta_off))
     app.add_handler(CommandHandler("ruleta_auto", cmd_ruleta_auto))
     app.add_handler(CommandHandler("broadcast",  cmd_broadcast))
+    app.add_handler(CallbackQueryHandler(handle_callback))
+    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
+    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     app.add_handler(CommandHandler("sorteo",          cmd_sorteo_info))
     app.add_handler(CommandHandler("sorteo_entrar",   cmd_sorteo_entrar))
     app.add_handler(CommandHandler("sorteo_estado",   cmd_sorteo_estado))
     app.add_handler(CommandHandler("sorteo_lista",    cmd_sorteo_lista))
     app.add_handler(CommandHandler("sorteo_activar",  cmd_sorteo_activar))
     app.add_handler(CommandHandler("sorteo_cancelar", cmd_sorteo_cancelar))
-    app.add_handler(CommandHandler("sorteo_reset",    cmd_sorteo_reset))
     app.add_handler(CallbackQueryHandler(handle_sorteo_callback, pattern="^sorteo_"))
-    app.add_handler(CallbackQueryHandler(handle_callback))
-    app.add_handler(MessageHandler(
-        filters.TEXT & ~filters.COMMAND & filters.ChatType.PRIVATE,
-        handle_sorteo_texto_wrapper
-    ))
-    app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
-    app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
     port = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:

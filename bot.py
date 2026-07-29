@@ -2353,9 +2353,9 @@ async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if len(context.args) < 3:
         await update.message.reply_text(
-            "Uso: `/transferir <id_origen> <id_destino> <puntos|all>`\n"
-            "Ejemplo: `/transferir 5251081083 7836597271 all`",
-            parse_mode="Markdown"
+            "Uso: <code>/transferir &lt;id_origen&gt; &lt;id_destino&gt; &lt;puntos|all&gt;</code>\n"
+            "Ejemplo: <code>/transferir 5251081083 7836597271 all</code>",
+            parse_mode="HTML"
         )
         return
 
@@ -2366,11 +2366,11 @@ async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     db = load_db()
 
     if origen_id not in db:
-        await update.message.reply_text(f"❌ Usuario origen `{origen_id}` no encontrado.", parse_mode="Markdown")
+        await update.message.reply_text(f"❌ Usuario origen <code>{origen_id}</code> no encontrado.", parse_mode="HTML")
         return
 
     if destino_id not in db:
-        await update.message.reply_text(f"❌ Usuario destino `{destino_id}` no encontrado.", parse_mode="Markdown")
+        await update.message.reply_text(f"❌ Usuario destino <code>{destino_id}</code> no encontrado.", parse_mode="HTML")
         return
 
     data_origen  = db[origen_id]
@@ -2383,7 +2383,7 @@ async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             puntos_a_mover = int(cantidad)
         except ValueError:
-            await update.message.reply_text("❌ La cantidad debe ser un número entero o `all`.", parse_mode="Markdown")
+            await update.message.reply_text("❌ La cantidad debe ser un número entero o <code>all</code>.", parse_mode="HTML")
             return
 
     if puntos_a_mover <= 0:
@@ -2392,13 +2392,16 @@ async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if puntos_a_mover > puntos_disponibles:
         await update.message.reply_text(
-            f"⚠️ El origen solo tiene *{puntos_disponibles} puntos* y querés mover *{puntos_a_mover}*.",
-            parse_mode="Markdown"
+            f"⚠️ El origen solo tiene <b>{puntos_disponibles} puntos</b> y querés mover <b>{puntos_a_mover}</b>.",
+            parse_mode="HTML"
         )
         return
 
-    nombre_origen  = data_origen.get("username") or data_origen.get("first_name") or origen_id
-    nombre_destino = data_destino.get("username") or data_destino.get("first_name") or destino_id
+    def _h(s):
+        return str(s).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    nombre_origen  = _h(data_origen.get("username") or data_origen.get("first_name") or origen_id)
+    nombre_destino = _h(data_destino.get("username") or data_destino.get("first_name") or destino_id)
     pts_destino_antes = data_destino.get("points", 0)
 
     data_origen["points"]  -= puntos_a_mover
@@ -2406,22 +2409,22 @@ async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save_db(db)
 
     await update.message.reply_text(
-        f"✅ *Traspaso completado*\n\n"
-        f"📤 *Origen:* {nombre_origen} (`{origen_id}`)\n"
-        f"   {puntos_disponibles} → *{data_origen['points']} pts*\n\n"
-        f"📥 *Destino:* {nombre_destino} (`{destino_id}`)\n"
-        f"   {pts_destino_antes} → *{data_destino['points']} pts*\n\n"
-        f"💰 Transferidos: *{puntos_a_mover} puntos*",
-        parse_mode="Markdown"
+        f"✅ <b>Traspaso completado</b>\n\n"
+        f"📤 <b>Origen:</b> {nombre_origen} (<code>{origen_id}</code>)\n"
+        f"   {puntos_disponibles} → <b>{data_origen['points']} pts</b>\n\n"
+        f"📥 <b>Destino:</b> {nombre_destino} (<code>{destino_id}</code>)\n"
+        f"   {pts_destino_antes} → <b>{data_destino['points']} pts</b>\n\n"
+        f"💰 Transferidos: <b>{puntos_a_mover} puntos</b>",
+        parse_mode="HTML"
     )
 
     try:
         await context.bot.send_message(
             chat_id=int(destino_id),
-            text=f"🎉 *¡Recibiste puntos!*\n\n"
-                 f"Un administrador transfirió *{puntos_a_mover} puntos* a tu cuenta.\n"
-                 f"⭐ Tu nuevo saldo: *{data_destino['points']} puntos* 🐾",
-            parse_mode="Markdown"
+            text=f"🎉 <b>¡Recibiste puntos!</b>\n\n"
+                 f"Un administrador transfirió <b>{puntos_a_mover} puntos</b> a tu cuenta.\n"
+                 f"⭐ Tu nuevo saldo: <b>{data_destino['points']} puntos</b> 🐾",
+            parse_mode="HTML"
         )
     except Exception:
         pass

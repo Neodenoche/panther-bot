@@ -13,7 +13,7 @@ from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
     ContextTypes, MessageHandler, filters
 )
-from sorteo import *
+# from sorteo import *  # ❌ ELIMINADO: sorteo del iPhone 16 (sorteo.py) — se reemplaza por el nuevo sorteo semanal de La Manada
 
 # Webhook configuration
 WEBHOOK_URL = os.environ.get("WEBHOOK_URL", "")  # e.g. https://panther-bot-production.up.railway.app
@@ -351,10 +351,7 @@ def get_usdt_prize():
 # ── DB — SQLite ──────────────────────────────────────────────────────────────
 DB_LOCK = threading.Lock()
 
-# ── Integración Milton / Mundial ──────────────────────────────────────────────
-MILTON_API_KEY = os.environ.get("MILTON_API_KEY", "")
-# Tokens temporales: {token: {telegram_id, panther_uid, expires}}
-AUTH_TOKENS: dict = {}
+# ── Integración Milton / Mundial — ❌ ELIMINADA (el Mundial ya pasó, nunca se activó) ──
 
 def get_conn():
     """Retorna una conexión SQLite thread-safe."""
@@ -553,7 +550,7 @@ def init_db():
                 os.rename(DB_FILE, DB_FILE + ".migrated")
         except Exception as e:
             logger.error(f"Error en migración JSON→SQLite: {e}")
-init_sorteo_db()
+# init_sorteo_db()  # ❌ ELIMINADO junto con el sorteo del iPhone
 def _row_to_dict(row):
     """Convierte una fila SQLite al dict que usa el resto del código."""
     if row is None:
@@ -2059,8 +2056,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only handle photos in private chats
     if update.effective_chat.type != "private":
         return
-    if await handle_sorteo_fotos(update, context):
-        return
     user = update.effective_user
     db   = load_db()
     uid  = str(user.id)
@@ -3381,296 +3376,14 @@ def get_top_cazadores(n=10):
     return ranked[:n]
 
 def calcular_cofre(db):
-    """Calcula distribución del cofre según fórmula de Valeria."""
-    # Solo usuarios con mínimo 3 cazadores del evento
-    elegibles = {
-        uid: d for uid, d in db.items()
-        if not uid.startswith("_") and isinstance(d, dict)
-        and d.get("cazadores_evento", 0) >= 3
-    }
-    total_refs = sum(d.get("cazadores_evento", 0) for d in elegibles.values())
-    if total_refs == 0:
-        return {}
-    distribucion = {}
-    for uid, d in elegibles.items():
-        refs = d.get("cazadores_evento", 0)
-        pnt = round((refs / total_refs) * COFRE_PNT, 4)
-        distribucion[uid] = {"pnt": pnt, "refs": refs, "nombre": d.get("username") or d.get("first_name") or uid}
-    return distribucion
+    """❌ ELIMINADA junto con la mecánica del evento (ya no se abre cofre)."""
+    return {}
 
-
-async def cmd_evento_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Activa el evento — solo mods."""
-    if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
-        return
-
-    ev = get_evento_state()
-    if ev["activo"]:
-        await update.message.reply_text("El evento ya está activo.")
-        return
-
-    start = datetime.now()
-    end   = start + timedelta(days=EVENTO_DIAS_BASE)
-
-    set_evento_state(
-        evento_activo=True,
-        evento_start_date=start.isoformat(),
-        evento_end_date=end.isoformat(),
-        evento_extension=0,
-        evento_cerrado=False,
-        cofre_abierto=False,
-    )
-
-    # Anuncio al grupo
-    msg = (
-        "⚔️ *OPERACIÓN 1,000 CAZADORES — ARRANCÓ*\n\n"
-        f"El evento está activo. Tenemos {EVENTO_DIAS_BASE} días.\n\n"
-        f"🏆 *Premios individuales (top 3):*\n"
-        f"1er lugar: {PREMIOS_TOP_PNT[1]} PNT\n"
-        f"2do lugar: {PREMIOS_TOP_PNT[2]} PNT\n"
-        f"3er lugar: {PREMIOS_TOP_PNT[3]} PNT\n\n"
-        f"💰 *Cofre comunitario:* {COFRE_PNT} PNT\n"
-        f"_(Se reparte entre todos los que traigan 3+ cazadores si llegamos a 1,000)_\n\n"
-        f"¿Cómo participar?\n"
-        f"1. Compartí tu link de referido\n"
-        f"2. Tu referido descarga Panther Wallet y activa el 2FA\n"
-        f"3. Te manda la captura al bot con *#NuevoCazador*\n"
-        f"4. Un mod lo verifica → suma a tu cuenta\n\n"
-        f"Cierre estimado: {end.strftime('%d/%m/%Y')} 🐾"
-    )
-    try:
-        await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
-    except Exception as e:
-        logger.warning(f"Error anunciando evento al grupo: {e}")
-
-    await update.message.reply_text(f"✅ Evento activado. Cierre: {end.strftime('%d/%m/%Y')}")
-
-
-async def cmd_estado_cofre(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Estado del evento — solo mods."""
-    if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
-        return
-
-    ev = get_evento_state()
-    if not ev["activo"] and not ev["cerrado"]:
-        await update.message.reply_text("El evento no está activo.")
-        return
-
-    cazadores = get_cazadores_count()
-    top = get_top_cazadores(5)
-    db  = load_db()
-
-    start = datetime.fromisoformat(ev["start_date"]) if ev["start_date"] else datetime.now()
-    end   = datetime.fromisoformat(ev["end_date"])   if ev["end_date"]   else datetime.now()
-    dias_restantes = (end - datetime.now()).days
-    dias_transcurridos = (datetime.now() - start).days
-
-    top_txt = ""
-    for i, (uid, d) in enumerate(top, 1):
-        nombre = d.get("username") or d.get("first_name") or uid
-        refs   = d.get("referrals_active", 0)
-        top_txt += f"  {i}. {nombre} — {refs} cazadores\n"
-
-    lineas = [
-        "⚔️ ESTADO DEL COFRE",
-        "",
-        f"Día {dias_transcurridos} de {EVENTO_DIAS_BASE + ev.get('extension', 0)}",
-        f"Cierre: {end.strftime('%d/%m/%Y')}",
-        f"Días restantes: {max(0, dias_restantes)}",
-        "",
-        f"Cazadores verificados: {cazadores} / {META_CAZADORES}",
-        f"Faltan: {max(0, META_CAZADORES - cazadores)}",
-        "",
-        "TOP 5 REFERIDORES:",
-        top_txt,
-        f"Cofre: {'ABIERTO' if ev['cofre_abierto'] else 'CERRADO'}",
-        f"Estado: {'CERRADO' if ev['cerrado'] else 'ACTIVO'}",
-    ]
-    await update.message.reply_text("\n".join(lineas))
-
-
-async def cmd_cazadores(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Leaderboard público del evento."""
-    ev = get_evento_state()
-    if not ev["activo"] and not ev["cerrado"]:
-        await update.message.reply_text("El evento no está activo todavía.")
-        return
-
-    cazadores_total = get_cazadores_count()
-    top = get_top_cazadores(10)
-
-    lineas = [
-        "⚔️ TOP CAZADORES — Operacion 1000",
-        f"Cazadores verificados: {cazadores_total} / {META_CAZADORES}",
-        "",
-    ]
-    for i, (uid, d) in enumerate(top, 1):
-        nombre = d.get("username") or d.get("first_name") or uid
-        refs   = d.get("referrals_active", 0)
-        medal  = ["🥇","🥈","🥉"][i-1] if i <= 3 else f"{i}."
-        lineas.append(f"{medal} {nombre} — {refs} cazadores")
-
-    lineas.append("")
-    lineas.append("Compartí tu link desde la Mini App y sumá cazadores 🐾")
-    await update.message.reply_text("\n".join(lineas))
-
-
-async def check_evento_dia(app_or_context):
-    """Job diario: verifica si hay que enviar mensajes automáticos o cerrar el evento."""
-    bot = getattr(app_or_context, 'bot', None) or getattr(app_or_context, 'bot', app_or_context)
-    ev = get_evento_state()
-    if not ev["activo"] or ev["cerrado"]:
-        return
-
-    start = datetime.fromisoformat(ev["start_date"])
-    dia   = (datetime.now() - start).days + 1
-    cazadores = get_cazadores_count()
-
-    # Meta alcanzada — abrir cofre
-    if cazadores >= META_CAZADORES and not ev["cofre_abierto"]:
-        await abrir_cofre(bot)
-        return
-
-    # Día 7 — top 5
-    if dia == 7:
-        top = get_top_cazadores(5)
-        lineas = ["⚔️ *SEMANA 1 — TOP 5 CAZADORES*", ""]
-        for i, (uid, d) in enumerate(top, 1):
-            nombre = d.get("username") or d.get("first_name") or uid
-            refs   = d.get("referrals_active", 0)
-            medal  = ["🥇","🥈","🥉"][i-1] if i <= 3 else f"{i}."
-            lineas.append(f"{medal} {nombre} — {refs} cazadores")
-        lineas.extend(["", f"Total: {cazadores} / {META_CAZADORES} cazadores", "Seguimos 🐾"])
-        try:
-            await bot.send_message(chat_id=MAIN_GROUP_ID,
-                                           text="\n".join(lineas), parse_mode="Markdown")
-        except Exception as e:
-            logger.warning(f"Error mensaje día 7: {e}")
-
-    # Día 15 — alerta cofre
-    elif dia == 15:
-        faltan = max(0, META_CAZADORES - cazadores)
-        msg = (
-            f"⚠️ *ALERTA DEL COFRE*\n\n"
-            f"Estamos en el día 15. Faltan *{faltan} cazadores* para abrir el cofre.\n\n"
-            f"💰 {COFRE_PNT} PNT están esperando.\n"
-            f"No dejen que se queme. Compartan sus links ahora 🐾"
-        )
-        try:
-            await bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
-        except Exception as e:
-            logger.warning(f"Error mensaje día 15: {e}")
-
-    # Día 20+ — evaluar extensión o cierre
-    end = datetime.fromisoformat(ev["end_date"])
-    if datetime.now() >= end:
-        await evaluar_cierre_evento(bot, cazadores)
-
-
-async def evaluar_cierre_evento(bot, cazadores: int):
-    """Evalúa si extender o cerrar el evento."""
-    ev = get_evento_state()
-    faltan = META_CAZADORES - cazadores
-
-    if faltan <= 0:
-        await abrir_cofre(bot)
-        return
-
-    # Calcular extensión
-    if cazadores >= 800:
-        dias_extra = 5
-        rango = "800-999"
-    elif cazadores >= 600:
-        dias_extra = 10
-        rango = "600-799"
-    else:
-        dias_extra = 15
-        rango = "menos de 600"
-
-    nueva_end = datetime.now() + timedelta(days=dias_extra)
-    extension_total = ev.get("extension", 0) + dias_extra
-
-    set_evento_state(
-        evento_end_date=nueva_end.isoformat(),
-        evento_extension=extension_total,
-    )
-
-    msg = (
-        f"⏳ *EL EVENTO SE EXTIENDE*\n\n"
-        f"Llegamos al día 20 con {cazadores} cazadores ({rango}).\n\n"
-        f"El cofre sigue abierto. Tienen *{dias_extra} días más* para llegar a 1,000.\n\n"
-        f"Nuevo cierre: *{nueva_end.strftime('%d/%m/%Y')}*\n\n"
-        f"Los {COFRE_PNT} PNT siguen en juego. No paren. 🐾"
-    )
-    try:
-        await context.bot.send_message(chat_id=MAIN_GROUP_ID, text=msg, parse_mode="Markdown")
-    except Exception as e:
-        logger.warning(f"Error anunciando extensión: {e}")
-
-
-async def abrir_cofre(bot):
-    """Abre el cofre, distribuye PNT y anuncia ganadores."""
-    db = load_db()
-    distribucion = calcular_cofre(db)
-
-    # Guardar PNT ganados en cada usuario
-    for uid, info in distribucion.items():
-        if uid in db:
-            db[uid]["evento_pnt_ganado"] = info["pnt"]
-    save_db(db)
-
-    # Top 3 individual
-    top3 = get_top_cazadores(3)
-
-    set_evento_state(cofre_abierto=True, evento_cerrado=True, evento_activo=False)
-
-    # Anuncio de ganadores
-    lineas = [
-        "🎉 *EL COFRE SE ABRIÓ — OPERACIÓN 1,000 CAZADORES*",
-        "",
-        "🏆 *PREMIOS INDIVIDUALES (TOP 3):*",
-    ]
-    for i, (uid, d) in enumerate(top3, 1):
-        nombre = d.get("username") or d.get("first_name") or uid
-        pnt    = PREMIOS_TOP_PNT.get(i, 0)
-        medal  = ["🥇","🥈","🥉"][i-1]
-        lineas.append(f"{medal} {nombre} — {pnt} PNT")
-
-    lineas.extend([
-        "",
-        f"💰 *COFRE COMUNITARIO: {COFRE_PNT} PNT*",
-        f"Distribuido entre {len(distribucion)} cazadores elegibles:",
-        "",
-    ])
-    for info in sorted(distribucion.values(), key=lambda x: x["pnt"], reverse=True)[:5]:
-        lineas.append(f"  🐾 {info['nombre']} — {info['pnt']} PNT ({info['refs']} cazadores)")
-    if len(distribucion) > 5:
-        lineas.append(f"  ...y {len(distribucion)-5} más")
-
-    lineas.extend([
-        "",
-        "Los premios se entregarán en los próximos 5 días hábiles.",
-        "Gracias a todos los que participaron. La Manada es real. 🐆",
-    ])
-
-    try:
-        await bot.send_message(chat_id=MAIN_GROUP_ID,
-                                       text="\n".join(lineas), parse_mode="Markdown")
-    except Exception as e:
-        logger.warning(f"Error anunciando apertura del cofre: {e}")
-
-    # Notificar a mods con lista completa
-    mod_lineas = ["📋 DISTRIBUCIÓN COMPLETA DEL COFRE", ""]
-    for uid, info in sorted(distribucion.items(), key=lambda x: x[1]["pnt"], reverse=True):
-        mod_lineas.append(f"{info['nombre']} (ID:{uid}) — {info['pnt']} PNT — {info['refs']} cazadores")
-    for mod_id in MOD_IDS:
-        try:
-            await bot.send_message(chat_id=mod_id,
-                                           text="\n".join(mod_lineas))
-        except Exception:
-            pass
+# ❌ ELIMINADOS junto con el evento "Operación 1,000 Cazadores":
+# cmd_evento_start, cmd_estado_cofre, cmd_cazadores, check_evento_dia,
+# evaluar_cierre_evento, abrir_cofre.
+# Se mantienen get_evento_state/set_evento_state/get_cazadores_count/get_top_cazadores
+# porque los sigue usando el panel de stats y el conteo de referidos verificados.
 
 
 async def cmd_misiones_recientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -5257,26 +4970,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 self.wfile.write(data)
             except Exception as e:
                 self.send_json({"error": f"Music not found: {str(e)}"}, 404)
-        # ── GET /auth/validate?token=xxx — Milton valida token ───────────────
-        elif path == "/auth/validate":
-            import time
-            token = params.get("token", [None])[0]
-            if not token:
-                return self.send_json({"error": "Token requerido"}, 400)
-            entry = AUTH_TOKENS.get(token)
-            if not entry:
-                return self.send_json({"valid": False, "error": "Token no encontrado"}, 404)
-            if entry["expires"] < time.time():
-                del AUTH_TOKENS[token]
-                return self.send_json({"valid": False, "error": "Token expirado"}, 401)
-            # Token válido — lo eliminamos para que sea de un solo uso
-            del AUTH_TOKENS[token]
-            return self.send_json({
-                "valid":         True,
-                "telegram_id":   entry["telegram_id"],
-                "telegram_name": entry.get("telegram_name", ""),
-                "panther_uid":   entry["panther_uid"],
-            })
+        # ── /auth/validate — ❌ ELIMINADO junto con la integración Milton/Mundial ──
 
         elif path == "/debug":
             import os
@@ -5543,96 +5237,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             lb = [{"name": r[0], "score": r[1], "ts": r[2]} for r in rows]
             return self.send_json({"ok": True, "leaderboard": lb})
 
-        # ── POST /award_points — Milton suma puntos a un usuario ──────────────
-        elif path == "/award_points":
-            # Verificar API key
-            auth_header = self.headers.get("Authorization", "")
-            expected = f"Bearer {MILTON_API_KEY}"
-            if not MILTON_API_KEY or auth_header != expected:
-                return self.send_json({"error": "Unauthorized"}, 401)
-
-            telegram_id = str(body.get("telegram_id", ""))
-            amount      = int(body.get("amount", 0))
-            reason      = str(body.get("reason", "Premio Mundial"))
-
-            if not telegram_id or amount <= 0 or amount > 5000:
-                return self.send_json({"error": "Params invalidos"}, 400)
-
-            db = load_db()
-            if telegram_id not in db:
-                return self.send_json({"error": "Usuario no encontrado"}, 404)
-
-            data = db[telegram_id]
-            earned = add_points(data, amount)
-
-            if "history" not in data:
-                data["history"] = []
-            data["history"].append({
-                "type":   "award_mundial",
-                "pts":    earned,
-                "reason": reason,
-                "date":   date.today().isoformat(),
-                "time":   datetime.now().strftime("%H:%M"),
-            })
-            data["history"] = data["history"][-50:]
-            db[telegram_id] = data
-            save_db(db)
-
-            # Notificar al usuario por Telegram
-            if CombinedHandler.tg_app and CombinedHandler.tg_loop:
-                async def _notify(tid, pts, rsn):
-                    try:
-                        await CombinedHandler.tg_app.bot.send_message(
-                            chat_id=int(tid),
-                            text=(
-                                f"⚽ *¡Premio Mundial!*\n\n"
-                                f"*+{pts} PNT* acreditados en tu cuenta Manada Panther\n"
-                                f"Motivo: {rsn}\n\n"
-                                f"🐆 Seguí adivinando para ganar más!"
-                            ),
-                            parse_mode="Markdown"
-                        )
-                    except Exception as e:
-                        logger.warning(f"No se pudo notificar a {tid}: {e}")
-                asyncio.run_coroutine_threadsafe(
-                    _notify(telegram_id, earned, reason),
-                    CombinedHandler.tg_loop
-                )
-
-            logger.info(f"[award_points] {telegram_id} +{earned} pts — {reason}")
-            return self.send_json({
-                "ok":     True,
-                "earned": earned,
-                "total":  data["points"],
-            })
-
-        # ── POST /auth/token — Mini App genera token temporal ─────────────────
-        elif path == "/auth/token":
-            telegram_id = str(body.get("telegram_id", ""))
-            panther_uid = str(body.get("panther_uid", "")).strip()
-            telegram_name = str(body.get("telegram_name", "")).strip()
-
-            if not telegram_id or not panther_uid:
-                return self.send_json({"error": "Faltan parametros"}, 400)
-
-            import uuid, time
-            token = uuid.uuid4().hex
-            AUTH_TOKENS[token] = {
-                "telegram_id":   telegram_id,
-                "panther_uid":   panther_uid,
-                "telegram_name": telegram_name,
-                "expires":       time.time() + 300,  # 5 minutos
-            }
-            # Limpiar tokens vencidos
-            now = time.time()
-            expired = [t for t, v in AUTH_TOKENS.items() if v["expires"] < now]
-            for t in expired:
-                del AUTH_TOKENS[t]
-
-            return self.send_json({"token": token})
-
-        # ── GET /auth/validate?token=xxx — Milton valida el token ─────────────
-        # (se maneja en do_GET, ver abajo)
+        # ── /award_points y /auth/token — ❌ ELIMINADOS junto con la integración Milton/Mundial ──
 
         else:
             self.send_json({"error": "Not found"}, 404)
@@ -5745,16 +5350,7 @@ def main():
     from telegram.ext import JobQueue
     app = Application.builder().token(TOKEN).build()
 
-    # Scheduler del evento con asyncio (sin job-queue extra)
-    async def evento_scheduler():
-        while True:
-            await asyncio.sleep(86400)  # cada 24 horas
-            try:
-                await check_evento_dia(app)
-            except Exception as e:
-                logger.warning(f"Error en evento scheduler: {e}")
-
-    asyncio.get_event_loop().create_task(evento_scheduler()) if False else None
+    # ❌ ELIMINADO: scheduler del evento (ya estaba deshabilitado con "if False", y el evento ya no existe)
 
     # ── Antiflood (debe ir PRIMERO, group=-1 para ejecutarse antes que todo) ──
     app.add_handler(MessageHandler(
@@ -5783,9 +5379,7 @@ def main():
     app.add_handler(CommandHandler("verificar_cazador", cmd_verificar_cazador))
     app.add_handler(CommandHandler("misiones_recientes", cmd_misiones_recientes))
     app.add_handler(CommandHandler("links_campana",   cmd_links_campana))
-    app.add_handler(CommandHandler("evento_start",    cmd_evento_start))
-    app.add_handler(CommandHandler("estado_cofre",    cmd_estado_cofre))
-    app.add_handler(CommandHandler("cazadores",       cmd_cazadores))
+    # ❌ ELIMINADOS: /evento_start, /estado_cofre, /cazadores (mecánica del evento "Operación 1,000 Cazadores")
     app.add_handler(MessageHandler(filters.PHOTO & filters.ChatType.GROUPS, handle_nuevo_cazador))
     app.add_handler(CallbackQueryHandler(handle_cazador_callback, pattern="^cazador_"))
     app.add_handler(CommandHandler("quiensoy",       cmd_quiensoy))
@@ -5805,13 +5399,7 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_callback))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
     app.add_handler(MessageHandler(filters.StatusUpdate.WEB_APP_DATA, handle_web_app_data))
-    app.add_handler(CommandHandler("sorteo",          cmd_sorteo_info))
-    app.add_handler(CommandHandler("sorteo_entrar",   cmd_sorteo_entrar))
-    app.add_handler(CommandHandler("sorteo_estado",   cmd_sorteo_estado))
-    app.add_handler(CommandHandler("sorteo_lista",    cmd_sorteo_lista))
-    app.add_handler(CommandHandler("sorteo_activar",  cmd_sorteo_activar))
-    app.add_handler(CommandHandler("sorteo_cancelar", cmd_sorteo_cancelar))
-    app.add_handler(CallbackQueryHandler(handle_sorteo_callback, pattern="^sorteo_"))
+    # ❌ ELIMINADO: comandos y callback del sorteo del iPhone (sorteo.py)
     port = int(os.environ.get("PORT", 8080))
 
     if WEBHOOK_URL:
@@ -5833,16 +5421,7 @@ def main():
                 drop_pending_updates=True
             )
             print(f"✅ Webhook registrado: {full_webhook_url}")
-            # Lanzar scheduler del evento
-            asyncio.create_task(evento_daily_scheduler(app))
-
-        async def evento_daily_scheduler(application):
-            while True:
-                await asyncio.sleep(86400)
-                try:
-                    await check_evento_dia(application)
-                except Exception as e:
-                    logger.warning(f"Error en evento scheduler: {e}")
+            # ❌ ELIMINADO: scheduler del evento (la mecánica del evento ya no existe)
 
         loop.run_until_complete(init_app())
 

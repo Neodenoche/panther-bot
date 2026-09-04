@@ -351,7 +351,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
   <div class="sec">
     <div class="stitle">Diarias</div>
-    <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
+    <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha en USDT</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
     <div class="mc" id="mc-ruleta" onclick="goTo('ruleta')"><div class="mic i2">🎰</div><div class="mb"><div class="mn">Ruleta diaria</div><div class="ms" id="ruleta-sub">Pts, ×2 o premios en USDT</div></div><div class="mr"><div class="mpts" id="ruleta-mpts">?</div><div class="mplab">PTS</div></div><div class="marr" id="ruleta-arr">→</div></div>
   </div>
   <div class="sec">
@@ -1424,7 +1424,9 @@ async function doCheckin() {
         const arrEl = document.getElementById('checkin-arr');
         const subEl = document.getElementById('checkin-sub');
         if (arrEl) { arrEl.classList.add('ok'); arrEl.textContent = '✓'; }
-        if (subEl) subEl.innerHTML = '🎉 <span style="color:#4ade80;font-weight:700">¡Check-in realizado! +' + (data.earned || 5) + ' pts</span>';
+        const usdtGanado = parseFloat(data.manada_usdt_earned || 0);
+        const usdtTxt = usdtGanado > 0 ? (' + ' + usdtGanado.toFixed(2) + ' USDT 🐆') : '';
+        if (subEl) subEl.innerHTML = '🎉 <span style="color:#4ade80;font-weight:700">¡Check-in realizado! +' + (data.earned || 5) + ' pts' + usdtTxt + '</span>';
         // Después de 2 segundos mostrar countdown
         setTimeout(() => {
           if (subEl) {

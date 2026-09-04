@@ -472,6 +472,17 @@ def init_db():
         ("follow_emb_lorena",   "INTEGER DEFAULT 0"),
         ("first_deposit_done",  "INTEGER DEFAULT 0"),
         ("emoji_tg_done",       "INTEGER DEFAULT 0"),
+        # ── La Manada v2 — saldo separado del XP/puntos ──
+        ("manada_usdt_balance",     "REAL DEFAULT 0"),
+        ("manada_pnt_balance",      "REAL DEFAULT 0"),
+        ("manada_usdt_month",       "REAL DEFAULT 0"),
+        ("manada_pnt_month",        "REAL DEFAULT 0"),
+        ("manada_month_ref",        "TEXT DEFAULT ''"),
+        ("manada_week_ref",         "TEXT DEFAULT ''"),
+        ("manada_checkins_semana",  "INTEGER DEFAULT 0"),
+        ("manada_quiz_semana",      "INTEGER DEFAULT 0"),
+        ("manada_last_quiz_date",   "TEXT"),
+        ("manada_retiro_pendiente", "INTEGER DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -609,8 +620,11 @@ def save_db(db):
                      follow_all_bonus, has_virtual_card, has_physical_card, big_transaction,
                      wallet_activated, pending_wallet_proof, spins_used_this_event,
                     reel_count_today, story_count_today, content_count_today, last_mission_date,
-                    cazadores_evento, cazador_verificado, source, evento_pnt_ganado, panther_uid, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    cazadores_evento, cazador_verificado, source, evento_pnt_ganado, panther_uid,
+                    manada_usdt_balance, manada_pnt_balance, manada_usdt_month, manada_pnt_month,
+                    manada_month_ref, manada_week_ref, manada_checkins_semana, manada_quiz_semana,
+                    manada_last_quiz_date, manada_retiro_pendiente, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -650,6 +664,16 @@ def save_db(db):
                     data.get("source", "directo"),
                     data.get("evento_pnt_ganado", 0),
                     data.get("panther_uid", ""),
+                    data.get("manada_usdt_balance", 0),
+                    data.get("manada_pnt_balance", 0),
+                    data.get("manada_usdt_month", 0),
+                    data.get("manada_pnt_month", 0),
+                    data.get("manada_month_ref", ""),
+                    data.get("manada_week_ref", ""),
+                    data.get("manada_checkins_semana", 0),
+                    data.get("manada_quiz_semana", 0),
+                    data.get("manada_last_quiz_date"),
+                    int(data.get("manada_retiro_pendiente", False)),
                     json.dumps(history),
                 ))
             conn.commit()
@@ -772,6 +796,75 @@ def add_points(data, amount: int):
             data["double_pts_until"] = None
     data["points"] += amount * multiplier
     return amount * multiplier
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LA MANADA v2 — saldo de USDT/PNT separado del XP (points).
+# Reglas: tope de 10 USDT acreditados por mes por usuario. El PNT no tiene
+# tope propio por ahora. El retiro (mínimo 5 USDT) se pide aparte y lo
+# aprueba un mod a mano (ver /retiro y /aprobar_retiro).
+# ═══════════════════════════════════════════════════════════════════════════
+MANADA_MONTHLY_CAP_USDT = 10.0
+MANADA_MIN_RETIRO_USDT  = 5.0
+
+
+def _manada_month_ref() -> str:
+    return date.today().strftime("%Y-%m")
+
+
+def _manada_week_ref() -> str:
+    y, w, _ = date.today().isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def manada_reset_periods_if_needed(data: dict):
+    """Resetea los contadores mensuales/semanales de La Manada si cambió el período.
+    Llamar siempre antes de leer o sumar cualquier campo manada_*."""
+    mref = _manada_month_ref()
+    if data.get("manada_month_ref") != mref:
+        data["manada_month_ref"]  = mref
+        data["manada_usdt_month"] = 0
+        data["manada_pnt_month"]  = 0
+
+    wref = _manada_week_ref()
+    if data.get("manada_week_ref") != wref:
+        data["manada_week_ref"]        = wref
+        data["manada_checkins_semana"] = 0
+        data["manada_quiz_semana"]     = 0
+
+
+def add_manada_usdt(data: dict, amount: float) -> float:
+    """Acredita USDT al saldo de La Manada respetando el tope mensual.
+    Devuelve lo realmente acreditado (puede ser menos que `amount` si se
+    llegó al tope, o 0 si ya estaba en el tope)."""
+    manada_reset_periods_if_needed(data)
+    ya_ganado   = data.get("manada_usdt_month", 0) or 0
+    disponible  = max(0.0, MANADA_MONTHLY_CAP_USDT - ya_ganado)
+    acreditado  = round(min(amount, disponible), 4)
+    if acreditado > 0:
+        data["manada_usdt_balance"] = round((data.get("manada_usdt_balance", 0) or 0) + acreditado, 4)
+        data["manada_usdt_month"]   = round(ya_ganado + acreditado, 4)
+    return acreditado
+
+
+def add_manada_pnt(data: dict, amount: float) -> float:
+    """Acredita PNT al saldo de La Manada (sin tope mensual propio por ahora)."""
+    manada_reset_periods_if_needed(data)
+    amount = round(amount, 4)
+    data["manada_pnt_balance"] = round((data.get("manada_pnt_balance", 0) or 0) + amount, 4)
+    data["manada_pnt_month"]   = round((data.get("manada_pnt_month", 0) or 0) + amount, 4)
+    return amount
+
+
+def get_daily_hunt_bonus_usdt(streak: int) -> float:
+    """Bonus en USDT del Daily Hunt según la racha de check-in (días consecutivos)."""
+    if streak >= 7:
+        return 0.05
+    elif streak >= 4:
+        return 0.03
+    else:
+        return 0.01
+
 
 DAILY_COUNT_FIELD = {
     "share_reel":       "reel_count_today",
@@ -1221,6 +1314,12 @@ async def do_checkin(uid: str, user, context):
     earned  = add_points(data, base_pts + bonus)
     data["last_checkin"] = today
 
+    # ── La Manada — Daily Hunt: bonus en USDT según racha + contador semanal ──
+    manada_reset_periods_if_needed(data)
+    data["manada_checkins_semana"] = (data.get("manada_checkins_semana", 0) or 0) + 1
+    usdt_bonus     = get_daily_hunt_bonus_usdt(streak)
+    usdt_acreditado = add_manada_usdt(data, usdt_bonus)
+
     old_lv = get_level(old_pts)
     new_lv = get_level(data["points"])
     lvl_msg = f"\n\n⬆️ *¡SUBISTE DE NIVEL!*\n{old_lv} → *{new_lv}*" if old_lv != new_lv else ""
@@ -1228,10 +1327,14 @@ async def do_checkin(uid: str, user, context):
     next_lv, pts_needed = get_next_level(data["points"])
     save_db(db)
 
+    usdt_msg = f"\n🐆 Daily Hunt: *+{usdt_acreditado:.2f} USDT*" if usdt_acreditado > 0 else \
+               f"\n🐆 Daily Hunt: tope mensual de La Manada alcanzado este mes"
+
     text = (
         f"✅ *¡Check-in completado!*\n\n"
         f"🔥 Racha: *{streak} día{'s' if streak > 1 else ''}*\n"
-        f"➕ Ganaste: *+{earned} puntos*{bonus_msg}\n"
+        f"➕ Ganaste: *+{earned} puntos*{bonus_msg}"
+        f"{usdt_msg}\n"
         f"⭐ Total: *{data['points']} puntos*\n"
         f"🏅 Nivel: *{new_lv}*"
         f"{lvl_msg}\n\n"
@@ -4960,7 +5063,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
 
         elif path == "/music":
             try:
-                with open("music.mp3", "rb") as f:
+                with open("music.mp3.mp3", "rb") as f:  # nombre real del archivo en el repo
                     data = f.read()
                 self.send_response(200)
                 self.send_header("Content-Type", "audio/mpeg")
@@ -5133,6 +5236,12 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             earned  = add_points(data, base_pts + bonus)
             data["last_checkin"] = today
 
+            # ── La Manada — Daily Hunt: bonus en USDT según racha + contador semanal ──
+            manada_reset_periods_if_needed(data)
+            data["manada_checkins_semana"] = (data.get("manada_checkins_semana", 0) or 0) + 1
+            usdt_bonus      = get_daily_hunt_bonus_usdt(streak)
+            usdt_acreditado = add_manada_usdt(data, usdt_bonus)
+
             # Log historial
             if "history" not in data:
                 data["history"] = []
@@ -5149,13 +5258,15 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             save_db(db)
 
             return self.send_json({
-                "success":    True,
-                "earned":     earned,
-                "points":     data["points"],
-                "streak":     streak,
-                "level":      new_lv,
-                "level_up":   old_lv != new_lv,
-                "bonus":      bonus,
+                "success":       True,
+                "earned":        earned,
+                "points":        data["points"],
+                "streak":        streak,
+                "level":         new_lv,
+                "level_up":      old_lv != new_lv,
+                "bonus":         bonus,
+                "manada_usdt_earned":  usdt_acreditado,
+                "manada_usdt_balance": data.get("manada_usdt_balance", 0),
             })
 
         # ── POST /set_mission_type — guarda qué misión va a subir el usuario ──

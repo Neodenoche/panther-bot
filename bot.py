@@ -200,7 +200,7 @@ async def antiflood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         nombre = user.first_name or "Usuario"
         aviso = await update.effective_chat.send_message(
-            f"⚠️ {nombre} fue muteado 5 minutos por flood. Respira y volvé con buena energía 🐆"
+            f"⚠️ {nombre} fue muteado 5 minutos por flood. Respira y vuelve con buena energía 🐆"
         )
         # Auto-borrar aviso después de 10 segundos
         asyncio.get_event_loop().call_later(
@@ -1088,10 +1088,10 @@ async def send_founder_badge(bot, uid: str, name: str, number: int):
             chat_id=int(uid),
             photo=io.BytesIO(badge_bytes),
             caption=(
-                f"🏆 *¡Sos Fundador de la Manada!*\n\n"
+                f"🏆 *¡Eres Fundador de la Manada!*\n\n"
                 f"Guardaste tu lugar entre los primeros 500 miembros "
                 f"de la Manada Panther.\n\n"
-                f"Guardá tu badge y compartilo en tus historias 🐆\n\n"
+                f"Guarda tu badge y compártelo en tus historias 🐆\n\n"
                 f"_Panther Wallet — Tu dinero, tus reglas._"
             ),
             parse_mode="Markdown"
@@ -1134,7 +1134,7 @@ async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         texto = (
             f"🐆 ¡Bienvenido a la Manada, {mention}!\n"
-            f"Ya sos parte de los cazadores de Panther Wallet.{ref_line}\n\n"
+            f"Ya eres parte de los cazadores de Panther Wallet.{ref_line}\n\n"
             f"Escribile al bot para empezar a ganar puntos y participar en el evento 👇"
         )
 
@@ -1182,7 +1182,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(
             f"📸 *¡Listo {user.first_name}!*\n\n"
             f"Misión: *{tipo_label}*\n\n"
-            f"Enviá tu captura de pantalla acá directamente 👇\n\n"
+            f"Envía tu captura de pantalla aquí directamente 👇\n\n"
             f"_Un moderador la verificará y acreditará los puntos en las próximas 24h 🐾_",
             parse_mode="Markdown"
         )
@@ -1194,11 +1194,11 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         tipo_label = 'reel de Instagram' if tipo == 'compartir_reel' else 'historia de Instagram'
         pts = PTS['share_reel'] if tipo == 'compartir_reel' else PTS['share_story']
         await update.message.reply_text(
-            f"📸 *Enviá tu captura de {tipo_label}*\n\n"
-            f"1️⃣ Compartí el {tipo_label} de Panther\n"
-            f"2️⃣ Tomá una captura de pantalla\n"
-            f"3️⃣ Enviála *acá en este chat* como foto 👇\n\n"
-            f"Si se aprueba recibís *+{pts} pts* 🎉",
+            f"📸 *Envía tu captura de {tipo_label}*\n\n"
+            f"1️⃣ Comparte el {tipo_label} de Panther\n"
+            f"2️⃣ Toma una captura de pantalla\n"
+            f"3️⃣ Envíala *aquí en este chat* como foto 👇\n\n"
+            f"Si se aprueba recibes *+{pts} pts* 🎉",
             parse_mode="Markdown"
         )
         return
@@ -1254,7 +1254,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     app_url = f"https://go.mypanther.io/app?id={uid}&v=3"
 
     if is_new:
-        text = f"🐆 La Manada te espera, {user.first_name}. Revisá los mensajes que te envié para empezar 👇"
+        text = f"🐆 La Manada te espera, {user.first_name}. Revisa los mensajes que te envié para empezar 👇"
     else:
         text = (
             f"🐾 *¡Hola, {user.first_name}!*\n\n"
@@ -1295,7 +1295,7 @@ async def do_checkin(uid: str, user, context):
         return (
             f"⏰ Ya hiciste tu check-in hoy.\n\n"
             f"🔥 Racha: *{data['streak']} días*\n"
-            f"Volvé mañana para no perderla.",
+            f"Vuelve mañana para no perderla.",
             False
         )
 
@@ -1380,7 +1380,7 @@ async def cmd_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"🔥 Racha: *{data['streak']} días*\n"
         f"👥 Referidos: *{refs}*\n"
         f"🎫 Código: `{data['referral_code']}`\n\n"
-        f"{'📈 Próximo: *' + next_lv + '* — faltan *' + str(pts_needed) + ' pts*' if next_lv else '👑 ¡Sos Leyenda!'}",
+        f"{'📈 Próximo: *' + next_lv + '* — faltan *' + str(pts_needed) + ' pts*' if next_lv else '👑 ¡Eres Leyenda!'}",
         parse_mode="Markdown",
         reply_markup=main_keyboard()
     )
@@ -1433,7 +1433,7 @@ async def cmd_ranking(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prefix = medals[i] if i < 3 else f"{i+1}."
         name   = u.get("username") or u.get("first_name") or "Anónimo"
         lv     = get_level(u["points"])
-        me     = " ← vos" if u["id"] == uid else ""
+        me     = " ← tú" if u["id"] == uid else ""
         lines.append(f"{prefix} @{name} — *{u['points']} pts* {lv}{me}")
 
     my_pos = next((i+1 for i,u in enumerate(sorted_) if u["id"] == uid), None)
@@ -1465,7 +1465,7 @@ async def cmd_referido(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"*Por cada referido:*\n"
         f"├ Se une al canal: *+{PTS['referral_join']} pts*\n"
         f"└ Activa Panther Wallet: *+{PTS['referral_wallet']} pts*\n\n"
-        f"_Compartí tu link y acumulá puntos 🚀_",
+        f"_Compartí tu link y acumula puntos 🚀_",
         parse_mode="Markdown",
         reply_markup=main_keyboard()
     )
@@ -1568,7 +1568,7 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
         + f"Tienen *{horas} horas* para girar. 3 giros por usuario.\n\n"
         + "💰 Premios reales en USDT y PNT esperando.\n\n"
-        + "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+        + "👉 Abre el bot y gira ahora → @ManadaPantherBot\n\n"
         + "⏳ *Cierra a las:*\n" + horas_zonas
     )
     try:
@@ -1641,7 +1641,7 @@ async def ruleta_countdown_task(bot, horas_total: int):
             "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
             f"Tienen *{horas_total} horas* para girar. 3 giros por usuario.\n\n"
             "💰 Premios reales en USDT y PNT esperando.\n\n"
-            "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+            "👉 Abre el bot y gira ahora → @ManadaPantherBot\n\n"
             f"⏳ Cierra en *{tiempo_str}* a las:\n" + horas_zonas
         )
         try:
@@ -1677,7 +1677,7 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("❌ No tenés permisos.")
+        await update.message.reply_text("❌ No tienes permisos.")
         return
     
     if not context.args:
@@ -1719,11 +1719,11 @@ async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tipo_label = 'reel de Instagram' if tipo == 'reel' else 'historia de Instagram'
     pts = PTS['share_reel'] if tipo == 'reel' else PTS['share_story']
     await update.message.reply_text(
-        f"📸 *Enviá tu captura de {tipo_label}*\n\n"
-        f"1️⃣ Compartí el {tipo_label} de Panther\n"
-        f"2️⃣ Tomá una captura de pantalla\n"
-        f"3️⃣ Enviála *acá en este chat* como foto 👇\n\n"
-        f"Si se aprueba recibís *+{pts} pts* 🎉",
+        f"📸 *Envía tu captura de {tipo_label}*\n\n"
+        f"1️⃣ Comparte el {tipo_label} de Panther\n"
+        f"2️⃣ Toma una captura de pantalla\n"
+        f"3️⃣ Envíala *aquí en este chat* como foto 👇\n\n"
+        f"Si se aprueba recibes *+{pts} pts* 🎉",
         parse_mode="Markdown"
     )
 
@@ -1739,7 +1739,7 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = date.today().isoformat()
     if data.get("last_ruleta") == today:
         await update.message.reply_text(
-            "🎰 Ya giraste la ruleta hoy.\n\nVolvé mañana para otro giro 🐾",
+            "🎰 Ya giraste la ruleta hoy.\n\nVuelve mañana para otro giro 🐾",
             parse_mode="Markdown"
         )
         return
@@ -1781,9 +1781,9 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += (
                 f"💵 *¡PREMIO EN EFECTIVO!*\n\n"
                 f"Ganaste: *{prize_amount} USDT*\n\n"
-                f"📸 Tomá captura de esta pantalla y enviala al chat general "
+                f"📸 Toma captura de esta pantalla y envíala al chat general "
                 f"o al bot en privado. Un moderador te contactará para coordinar el pago.\n\n"
-                f"_⚠️ Solo podés ganar USDT una vez por mes._"
+                f"_⚠️ Solo puedes ganar USDT una vez por mes._"
             )
             name = user.username or user.first_name
             for mod_id in MOD_IDS:
@@ -1814,9 +1814,9 @@ async def cmd_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += (
                 f"🐾 *¡PREMIO PNT!*\n\n"
                 f"Ganaste: *{pnt_amount} PNT*\n\n"
-                f"📸 Tomá captura de esta pantalla y enviala al chat general "
+                f"📸 Toma captura de esta pantalla y envíala al chat general "
                 f"o al bot en privado. Los tokens serán acreditados en tu Panther Wallet.\n\n"
-                f"_⚠️ Solo podés ganar PNT una vez por mes._"
+                f"_⚠️ Solo puedes ganar PNT una vez por mes._"
             )
             name = user.username or user.first_name
             for mod_id in MOD_IDS:
@@ -1857,7 +1857,7 @@ async def cmd_misiones(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("🐆 Abrir Misiones en la Mini App", web_app=WebAppInfo(url=app_url))],
     ])
     await update.message.reply_text(
-        "Las misiones estan disponibles en la Mini App. Toca el boton para abrirla.",
+        "Las misiones están disponibles en la Mini App. Toca el botón para abrirla.",
         reply_markup=keyboard
     )
     return
@@ -1983,7 +1983,7 @@ async def cmd_ruleta_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
         + f"Tienen *{horas} horas* para girar. 3 giros por usuario.\n\n"
         + "💰 Premios reales en USDT y PNT esperando.\n\n"
-        + "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+        + "👉 Abre el bot y gira ahora → @ManadaPantherBot\n\n"
         + "⏳ *Cierra a las:*\n" + horas_zonas
     )
     try:
@@ -2056,7 +2056,7 @@ async def ruleta_countdown_task(bot, horas_total: int):
             "🎰 *¡LA RULETA ESTÁ ABIERTA, MANADA!* 🐾\n\n"
             f"Tienen *{horas_total} horas* para girar. 3 giros por usuario.\n\n"
             "💰 Premios reales en USDT y PNT esperando.\n\n"
-            "👉 Abrí el bot y girá ahora → @ManadaPantherBot\n\n"
+            "👉 Abre el bot y gira ahora → @ManadaPantherBot\n\n"
             f"⏳ Cierra en *{tiempo_str}* a las:\n" + horas_zonas
         )
         try:
@@ -2092,7 +2092,7 @@ async def cmd_ruleta_auto(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── /broadcast (moderadores) ──────────────────────────────────────────────────
 async def cmd_broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("❌ No tenés permisos.")
+        await update.message.reply_text("❌ No tienes permisos.")
         return
     
     if not context.args:
@@ -2134,9 +2134,9 @@ async def cmd_compartir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"📸 *Verificación de contenido*\n\n"
         f"Para acreditar tus puntos:\n\n"
-        f"1️⃣ Compartí el reel o historia de Panther\n"
-        f"2️⃣ Tomá una captura de pantalla\n"
-        f"3️⃣ Enviá la captura *directamente acá* en el chat\n\n"
+        f"1️⃣ Comparte el reel o historia de Panther\n"
+        f"2️⃣ Toma una captura de pantalla\n"
+        f"3️⃣ Envía la captura *directamente aquí* en el chat\n\n"
         f"Un moderador la verificará y acreditará los puntos en menos de 24h 🐾",
         parse_mode="Markdown"
     )
@@ -2153,11 +2153,11 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             tipo_label = 'reel de Instagram' if tipo == 'reel' else 'historia de Instagram'
             pts = PTS['share_reel'] if tipo == 'reel' else PTS['share_story']
             await update.message.reply_text(
-                f"📸 *Enviá tu captura de {tipo_label}*\n\n"
-                f"1️⃣ Compartí el {tipo_label} de Panther\n"
-                f"2️⃣ Tomá una captura de pantalla\n"
-                f"3️⃣ Enviála *acá en este chat* como foto 👇\n\n"
-                f"Si se aprueba recibís *+{pts} pts* 🎉",
+                f"📸 *Envía tu captura de {tipo_label}*\n\n"
+                f"1️⃣ Comparte el {tipo_label} de Panther\n"
+                f"2️⃣ Toma una captura de pantalla\n"
+                f"3️⃣ Envíala *aquí en este chat* como foto 👇\n\n"
+                f"Si se aprueba recibes *+{pts} pts* 🎉",
                 parse_mode="Markdown"
             )
     except Exception as e:
@@ -2267,7 +2267,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mission_type is None:
         await update.message.reply_text(
             "⚠️ Esta imagen no fue enviada desde una misión del gamebot.\n\n"
-            "Para que cuente, tenés que entrar a la Mini App → Misiones → "
+            "Para que cuente, tienes que entrar a la Mini App → Misiones → "
             "seleccionar la misión correspondiente y subir la captura desde ahí.\n\n"
             "Las imágenes enviadas sin contexto no son válidas. "
             "Las misiones sociales tienen un límite de 3 capturas por día."
@@ -2316,7 +2316,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(
                 f"⚠️ Ya alcanzaste el límite de {daily_limit_for_mission} "
                 f"captura{'s' if daily_limit_for_mission != 1 else ''} para esta misión hoy.\n"
-                "Volvé mañana para seguir ganando puntos 🐾"
+                "Vuelve mañana para seguir ganando puntos 🐾"
             )
             return
         # Registrar el intento ahora: antes esto no se hacía y el contador
@@ -2387,7 +2387,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Tipo: *{tipo_label}*\n"
         f"Usuario: {name_md} (ID: `{uid}`)\n"
         f"Puntos actuales: *{data['points']}*\n\n"
-        f"Seleccioná la acción:"
+        f"Selecciona la acción:"
     )
     logger.info(f"handle_photo: uid={uid} mission_type={mission_type} tipo_label={tipo_label}")
     # Enviar al grupo de mods primero
@@ -2432,7 +2432,7 @@ CREATE_EARN_USDT_MAX = 0.30
 
 async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("❌ No tenés permisos.")
+        await update.message.reply_text("❌ No tienes permisos.")
         return
 
     if len(context.args) < 2:
@@ -2449,7 +2449,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"]}
 
     if tipo not in pts_map:
-        await update.message.reply_text("Tipo inválido. Usá: reel, story o content")
+        await update.message.reply_text("Tipo inválido. Usa: reel, story o content")
         return
 
     # ── Create & Earn: el mod define el monto USDT según la calidad ──
@@ -2457,7 +2457,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if tipo == "content":
         if len(context.args) < 3:
             await update.message.reply_text(
-                f"⚠️ Para 'content' tenés que indicar el monto en USDT "
+                f"⚠️ Para 'content' tienes que indicar el monto en USDT "
                 f"({CREATE_EARN_USDT_MIN}–{CREATE_EARN_USDT_MAX}).\n"
                 "Ej: /aprobar USER_ID content 0.20"
             )
@@ -2465,7 +2465,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             monto_usdt = round(float(context.args[2].replace(",", ".")), 2)
         except ValueError:
-            await update.message.reply_text("Monto inválido. Usá un número, ej: 0.20")
+            await update.message.reply_text("Monto inválido. Usa un número, ej: 0.20")
             return
         if not (CREATE_EARN_USDT_MIN <= monto_usdt <= CREATE_EARN_USDT_MAX):
             await update.message.reply_text(
@@ -2511,7 +2511,7 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ── /transferir — traspaso de puntos entre usuarios (solo mods) ──────────────
 async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("❌ No tenés permisos para usar este comando.")
+        await update.message.reply_text("❌ No tienes permisos para usar este comando.")
         return
 
     if len(context.args) < 3:
@@ -2555,7 +2555,7 @@ async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if puntos_a_mover > puntos_disponibles:
         await update.message.reply_text(
-            f"⚠️ El origen solo tiene <b>{puntos_disponibles} puntos</b> y querés mover <b>{puntos_a_mover}</b>.",
+            f"⚠️ El origen solo tiene <b>{puntos_disponibles} puntos</b> y quieres mover <b>{puntos_a_mover}</b>.",
             parse_mode="HTML"
         )
         return
@@ -2601,7 +2601,7 @@ async def cmd_ruleta_redirect(update, context):
         InlineKeyboardButton("🎰 Abrir Ruleta en la Mini App", web_app=WebAppInfo(url=app_url))
     ]])
     await update.message.reply_text(
-        "La ruleta solo esta disponible en la Mini App. Toca el boton para abrirla.",
+        "La ruleta solo está disponible en la Mini App. Toca el botón para abrirla.",
         reply_markup=keyboard
     )
 
@@ -2613,7 +2613,7 @@ async def cmd_misiones_redirect(update, context):
         InlineKeyboardButton("📋 Abrir Misiones en la Mini App", web_app=WebAppInfo(url=app_url))
     ]])
     await update.message.reply_text(
-        "Las misiones solo estan disponibles en la Mini App. Toca el boton para abrirla.",
+        "Las misiones solo están disponibles en la Mini App. Toca el botón para abrirla.",
         reply_markup=keyboard
     )
 
@@ -2656,7 +2656,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await context.bot.send_message(
                     chat_id=int(target_uid),
                     text=f"✅ *¡Tu wallet fue verificada!*\n\n"
-                         f"Tu activación fue aprobada. Ya podés acceder a todas las misiones 🐆",
+                         f"Tu activación fue aprobada. Ya puedes acceder a todas las misiones 🐆",
                     parse_mode="Markdown"
                 )
             except Exception:
@@ -2671,7 +2671,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data_str.startswith("approve_") or data_str.startswith("reject_"):
         logger.info(f"Callback mod check: from_user.id={query.from_user.id} type={type(query.from_user.id)} MOD_IDS={MOD_IDS}")
         if query.from_user.id not in MOD_IDS:
-            await query.answer("❌ No tenés permisos de moderador.", show_alert=True)
+            await query.answer("❌ No tienes permisos de moderador.", show_alert=True)
             logger.warning(f"ID {query.from_user.id} no está en MOD_IDS {MOD_IDS}")
             return
 
@@ -2827,8 +2827,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     chat_id=int(target_uid),
                     text=(
                         "❌ Tu captura no pudo ser verificada.\n\n"
-                        "Asegurate de que se vea claramente el contenido "
-                        "de Panther y volvé a intentarlo 🐾"
+                        "Asegúrate de que se vea claramente el contenido "
+                        "de Panther y vuelve a intentarlo 🐾"
                     ),
                 )
             except Exception:
@@ -2850,7 +2850,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🐆 Abrir Manada Panther", web_app=WebAppInfo(url=app_url))
         ]])
         await upd.message.reply_text(
-            "Todas las misiones y funciones estan en la Mini App. Toca el boton para abrirla.",
+            "Todas las misiones y funciones están en la Mini App. Toca el botón para abrirla.",
             reply_markup=kb
         )
 
@@ -2890,7 +2890,7 @@ async def cmd_mi_badge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     founder_number = data.get("founder_number")
     if not founder_number:
         await update.message.reply_text(
-            "❌ No tenés badge de Fundador.\n\n"
+            "❌ No tienes badge de Fundador.\n\n"
             "El badge es exclusivo para los primeros 500 miembros de la Manada 🐾"
         )
         return
@@ -2899,12 +2899,12 @@ async def cmd_mi_badge(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fname = user.first_name or user.username or "Miembro"
     success = await send_founder_badge(context.bot, uid, fname, founder_number)
     if not success:
-        await update.message.reply_text("❌ Error generando el badge. Intentá de nuevo.")
+        await update.message.reply_text("❌ Error generando el badge. Intenta de nuevo.")
 
 async def cmd_enviar_badges(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Envía badges a todos los usuarios existentes — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("❌ No tenés permisos.")
+        await update.message.reply_text("❌ No tienes permisos.")
         return
     
     db = load_db()
@@ -2940,7 +2940,7 @@ async def cmd_verificar_cazador(update: Update, context: ContextTypes.DEFAULT_TY
     Uso: /verificar_cazador <user_id>
     """
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
 
     if not context.args:
@@ -3004,7 +3004,7 @@ async def cmd_verificar_cazador(update: Update, context: ContextTypes.DEFAULT_TY
 
 async def cmd_dar_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
     if len(context.args) < 2:
         await update.message.reply_text("Uso: /dar_puntos USER_ID cantidad motivo")
@@ -3053,7 +3053,7 @@ async def cmd_dar_puntos(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_reset_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Resetea los giros de la ruleta para todos los usuarios — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
     db = load_db()
     count = 0
@@ -3069,7 +3069,7 @@ async def cmd_reset_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_ganadores_ruleta(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra ganadores de USDT y PNT en la ruleta — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
 
     db = load_db()
@@ -3120,7 +3120,7 @@ async def cmd_ganadores_ruleta(update: Update, context: ContextTypes.DEFAULT_TYP
 async def cmd_stats_referidos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Stats de referidos y wallets — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
 
     db = load_db()
@@ -3157,7 +3157,7 @@ async def cmd_stats_referidos(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def cmd_links_campana(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra los links de campaña — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
     base = "https://t.me/ManadaPantherBot?start="
     lineas = [
@@ -3357,7 +3357,7 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
     query = update.callback_query
 
     if update.effective_user.id not in MOD_IDS:
-        await query.answer("No tenes permisos.", show_alert=True)
+        await query.answer("No tienes permisos.", show_alert=True)
         return
 
     await query.answer()
@@ -3413,7 +3413,7 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
                 chat_id=int(target_uid),
                 text=(
                     "Tu ritual fue verificado.\n\n"
-                    "Sos oficialmente un Cazador de la Manada\n"
+                    "Eres oficialmente un Cazador de la Manada\n"
                     "Cuando empiece el evento vas a recibir todos los detalles."
                 )
             )
@@ -3435,8 +3435,8 @@ async def handle_cazador_callback(update: Update, context: ContextTypes.DEFAULT_
                 chat_id=int(target_uid),
                 text=(
                     "Tu captura no pudo ser verificada.\n\n"
-                    "Asegurate de que la imagen muestre Panther Wallet instalada "
-                    "y volvé a mandarla con #NuevoCazador."
+                    "Asegúrate de que la imagen muestre Panther Wallet instalada "
+                    "y vuelve a mandarla con #NuevoCazador."
                 )
             )
         except Exception:
@@ -3460,29 +3460,29 @@ async def send_welcome_sequence(bot, uid: str, first_name: str, source: str = ""
     # ── MSG 1: Bienvenida + pasos ────────────────────────────────────────────
     if came_from_game:
         intro = (
-            f"🎮 *¡Buena partida, {first_name}! Ahora hacés parte de la Manada Panther.*\n\n"
-            f"PNT Defender no es solo un juego — cada punto que ganás se convierte en "
+            f"🎮 *¡Buena partida, {first_name}! Ahora haces parte de la Manada Panther.*\n\n"
+            f"PNT Defender no es solo un juego — cada punto que ganas se convierte en "
             f"recompensas reales dentro de la comunidad de Panther Wallet.\n\n"
-            f"Para que tus puntos de juego cuenten de verdad, completá estos pasos:\n\n"
+            f"Para que tus puntos de juego cuenten de verdad, completa estos pasos:\n\n"
         )
     else:
         intro = (
             f"🐆 *¡Bienvenido a la Manada Panther, {first_name}!*\n\n"
             f"Este es el espacio donde la comunidad de Panther Wallet se reúne, "
             f"aprende y gana recompensas reales.\n\n"
-            f"Para ser parte oficial de la Manada completá estos pasos:\n\n"
+            f"Para ser parte oficial de la Manada completa estos pasos:\n\n"
         )
 
     msg1 = (
         intro +
         f"*Paso 1:* Únete al chat general de la Manada\n"
         f"👉 {LINKS['chat']}\n\n"
-        f"*Paso 2:* Descargá Panther Wallet\n"
+        f"*Paso 2:* Descarga Panther Wallet\n"
         f"👉 https://mypanther.io/es/\n\n"
-        f"*Paso 3:* Activá tu cuenta y configurá el Google 2FA\n"
+        f"*Paso 3:* Activa tu cuenta y configura el Google 2FA\n"
         f"_(Configuración → Seguridad → Google Authenticator)_\n\n"
-        f"*Paso 4:* Tomá una captura de pantalla mostrando el 2FA activo\n\n"
-        f"*Paso 5:* Enviá esa captura acá al bot con el hashtag *#NuevoCazador*\n\n"
+        f"*Paso 4:* Toma una captura de pantalla mostrando el 2FA activo\n\n"
+        f"*Paso 5:* Envía esa captura aquí al bot con el hashtag *#NuevoCazador*\n\n"
         f"Un moderador la verificará y quedarás oficialmente como Cazador de la Manada 🐾\n\n"
         f"{'🎮 Una vez registrado, tus partidas de PNT Defender acumulan puntos reales automáticamente.' if came_from_game else ''}"
     )
@@ -3491,7 +3491,7 @@ async def send_welcome_sequence(bot, uid: str, first_name: str, source: str = ""
     msg2 = (
         f"📋 *Reglas de la Manada*\n\n"
         f"Para que este espacio funcione bien para todos, seguimos estas reglas:\n\n"
-        f"✅ Respeto y buena onda — acá nos ayudamos entre todos\n"
+        f"✅ Respeto y buena onda — aquí nos ayudamos entre todos\n"
         f"✅ Las dudas sobre la wallet son bienvenidas — la comunidad responde "
         f"y si no puede, te derivamos al soporte oficial\n"
         f"✅ No spam ni promoción de proyectos externos\n"
@@ -3500,20 +3500,20 @@ async def send_welcome_sequence(bot, uid: str, first_name: str, source: str = ""
         f"⭐ La buena onda se premia — los miembros activos y colaborativos "
         f"acumulan puntos y reconocimiento dentro de la Manada.\n\n"
         f"⚠️ El incumplimiento puede resultar en suspensión del grupo.\n\n"
-        f"El equipo de moderación está siempre presente. Ante cualquier duda, escribinos. 🐆"
+        f"El equipo de moderación está siempre presente. Ante cualquier duda, escríbenos. 🐆"
     )
 
     # ── MSG 3: Redes + CTA final (60 seg después) ───────────────────────────
     msg3 = (
-        f"🔗 *Seguinos en todas las plataformas*\n\n"
-        f"Toda la actividad oficial de Panther Wallet pasa por acá:\n\n"
+        f"🔗 *Síguenos en todas las plataformas*\n\n"
+        f"Toda la actividad oficial de Panther Wallet pasa por aquí:\n\n"
         f"🐾 Instagram: {LINKS['ig']}\n"
         f"📺 YouTube: {LINKS['yt']}\n"
         f"🎵 TikTok: {LINKS['tiktok']}\n"
         f"🌐 Sitio web: {LINKS['web']}\n"
         f"📢 Canal oficial: {LINKS['canal']}\n"
         f"💬 Chat general: {LINKS['chat']}\n\n"
-        f"Seguinos para no perderte ningún anuncio, sorteo ni novedad 🐆\n\n"
+        f"Síguenos para no perderte ningún anuncio, sorteo ni novedad 🐆\n\n"
         f"{'🎮 Y cuando quieras jugar de nuevo: go.mypanther.io/game-defender' if came_from_game else ''}"
     )
 
@@ -3583,7 +3583,7 @@ def calcular_cofre(db):
 async def cmd_misiones_recientes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra misiones aprobadas/rechazadas de los últimos 2 días — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
 
     db = load_db()
@@ -3670,7 +3670,7 @@ async def cmd_emoji_pantera(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_db(db)
         await update.message.reply_text(
             f"🐆 *¡Misión completada!*\n\n"
-            f"Tenés el emoji de la Manada en tu nombre de Telegram.\n"
+            f"Tienes el emoji de la Manada en tu nombre de Telegram.\n"
             f"*+{earned} puntos* acreditados 🐾\n"
             f"⭐ Total: *{data['points']} puntos*",
             parse_mode="Markdown"
@@ -3678,7 +3678,7 @@ async def cmd_emoji_pantera(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await update.message.reply_text(
             "🐾 *Misión: Emoji Pantera*\n\n"
-            "Agregá el emoji 🐆 o 🐾 a tu nombre de Telegram y volvé a ejecutar /emoji_pantera.\n\n"
+            "Agrega el emoji 🐆 o 🐾 a tu nombre de Telegram y vuelve a ejecutar /emoji_pantera.\n\n"
             "_Para cambiar tu nombre: Configuración → Editar perfil → Nombre_\n\n"
             "*+20 puntos* por completarla (solo una vez)",
             parse_mode="Markdown"
@@ -3687,14 +3687,14 @@ async def cmd_emoji_pantera(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
     if not update.message.reply_to_message:
-        await update.message.reply_text("⭐ Respondé el mensaje del usuario al que querés dar una estrella.")
+        await update.message.reply_text("⭐ Responde el mensaje del usuario al que quieres dar una estrella.")
         return
 
     giver = update.effective_user
     receiver = update.message.reply_to_message.from_user
 
     if not receiver or receiver.id == giver.id:
-        await update.message.reply_text("No podés darte estrellas a vos mismo 😄")
+        await update.message.reply_text("No puedes darte estrellas a ti mismo 😄")
         return
 
     if receiver.is_bot:
@@ -3712,7 +3712,7 @@ async def cmd_emoji_pantera(update: Update, context: ContextTypes.DEFAULT_TYPE):
         secs = int(3600 - (now - STAR_COOLDOWN[uid][0]))
         mins = secs // 60
         await update.message.reply_text(
-            f"⏳ Ya diste 5 estrellas esta hora. Podés dar más en {mins} minutos."
+            f"⏳ Ya diste 5 estrellas esta hora. Puedes dar más en {mins} minutos."
         )
         return
 
@@ -3763,7 +3763,7 @@ async def cmd_emoji_pantera(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Mods dan puntos especiales a usuarios en el chat general"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenés permisos para usar /award.")
+        await update.message.reply_text("No tienes permisos para usar /award.")
         return
 
     if len(context.args) < 2:
@@ -3816,7 +3816,7 @@ async def cmd_award(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_recompensa_todos(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Da puntos a todos los usuarios registrados — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
     if not context.args:
         await update.message.reply_text("Uso: /recompensa_todos cantidad motivo")
@@ -3850,7 +3850,7 @@ async def cmd_recompensa_todos(update: Update, context: ContextTypes.DEFAULT_TYP
 async def cmd_buscar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Busca un usuario por username y devuelve su ID — solo mods"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("No tenes permisos.")
+        await update.message.reply_text("No tienes permisos.")
         return
     if not context.args:
         await update.message.reply_text("Uso: /buscar @username o /buscar nombre")
@@ -3885,12 +3885,12 @@ async def cmd_mis_estrellas(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text  = "Tus estrellas en la Manada\n\nEstrellas: " + str(stars) + "\nPuntos del chat: " + str(pts) + "\n\nUsa /leaderboard para el ranking."
         await update.message.reply_text(text)
     else:
-        await update.message.reply_text("Todavia no tenes estrellas. Participa en el chat y otros pueden darte estrellas con /star.")
+        await update.message.reply_text("Todavia no tienes estrellas. Participa en el chat y otros pueden darte estrellas con /star.")
 
 async def cmd_leaderboard(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra el ranking del chat general por estrellas"""
     if not CHAT_STARS:
-        await update.message.reply_text("🌟 Aún no hay estrellas repartidas. Usá /star para reconocer a alguien!")
+        await update.message.reply_text("🌟 Aún no hay estrellas repartidas. Usa /star para reconocer a alguien!")
         return
 
     sorted_users = sorted(CHAT_STARS.items(), key=lambda x: x[1]["pts"], reverse=True)[:10]
@@ -3917,7 +3917,7 @@ async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             msg = (
                 "🔔 *Test de notificación*\n\n"
-                "Este mensaje confirma que recibís notificaciones del bot correctamente.\n\n"
+                "Este mensaje confirma que recibes notificaciones del bot correctamente.\n\n"
                 f"_Enviado por mod {update.effective_user.id}_"
             )
             await context.bot.send_message(
@@ -3936,7 +3936,7 @@ async def cmd_pingmods(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_resetcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Reset check-in for testing — solo moderadores"""
     if update.effective_user.id not in MOD_IDS:
-        await update.message.reply_text("❌ No tenés permisos.")
+        await update.message.reply_text("❌ No tienes permisos.")
         return
     db = load_db()
     uid = str(update.effective_user.id)
@@ -3944,7 +3944,7 @@ async def cmd_resetcheck(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db[uid]["last_checkin"] = None
         db[uid]["last_ruleta"] = None
         save_db(db)
-        await update.message.reply_text("✅ Check-in y ruleta reseteados. Ya podés probar de nuevo.")
+        await update.message.reply_text("✅ Check-in y ruleta reseteados. Ya puedes probar de nuevo.")
     else:
         await update.message.reply_text("❌ Usuario no encontrado.")
 
@@ -3953,8 +3953,8 @@ async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     await update.message.reply_text(
         "🐆 *CÓMO FUNCIONA LA MANADA PANTHER*\n\n"
-        "*Ganás puntos haciendo:*\n"
-        "🔥 Check-in diario — mantené la racha\n"
+        "*Ganas puntos haciendo:*\n"
+        "🔥 Check-in diario — mantén la racha\n"
         "👥 Referir amigos al canal\n"
         "📱 Compartir contenido de Panther\n"
         "🎰 Girar la ruleta una vez por día\n\n"
@@ -3971,8 +3971,8 @@ async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "💵 USDT: $5, $10 y $50\n"
         "🐾 PNT: 50, 100, 250 y 500 tokens\n"
         "_(Un premio económico por usuario por mes)_\n\n"
-        "Usá /niveles para ver la tabla completa\n"
-        "Usá /ranking para ver quién va ganando",
+        "Usa /niveles para ver la tabla completa\n"
+        "Usa /ranking para ver quién va ganando",
         parse_mode="Markdown",
         reply_markup=main_keyboard()
     )
@@ -4963,11 +4963,11 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             # Check access conditions
             if not can_access_ruleta(data):
                 streak = data.get("streak", 0)
-                missing = [f"racha de 3 días (tenés {streak})"] if streak < 3 else []
+                missing = [f"racha de 3 días (tienes {streak})"] if streak < 3 else []
                 return self.send_json({
                     "available": False,
                     "reason": "missions",
-                    "message": f"Necesitás 3 días de check-in seguidos para girar (racha actual: {streak})",
+                    "message": f"Necesitas 3 días de check-in seguidos para girar (racha actual: {streak})",
                     "missing": missing
                 })
 

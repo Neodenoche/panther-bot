@@ -715,6 +715,11 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 // Un solo interruptor, nada más que tocar acá.
 const MAINTENANCE_MODE = true;
 
+// IDs de Telegram que pueden entrar a probar la app aunque MAINTENANCE_MODE
+// esté en true (todos los demás siguen viendo la pantalla de mantenimiento).
+// Agregá o quitá IDs acá según haga falta.
+const MAINTENANCE_TESTERS = ['8234467845'];
+
 // ── API CONFIG ──
 const API_BASE = 'https://go.mypanther.io';
 let USER_ID = null;
@@ -1123,7 +1128,7 @@ function applyTranslations() {
 
   // Tap to enter
   const tapBtn = document.getElementById('splash-enter-btn');
-  if(tapBtn && !MAINTENANCE_MODE) tapBtn.textContent = t('tocaEntrar');
+  if(tapBtn && !EFFECTIVE_MAINTENANCE) tapBtn.textContent = t('tocaEntrar');
 }
 
 // Get Telegram user ID using official SDK
@@ -1156,6 +1161,11 @@ if (!USER_ID) {
   const testId = urlParams.get('id');
   if (testId) USER_ID = testId;
 }
+
+// Mantenimiento real a aplicar: activo solo si MAINTENANCE_MODE lo está Y
+// el usuario actual no es uno de los testers autorizados.
+const IS_MAINTENANCE_TESTER = !!(USER_ID && MAINTENANCE_TESTERS.includes(String(USER_ID)));
+const EFFECTIVE_MAINTENANCE = MAINTENANCE_MODE && !IS_MAINTENANCE_TESTER;
 
 
 // Load user data from API
@@ -2845,7 +2855,7 @@ function runSplashArt(){
           tapBtn.style.opacity='1';
           tapBtn.style.pointerEvents='all';
         }
-        if (MAINTENANCE_MODE) {
+        if (EFFECTIVE_MAINTENANCE) {
           const maintC = document.getElementById('splash-maint-content');
           if (maintC) maintC.style.display = 'block';
         } else {
@@ -2857,7 +2867,7 @@ function runSplashArt(){
   },55); // ~6 segundos total
 }
 
-if (MAINTENANCE_MODE) {
+if (EFFECTIVE_MAINTENANCE) {
   // Sin arte, sin carga: mensaje directo y centrado en el splash
   const splashEl = document.getElementById('splash');
   const art = document.getElementById('splash-art');
@@ -2887,7 +2897,7 @@ const QUOTES = [
 
 function enterApp() {
   // Guard: en modo mantenimiento este botón no existe en pantalla, pero por las dudas.
-  if (MAINTENANCE_MODE) return;
+  if (EFFECTIVE_MAINTENANCE) return;
 
   // Detect language
   detectLanguage();

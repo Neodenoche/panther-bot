@@ -492,6 +492,7 @@ def init_db():
         ("manada_quiz_semana",      "INTEGER DEFAULT 0"),
         ("manada_last_quiz_date",   "TEXT"),
         ("manada_retiro_pendiente", "INTEGER DEFAULT 0"),
+        ("manada_stake_semana",     "INTEGER DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -632,8 +633,8 @@ def save_db(db):
                     cazadores_evento, cazador_verificado, source, evento_pnt_ganado, panther_uid,
                     manada_usdt_balance, manada_pnt_balance, manada_usdt_month, manada_pnt_month,
                     manada_month_ref, manada_week_ref, manada_checkins_semana, manada_quiz_semana,
-                    manada_last_quiz_date, manada_retiro_pendiente, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    manada_last_quiz_date, manada_retiro_pendiente, manada_stake_semana, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -683,6 +684,7 @@ def save_db(db):
                     data.get("manada_quiz_semana", 0),
                     data.get("manada_last_quiz_date"),
                     int(data.get("manada_retiro_pendiente", False)),
+                    data.get("manada_stake_semana", 0),
                     json.dumps(history),
                 ))
             conn.commit()
@@ -840,6 +842,7 @@ def manada_reset_periods_if_needed(data: dict):
         data["manada_week_ref"]        = wref
         data["manada_checkins_semana"] = 0
         data["manada_quiz_semana"]     = 0
+        data["manada_stake_semana"]    = 0
 
 
 def add_manada_usdt(data: dict, amount: float) -> float:
@@ -2460,6 +2463,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "follow_emb_lorena":"🐆 Seguir Embajadora @pegandolavuelta",
         "story_mention":    "📣 Historia mencionando a un amigo",
         "first_deposit":    "💰 Primer depósito en Panther Wallet",
+        "stake":            "💰 Stake Challenge",
         None:               "📎 Sin clasificar",
     }
     tipo_label = tipo_labels.get(mission_type, "📎 Sin clasificar")
@@ -2473,6 +2477,22 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown"
             )
             return
+
+    # ── Stake Challenge: límite semanal (1x por semana, no diario) ──
+    if mission_type == "stake":
+        if not can_do_stake_this_week(data):
+            await update.message.reply_text(
+                "⚠️ Ya enviaste tu captura de Stake Challenge esta semana.\n"
+                "Vuelve la próxima semana para seguir ganando PNT 🐾"
+            )
+            return
+        # Registrar el intento ahora (antes de la revisión del mod), mismo
+        # criterio que Create & Earn: que cueste, no que se pueda spamear.
+        data["manada_stake_semana"] = (data.get("manada_stake_semana", 0) or 0) + 1
+        try:
+            save_db(db)
+        except Exception as e:
+            logger.error(f"Error guardando manada_stake_semana en handle_photo: {e}")
 
     # ── Verificar límite diario ──
     mission_key = mission_type
@@ -2538,6 +2558,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🎨 $0.30", callback_data=f"approve_{uid}_content|0.30"),
         ],
         [
+            InlineKeyboardButton("💰 Stake 0.5 PNT", callback_data=f"approve_{uid}_stake|0.5"),
+            InlineKeyboardButton("💰 1 PNT", callback_data=f"approve_{uid}_stake|1"),
+            InlineKeyboardButton("💰 2 PNT", callback_data=f"approve_{uid}_stake|2"),
+        ],
+        [
+            InlineKeyboardButton("💰 3 PNT", callback_data=f"approve_{uid}_stake|3"),
+            InlineKeyboardButton("💰 4 PNT", callback_data=f"approve_{uid}_stake|4"),
+            InlineKeyboardButton("💰 5 PNT", callback_data=f"approve_{uid}_stake|5"),
+        ],
+        [
             InlineKeyboardButton("✅ Review Store (+175 pts)", callback_data=f"approve_{uid}_review_store"),
             InlineKeyboardButton("✅ Review Trust (+175 pts)", callback_data=f"approve_{uid}_review_trust"),
         ],
@@ -2601,6 +2631,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 CREATE_EARN_USDT_MIN = 0.05
 CREATE_EARN_USDT_MAX = 0.30
 
+# Stake Challenge: rango de PNT que un mod puede acreditar a mano, y límite
+# de 1 captura por semana (el staking no cambia todos los días).
+STAKE_PNT_MIN = 0.5
+STAKE_PNT_MAX = 5.0
+
+def can_do_stake_this_week(data: dict) -> bool:
+    manada_reset_periods_if_needed(data)
+    return (data.get("manada_stake_semana", 0) or 0) < 1
+
 async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
         await update.message.reply_text("❌ No tienes permisos.")
@@ -2608,19 +2647,22 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if len(context.args) < 2:
         await update.message.reply_text(
-            "Uso: /aprobar USER_ID reel|story|content [monto_usdt]\n\n"
+            "Uso: /aprobar USER_ID reel|story|content|stake [monto]\n\n"
             f"Para 'content' (Create & Earn) el monto es obligatorio, entre "
             f"{CREATE_EARN_USDT_MIN} y {CREATE_EARN_USDT_MAX} USDT según la calidad.\n"
-            "Ej: /aprobar 123456789 content 0.20"
+            f"Para 'stake' (Stake Challenge) el monto es obligatorio, entre "
+            f"{STAKE_PNT_MIN} y {STAKE_PNT_MAX} PNT según la calidad.\n"
+            "Ej: /aprobar 123456789 content 0.20\n"
+            "Ej: /aprobar 123456789 stake 2"
         )
         return
 
     target_uid = context.args[0]
     tipo       = context.args[1].lower()
-    pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"]}
+    pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"], "stake": 0}
 
     if tipo not in pts_map:
-        await update.message.reply_text("Tipo inválido. Usa: reel, story o content")
+        await update.message.reply_text("Tipo inválido. Usa: reel, story, content o stake")
         return
 
     # ── Create & Earn: el mod define el monto USDT según la calidad ──
@@ -2644,6 +2686,27 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
 
+    # ── Stake Challenge: el mod define el monto PNT según la calidad ──
+    monto_pnt = 0.0
+    if tipo == "stake":
+        if len(context.args) < 3:
+            await update.message.reply_text(
+                f"⚠️ Para 'stake' tienes que indicar el monto en PNT "
+                f"({STAKE_PNT_MIN}–{STAKE_PNT_MAX}).\n"
+                "Ej: /aprobar USER_ID stake 2"
+            )
+            return
+        try:
+            monto_pnt = round(float(context.args[2].replace(",", ".")), 2)
+        except ValueError:
+            await update.message.reply_text("Monto inválido. Usa un número, ej: 2")
+            return
+        if not (STAKE_PNT_MIN <= monto_pnt <= STAKE_PNT_MAX):
+            await update.message.reply_text(
+                f"El monto debe estar entre {STAKE_PNT_MIN} y {STAKE_PNT_MAX} PNT."
+            )
+            return
+
     db = load_db()
     if target_uid not in db:
         await update.message.reply_text("Usuario no encontrado.")
@@ -2662,9 +2725,18 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if acreditado_usdt > 0:
             usdt_user_line = f"\n💰 *+{acreditado_usdt} USDT* a tu saldo de La Manada 🐆"
 
+    acreditado_pnt = 0.0
+    pnt_mod_line = ""
+    pnt_user_line = ""
+    if tipo == "stake":
+        acreditado_pnt = add_manada_pnt(db[target_uid], monto_pnt)
+        pnt_mod_line = f"\n🐾 +{acreditado_pnt} PNT (Manada) acreditados"
+        if acreditado_pnt > 0:
+            pnt_user_line = f"\n🐾 *+{acreditado_pnt} PNT* a tu saldo de La Manada 🐆"
+
     save_db(db)
 
-    await update.message.reply_text(f"✅ +{earned} pts acreditados al usuario {target_uid}{usdt_mod_line}")
+    await update.message.reply_text(f"✅ +{earned} pts acreditados al usuario {target_uid}{usdt_mod_line}{pnt_mod_line}")
 
     try:
         await context.bot.send_message(
@@ -2672,7 +2744,8 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text=f"✅ *¡Misión verificada!*\n\n"
                  f"Tu captura fue aprobada.\n"
                  f"➕ *+{earned} puntos* acreditados 🐾"
-                 f"{usdt_user_line}\n"
+                 f"{usdt_user_line}"
+                 f"{pnt_user_line}\n"
                  f"⭐ Total: *{db[target_uid]['points']} puntos*",
             parse_mode="Markdown"
         )
@@ -2861,6 +2934,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 monto_usdt = None
             tipo = "content"
 
+        # Stake Challenge: los botones codifican el monto PNT elegido por el
+        # mod como "stake|0.5" (ver mission_keyboard arriba).
+        monto_pnt = None
+        if tipo and tipo.startswith("stake|"):
+            try:
+                monto_pnt = round(float(tipo.split("|", 1)[1]), 2)
+            except ValueError:
+                monto_pnt = None
+            tipo = "stake"
+
         db = load_db()
         if target_uid not in db:
             await query.edit_message_text("❌ Usuario no encontrado.")
@@ -2869,7 +2952,7 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         mod_name = query.from_user.first_name or str(query.from_user.id)
 
         if action == "approve" and tipo:
-            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"]}
+            pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"], "stake": 0}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
 
             acreditado_usdt = 0.0
@@ -2882,6 +2965,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     usdt_mod_line += " (tope mensual de 10 USDT alcanzado)"
                 if acreditado_usdt > 0:
                     usdt_user_line = f"\n💰 *+{acreditado_usdt} USDT* a tu saldo de La Manada 🐆"
+
+            acreditado_pnt = 0.0
+            pnt_mod_line = ""
+            pnt_user_line = ""
+            if tipo == "stake" and monto_pnt:
+                acreditado_pnt = add_manada_pnt(db[target_uid], monto_pnt)
+                pnt_mod_line = f"\nPNT acreditados (Manada): *+{acreditado_pnt}*"
+                if acreditado_pnt > 0:
+                    pnt_user_line = f"\n🐾 *+{acreditado_pnt} PNT* a tu saldo de La Manada 🐆"
 
             # Acciones especiales por tipo
             if tipo == "wallet_activate":
@@ -2932,17 +3024,20 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             save_db(db)
 
-            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot", "comment_ig": "Comentario IG", "comment_ig_last": "Comentario Ultimo Post IG", "comment_tt": "Comentario TikTok", "comment_tt_last": "Comentario Ultimo Video TikTok", "follow_emb_emi": "Seguir @neodenoche", "follow_emb_lorena": "Seguir @pegandolavuelta", "story_mention": "Historia con mención", "first_deposit": "Primer Depósito"}
+            tipo_label = {"reel": "Reel", "story": "Historia", "content": "Contenido", "wallet_activate": "Activacion de Wallet", "review_store": "Review Store", "review_trust": "Review Trustpilot", "comment_ig": "Comentario IG", "comment_ig_last": "Comentario Ultimo Post IG", "comment_tt": "Comentario TikTok", "comment_tt_last": "Comentario Ultimo Video TikTok", "follow_emb_emi": "Seguir @neodenoche", "follow_emb_lorena": "Seguir @pegandolavuelta", "story_mention": "Historia con mención", "first_deposit": "Primer Depósito", "stake": "Stake Challenge"}
             approve_text = (
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"
                 f"Puntos acreditados: *+{earned}*"
                 f"{usdt_mod_line}"
+                f"{pnt_mod_line}"
             )
             # Confirmar el tap inmediatamente
             answer_text = f"✅ {tipo_label.get(tipo, tipo)} aprobado — +{earned} pts"
             if tipo == "content" and monto_usdt:
                 answer_text += f" +{acreditado_usdt} USDT"
+            if tipo == "stake" and monto_pnt:
+                answer_text += f" +{acreditado_pnt} PNT"
             await query.answer(answer_text)
             # Editar el mensaje en el grupo
             try:
@@ -2965,7 +3060,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         f"✅ *¡Misión verificada!*\n\n"
                         f"Tu captura fue aprobada.\n"
                         f"➕ *+{earned} puntos* acreditados 🐾"
-                        f"{usdt_user_line}\n"
+                        f"{usdt_user_line}"
+                        f"{pnt_user_line}\n"
                         f"⭐ Total: *{db[target_uid]['points']} puntos*"
                     ),
                     parse_mode="Markdown"

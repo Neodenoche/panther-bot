@@ -277,6 +277,15 @@ DAILY_LIMIT_MISSIONS = {
 }
 DAILY_LIMIT = 3
 
+# Create & Earn (own_content) acredita USDT real ademas de puntos: se limita
+# a 1 por dia para que valga la pena cuidar la calidad en vez de spamear.
+DAILY_LIMIT_OVERRIDE = {
+    "own_content": 1,
+}
+
+def get_daily_limit(mission_type: str) -> int:
+    return DAILY_LIMIT_OVERRIDE.get(mission_type, DAILY_LIMIT)
+
 ONCE_MISSIONS = {
     "wallet_activate", "review_store", "review_trust",
     "follow_emb_emi", "follow_emb_lorena",
@@ -885,12 +894,12 @@ def reset_daily_counts_if_needed(data):
         data["last_mission_date"] = today
 
 def can_do_daily_mission(data, mission_type):
-    """Retorna True si el usuario puede hacer esta misión hoy (límite 3/día)."""
+    """Retorna True si el usuario puede hacer esta misión hoy (límite según get_daily_limit)."""
     reset_daily_counts_if_needed(data)
     field = DAILY_COUNT_FIELD.get(mission_type)
     if not field:
         return True
-    return data.get(field, 0) < DAILY_LIMIT
+    return data.get(field, 0) < get_daily_limit(mission_type)
 
 def register_daily_mission(data, mission_type):
     """Incrementa el contador diario de la misión."""
@@ -2299,22 +2308,24 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if mission_type in ["reel", "story", "content"]:
         mission_key = {"reel": "share_reel", "story": "share_story", "content": "own_content"}[mission_type]
 
+    daily_limit_for_mission = get_daily_limit(mission_key)
+
     if mission_key in DAILY_LIMIT_MISSIONS:
         reset_daily_counts_if_needed(data)
         if not can_do_daily_mission(data, mission_key):
             await update.message.reply_text(
-                f"⚠️ Ya alcanzaste el límite de {DAILY_LIMIT} capturas para esta misión hoy.\n"
+                f"⚠️ Ya alcanzaste el límite de {daily_limit_for_mission} "
+                f"captura{'s' if daily_limit_for_mission != 1 else ''} para esta misión hoy.\n"
                 "Volvé mañana para seguir ganando puntos 🐾"
             )
             return
+        # Registrar el intento ahora: antes esto no se hacía y el contador
+        # nunca subía, así que el límite diario no se aplicaba de verdad.
+        register_daily_mission(data, mission_key)
 
     count_key = DAILY_COUNT_FIELD.get(mission_key)
     current_count = data.get(count_key, 0) if count_key else 0
-
-    if count_key:
-        remaining = DAILY_LIMIT - (current_count + 1)
-    else:
-        remaining = None
+    remaining = max(0, daily_limit_for_mission - current_count) if count_key else None
 
     try:
         save_db(db)
@@ -2322,7 +2333,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"Error guardando contadores en handle_photo: {e}")
 
     if count_key and remaining is not None:
-        counter_msg = f"\n\n📊 {tipo_label}: *{current_count + 1}/{DAILY_LIMIT}* hoy · te quedan *{remaining}* restantes."
+        counter_msg = f"\n\n📊 {tipo_label}: *{current_count}/{daily_limit_for_mission}* hoy · te quedan *{remaining}* restantes."
     else:
         counter_msg = ""
 
@@ -2341,8 +2352,19 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton(f"✅ Historia (+{PTS['share_story']} pts)", callback_data=f"approve_{uid}_story"),
         ],
         [
-            InlineKeyboardButton(f"✅ Contenido (+{PTS['own_content']} pts)", callback_data=f"approve_{uid}_content"),
             InlineKeyboardButton("✅ Wallet (+175 pts)", callback_data=f"approve_{uid}_wallet_activate"),
+        ],
+        [
+            InlineKeyboardButton(f"🎨 Contenido $0.05 (+{PTS['own_content']}pts)", callback_data=f"approve_{uid}_content|0.05"),
+        ],
+        [
+            InlineKeyboardButton("🎨 $0.10", callback_data=f"approve_{uid}_content|0.10"),
+            InlineKeyboardButton("🎨 $0.15", callback_data=f"approve_{uid}_content|0.15"),
+            InlineKeyboardButton("🎨 $0.20", callback_data=f"approve_{uid}_content|0.20"),
+        ],
+        [
+            InlineKeyboardButton("🎨 $0.25", callback_data=f"approve_{uid}_content|0.25"),
+            InlineKeyboardButton("🎨 $0.30", callback_data=f"approve_{uid}_content|0.30"),
         ],
         [
             InlineKeyboardButton("✅ Review Store (+175 pts)", callback_data=f"approve_{uid}_review_store"),
@@ -2404,13 +2426,22 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning(f"No se pudo notificar al mod {mod_id}: {e2}")
 
 # ── /aprobar — comando de texto para moderadores (fallback) ───────────────────
+# Create & Earn: rango de USDT que un mod puede acreditar a mano por /aprobar
+CREATE_EARN_USDT_MIN = 0.05
+CREATE_EARN_USDT_MAX = 0.30
+
 async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in MOD_IDS:
         await update.message.reply_text("❌ No tenés permisos.")
         return
 
     if len(context.args) < 2:
-        await update.message.reply_text("Uso: /aprobar USER_ID reel|story|content")
+        await update.message.reply_text(
+            "Uso: /aprobar USER_ID reel|story|content [monto_usdt]\n\n"
+            f"Para 'content' (Create & Earn) el monto es obligatorio, entre "
+            f"{CREATE_EARN_USDT_MIN} y {CREATE_EARN_USDT_MAX} USDT según la calidad.\n"
+            "Ej: /aprobar 123456789 content 0.20"
+        )
         return
 
     target_uid = context.args[0]
@@ -2421,22 +2452,56 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Tipo inválido. Usá: reel, story o content")
         return
 
+    # ── Create & Earn: el mod define el monto USDT según la calidad ──
+    monto_usdt = 0.0
+    if tipo == "content":
+        if len(context.args) < 3:
+            await update.message.reply_text(
+                f"⚠️ Para 'content' tenés que indicar el monto en USDT "
+                f"({CREATE_EARN_USDT_MIN}–{CREATE_EARN_USDT_MAX}).\n"
+                "Ej: /aprobar USER_ID content 0.20"
+            )
+            return
+        try:
+            monto_usdt = round(float(context.args[2].replace(",", ".")), 2)
+        except ValueError:
+            await update.message.reply_text("Monto inválido. Usá un número, ej: 0.20")
+            return
+        if not (CREATE_EARN_USDT_MIN <= monto_usdt <= CREATE_EARN_USDT_MAX):
+            await update.message.reply_text(
+                f"El monto debe estar entre {CREATE_EARN_USDT_MIN} y {CREATE_EARN_USDT_MAX} USDT."
+            )
+            return
+
     db = load_db()
     if target_uid not in db:
         await update.message.reply_text("Usuario no encontrado.")
         return
 
     earned = add_points(db[target_uid], pts_map[tipo])
+
+    acreditado_usdt = 0.0
+    usdt_mod_line = ""
+    usdt_user_line = ""
+    if tipo == "content":
+        acreditado_usdt = add_manada_usdt(db[target_uid], monto_usdt)
+        usdt_mod_line = f"\n💰 +{acreditado_usdt} USDT (Manada) acreditados"
+        if acreditado_usdt < monto_usdt:
+            usdt_mod_line += " — tope mensual de 10 USDT alcanzado, se acreditó parcial"
+        if acreditado_usdt > 0:
+            usdt_user_line = f"\n💰 *+{acreditado_usdt} USDT* a tu saldo de La Manada 🐆"
+
     save_db(db)
 
-    await update.message.reply_text(f"✅ +{earned} pts acreditados al usuario {target_uid}")
+    await update.message.reply_text(f"✅ +{earned} pts acreditados al usuario {target_uid}{usdt_mod_line}")
 
     try:
         await context.bot.send_message(
             chat_id=int(target_uid),
             text=f"✅ *¡Misión verificada!*\n\n"
                  f"Tu captura fue aprobada.\n"
-                 f"➕ *+{earned} puntos* acreditados 🐾\n"
+                 f"➕ *+{earned} puntos* acreditados 🐾"
+                 f"{usdt_user_line}\n"
                  f"⭐ Total: *{db[target_uid]['points']} puntos*",
             parse_mode="Markdown"
         )
@@ -2615,6 +2680,16 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_uid = parts[1]
         tipo = "_".join(parts[2:]) if len(parts) > 2 else None
 
+        # Create & Earn: los botones de "Contenido" codifican el monto USDT
+        # elegido por el mod como "content|0.05" (ver mission_keyboard arriba).
+        monto_usdt = None
+        if tipo and tipo.startswith("content|"):
+            try:
+                monto_usdt = round(float(tipo.split("|", 1)[1]), 2)
+            except ValueError:
+                monto_usdt = None
+            tipo = "content"
+
         db = load_db()
         if target_uid not in db:
             await query.edit_message_text("❌ Usuario no encontrado.")
@@ -2625,6 +2700,17 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if action == "approve" and tipo:
             pts_map = {"reel": PTS["share_reel"], "story": PTS["share_story"], "content": PTS["own_content"], "wallet_activate": PTS["wallet_activate"], "review_store": PTS["review_store"], "review_trust": PTS["review_trust"], "comment_ig": 5, "comment_ig_last": 30, "comment_tt": 5, "comment_tt_last": 30, "follow_emb_emi": PTS["follow_emb_emi"], "follow_emb_lorena": PTS["follow_emb_lorena"], "story_mention": PTS["story_mention"], "first_deposit": PTS["first_deposit"]}
             earned = add_points(db[target_uid], pts_map.get(tipo, 0))
+
+            acreditado_usdt = 0.0
+            usdt_mod_line = ""
+            usdt_user_line = ""
+            if tipo == "content" and monto_usdt:
+                acreditado_usdt = add_manada_usdt(db[target_uid], monto_usdt)
+                usdt_mod_line = f"\nUSDT acreditados (Manada): *+{acreditado_usdt}*"
+                if acreditado_usdt < monto_usdt:
+                    usdt_mod_line += " (tope mensual de 10 USDT alcanzado)"
+                if acreditado_usdt > 0:
+                    usdt_user_line = f"\n💰 *+{acreditado_usdt} USDT* a tu saldo de La Manada 🐆"
 
             # Acciones especiales por tipo
             if tipo == "wallet_activate":
@@ -2680,9 +2766,13 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"✅ *{tipo_label.get(tipo, tipo)} aprobado*\n"
                 f"Usuario: `{target_uid}`\n"
                 f"Puntos acreditados: *+{earned}*"
+                f"{usdt_mod_line}"
             )
             # Confirmar el tap inmediatamente
-            await query.answer(f"✅ {tipo_label.get(tipo, tipo)} aprobado — +{earned} pts")
+            answer_text = f"✅ {tipo_label.get(tipo, tipo)} aprobado — +{earned} pts"
+            if tipo == "content" and monto_usdt:
+                answer_text += f" +{acreditado_usdt} USDT"
+            await query.answer(answer_text)
             # Editar el mensaje en el grupo
             try:
                 await query.edit_message_text(approve_text, parse_mode="Markdown")
@@ -2703,7 +2793,8 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     text=(
                         f"✅ *¡Misión verificada!*\n\n"
                         f"Tu captura fue aprobada.\n"
-                        f"➕ *+{earned} puntos* acreditados 🐾\n"
+                        f"➕ *+{earned} puntos* acreditados 🐾"
+                        f"{usdt_user_line}\n"
                         f"⭐ Total: *{db[target_uid]['points']} puntos*"
                     ),
                     parse_mode="Markdown"

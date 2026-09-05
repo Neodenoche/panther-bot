@@ -466,6 +466,17 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
       <div class="mr"><div class="mpts">+40</div><div class="mplab">PTS</div></div>
       <div class="marr" id="arr-wallet-content">→</div>
     </div>
+
+    <!-- Stake Challenge -->
+    <div class="mc" id="mc-wallet-stake" onclick="openWalletMission('stake')" style="margin-bottom:8px">
+      <div class="mic" style="background:#0a0a1f">💰</div>
+      <div class="mb">
+        <div class="mn" id="wm-stake-title">Stake Challenge</div>
+        <div class="ms" id="wm-stake-sub">Captura tu staking activo en Panther Wallet · 1x/semana</div>
+      </div>
+      <div class="mr"><div class="mpts">0.5-5</div><div class="mplab">PNT</div></div>
+      <div class="marr" id="arr-wallet-stake">→</div>
+    </div>
   </div>
 
   <!-- MISIONES ESPECIALES -->
@@ -2039,6 +2050,16 @@ function openWalletMission(type) {
     ];
     pts = '+100 pts';
     missionType = 'content';
+  } else if(type === 'stake') {
+    title = '💰 Stake Challenge';
+    steps = [
+      '1️⃣ Haz staking de PNT o USDT en tu Panther Wallet',
+      '2️⃣ Toma una captura de tu posición activa (monto y APY/APR visibles)',
+      '3️⃣ Abre el Bot y envía la captura',
+      '4️⃣ Un mod verificará y acreditará entre 0.5 y 5 PNT a tu saldo de La Manada · 1x por semana'
+    ];
+    pts = '0.5 a 5 PNT';
+    missionType = 'stake';
   }
 
   // Guardar missionType globalmente para el botón

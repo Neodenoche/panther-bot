@@ -209,7 +209,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 
 /* ── NAV ── */
 .nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#111111f0;backdrop-filter:blur(16px);border-top:1px solid #222;display:flex;justify-content:space-around;padding:8px 4px 14px;z-index:100}
-.ni{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 12px;border-radius:14px;cursor:pointer;min-width:60px}
+.ni{display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 8px;border-radius:14px;cursor:pointer;min-width:50px}
 .ni.active{background:#2a1200}
 .ni-ic{font-size:20px;color:var(--or)}
 .ni-lb{font-size:8px;color:var(--or);text-transform:uppercase;letter-spacing:1px;font-weight:700}
@@ -601,7 +601,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
         <div style="font-size:10px;color:var(--t3);letter-spacing:1px">PNT</div>
       </div>
     </div>
-    <div style="font-size:11px;color:#888;text-align:center;margin-top:12px;line-height:1.5">Retiro mínimo: <span style="color:#ff8c42;font-weight:600">5 USDT</span> · se solicita en el chat de la Manada</div>
+    <div style="font-size:11px;color:#888;text-align:center;margin-top:12px;line-height:1.5">Retiro mínimo: <span style="color:#ff8c42;font-weight:600">5 USDT</span></div>
+    <button id="retiro-btn" onclick="requestRetiro()" disabled style="width:100%;margin-top:12px;background:#2a1500;color:#666;border:1px solid #3a1500;border-radius:12px;padding:11px 0;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;font-size:13px;cursor:not-allowed;transition:.2s">SOLICITAR RETIRO</button>
+    <div id="retiro-msg" style="text-align:center;font-size:11px;margin-top:8px;min-height:14px"></div>
   </div>
   <div class="stats-grid">
     <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label" id="sl-streak">Racha actual</div><div class="stat-val" id="stat-streak">0 días</div></div>
@@ -640,6 +642,45 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div style="text-align:center;padding:20px;color:var(--t3)">Cargando ranking...</div>
   </div>
   <div id="game-rank-list" style="display:none;padding:12px 14px"></div>
+</div>
+
+<!-- PERFIL (propio) -->
+<div class="screen" id="s-perfil">
+  <div style="padding:24px 18px 8px;text-align:center">
+    <div style="position:relative;width:96px;height:96px;margin:0 auto 12px">
+      <img id="perfil-avatar-img" src="" style="display:none;width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--ob)">
+      <div id="perfil-avatar-fallback" style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle,#1f0d00,var(--bg));border:2px solid var(--ob);display:flex;align-items:center;justify-content:center;font-size:40px">🐾</div>
+      <div onclick="triggerAvatarPicker()" style="position:absolute;bottom:0;right:0;width:30px;height:30px;border-radius:50%;background:#ff6b1a;display:flex;align-items:center;justify-content:center;font-size:14px;cursor:pointer;border:2px solid #0a0a0a">📷</div>
+      <input type="file" id="perfil-avatar-input" accept="image/*" style="display:none" onchange="handleAvatarFile(event)">
+    </div>
+    <div style="font-size:12px;color:var(--t3)">Toca la cámara para cambiar tu foto</div>
+  </div>
+  <div style="padding:0 18px 90px">
+    <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:2px;margin:14px 0 6px">Apodo</div>
+    <input id="perfil-nickname" maxlength="20" placeholder="Tu apodo en La Manada" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid #282828;border-radius:12px;padding:12px 14px;color:#fff;font-size:15px">
+    <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:2px;margin:16px 0 6px">Bio</div>
+    <textarea id="perfil-bio" maxlength="140" placeholder="Contá algo sobre vos (140 caracteres)" rows="3" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid #282828;border-radius:12px;padding:12px 14px;color:#fff;font-size:14px;resize:none;font-family:inherit"></textarea>
+    <button onclick="saveProfile()" style="width:100%;margin-top:16px;background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:15px;cursor:pointer">GUARDAR</button>
+    <div id="perfil-save-msg" style="text-align:center;font-size:12px;color:#4ade80;margin-top:10px;min-height:16px"></div>
+  </div>
+</div>
+
+<!-- PERFIL PUBLICO (de otro usuario, se abre desde el Ranking) -->
+<div class="screen" id="s-perfil-publico">
+  <div style="padding:16px 18px 0">
+    <div onclick="goTo('ranking')" style="display:inline-flex;align-items:center;gap:6px;color:var(--t3);font-size:13px;cursor:pointer">← Volver al ranking</div>
+  </div>
+  <div style="padding:12px 18px 8px;text-align:center">
+    <img id="perfil-pub-avatar-img" src="" style="display:none;width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--ob);margin:0 auto 12px">
+    <div id="perfil-pub-avatar-fallback" style="width:96px;height:96px;border-radius:50%;background:radial-gradient(circle,#1f0d00,var(--bg));border:2px solid var(--ob);display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 12px">🐾</div>
+    <div id="perfil-pub-nickname" style="font-size:19px;font-weight:700;color:#fff;margin-top:4px">Cazador</div>
+    <div class="level-pill" id="perfil-pub-level" style="justify-content:center;margin:10px auto 0">🐾 Lv.1</div>
+    <div id="perfil-pub-bio" style="font-size:13px;color:#aaa;margin-top:14px;line-height:1.6;padding:0 12px"></div>
+  </div>
+  <div class="stats-grid" style="margin-top:10px">
+    <div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-label">Puntos</div><div class="stat-val" id="perfil-pub-points">0</div></div>
+    <div class="stat-card"><div class="stat-icon">🔥</div><div class="stat-label">Racha</div><div class="stat-val" id="perfil-pub-streak">0 días</div></div>
+  </div>
 </div>
 
 <!-- RULETA -->
@@ -747,6 +788,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <div class="ni" data-s="puntos" onclick="goTo('puntos')"><span class="ni-ic">📊</span><span class="ni-lb">Mis pts</span></div>
   <div class="ni" data-s="ranking" onclick="goTo('ranking')"><span class="ni-ic">🏆</span><span class="ni-lb">Ranking</span></div>
   <div class="ni" data-s="referido" onclick="goTo('referido')"><span class="ni-ic">🔗</span><span class="ni-lb">Referido</span></div>
+  <div class="ni" data-s="perfil" onclick="goTo('perfil')"><span class="ni-ic">👤</span><span class="ni-lb">Perfil</span></div>
   <div class="ni" id="ni-juego" onclick="openGame()" style="position:relative"><span class="ni-ic">🎮</span><span class="ni-lb" style="color:#FF5C1A">Jugar</span><span style="position:absolute;top:2px;right:8px;background:#FF5C1A;color:#000;font-size:7px;font-weight:900;border-radius:4px;padding:1px 4px;letter-spacing:.5px">NEW</span></div>
 </nav>
 
@@ -776,6 +818,7 @@ const T = {
     ruletaTitle: 'RULETA',
     eventoTitle: 'EVENTO',
     referidoTitle: 'REFERIDO',
+    perfilTitle: 'PERFIL',
     checkinName: 'Check-in diario',
     checkinSub: '+5 a +10 pts · bonus por racha',
     ruletaName: 'Ruleta diaria',
@@ -868,6 +911,7 @@ const T = {
     ruletaTitle: 'WHEEL',
     eventoTitle: 'EVENT',
     referidoTitle: 'REFERRAL',
+    perfilTitle: 'PROFILE',
     checkinName: 'Daily Check-in',
     checkinSub: '+5 to +10 pts · streak bonus',
     ruletaName: 'Daily Wheel',
@@ -973,7 +1017,7 @@ function t(key) {
 function applyTranslations() {
   // Nav
   const navItems = document.querySelectorAll('.ni-lb');
-  const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','referidoTitle'];
+  const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','referidoTitle','perfilTitle'];
   navItems.forEach((el, i) => { if(navKeys[i]) el.textContent = t(navKeys[i]); });
 
   // Mission cards — diarias/sociales (por ID, no por posición: la posición
@@ -1297,6 +1341,38 @@ function updateUI() {
   if (usdtBalEl) usdtBalEl.textContent = '$' + (userData.manada_usdt_balance || 0);
   const pntBalEl = document.getElementById('manada-pnt-balance');
   if (pntBalEl) pntBalEl.textContent = userData.manada_pnt_balance || 0;
+
+  // Botón Solicitar retiro — habilitado solo si llega al mínimo y no tiene uno pendiente
+  const retiroBtn = document.getElementById('retiro-btn');
+  const retiroMsg = document.getElementById('retiro-msg');
+  if (retiroBtn) {
+    const usdtBal  = userData.manada_usdt_balance || 0;
+    const minRetiro = userData.manada_min_retiro_usdt || 5;
+    if (userData.manada_retiro_pendiente) {
+      retiroBtn.disabled = true;
+      retiroBtn.textContent = 'RETIRO EN PROCESO';
+      retiroBtn.style.cursor = 'not-allowed';
+      retiroBtn.style.color = '#888';
+      if (retiroMsg) retiroMsg.textContent = `Un mod está procesando tu pago de ${userData.manada_retiro_usdt} USDT / ${userData.manada_retiro_pnt} PNT`;
+      retiroMsg.style.color = '#ff8c42';
+    } else if (usdtBal >= minRetiro) {
+      retiroBtn.disabled = false;
+      retiroBtn.textContent = 'SOLICITAR RETIRO';
+      retiroBtn.style.cursor = 'pointer';
+      retiroBtn.style.background = '#ff6b1a';
+      retiroBtn.style.color = '#fff';
+      retiroBtn.style.borderColor = '#ff6b1a';
+      if (retiroMsg) retiroMsg.textContent = '';
+    } else {
+      retiroBtn.disabled = true;
+      retiroBtn.textContent = 'SOLICITAR RETIRO';
+      retiroBtn.style.cursor = 'not-allowed';
+      retiroBtn.style.background = '#2a1500';
+      retiroBtn.style.color = '#666';
+      retiroBtn.style.borderColor = '#3a1500';
+      if (retiroMsg) retiroMsg.textContent = '';
+    }
+  }
 
   // Actualizar TODAS las pills de nivel (hero + Mis PTS)
   document.querySelectorAll('.level-pill').forEach(el => { el.innerHTML = `🐾 ${level.toUpperCase()}`; });
@@ -2488,6 +2564,148 @@ function goTo(n){
   if(n === 'misiones') loadUserData();
   if(n === 'mis-pts') loadPremiosHistorial();
   if(n === 'weekly-hunt') loadWeeklyHunt();
+  if(n === 'perfil') loadMyProfile();
+}
+
+// ── RETIRO ──
+function requestRetiro() {
+  if (!USER_ID) return;
+  const btn = document.getElementById('retiro-btn');
+  const msg = document.getElementById('retiro-msg');
+  if (btn.disabled) return;
+  btn.disabled = true;
+  btn.textContent = 'ENVIANDO...';
+  fetch(`${API_BASE}/request_retiro`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: USER_ID})
+  })
+  .then(res => res.json())
+  .then(data => {
+    if (data.error) {
+      if (msg) { msg.textContent = data.error; msg.style.color = '#ef4444'; }
+      loadUserData();
+      return;
+    }
+    if (msg) { msg.textContent = '¡Listo! Un mod va a procesar tu pago.'; msg.style.color = '#4ade80'; }
+    loadUserData();
+  })
+  .catch(() => {
+    if (msg) { msg.textContent = 'Error de red, intentá de nuevo.'; msg.style.color = '#ef4444'; }
+    loadUserData();
+  });
+}
+
+// ── PERFIL (propio) ──
+function loadMyProfile() {
+  if (!USER_ID || !userData) return;
+  const nickEl = document.getElementById('perfil-nickname');
+  const bioEl  = document.getElementById('perfil-bio');
+  if (nickEl) nickEl.value = userData.nickname || '';
+  if (bioEl) bioEl.value = userData.bio || '';
+  const img = document.getElementById('perfil-avatar-img');
+  const fallback = document.getElementById('perfil-avatar-fallback');
+  if (userData.avatar_version) {
+    img.src = `${API_BASE}/avatar?id=${USER_ID}&v=${userData.avatar_version}`;
+    img.style.display = 'block';
+    fallback.style.display = 'none';
+  } else {
+    img.style.display = 'none';
+    fallback.style.display = 'flex';
+  }
+}
+
+function saveProfile() {
+  if (!USER_ID) return;
+  const nickname = (document.getElementById('perfil-nickname').value || '').trim();
+  const bio = (document.getElementById('perfil-bio').value || '').trim();
+  const msgEl = document.getElementById('perfil-save-msg');
+  fetch(`${API_BASE}/profile`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: USER_ID, nickname, bio})
+  })
+  .then(res => res.json())
+  .then(() => {
+    if (userData) { userData.nickname = nickname; userData.bio = bio; }
+    if (msgEl) { msgEl.textContent = 'Perfil guardado ✓'; setTimeout(() => msgEl.textContent = '', 2500); }
+  })
+  .catch(() => { if (msgEl) msgEl.textContent = 'Error de red, intentá de nuevo.'; });
+}
+
+function triggerAvatarPicker() {
+  const input = document.getElementById('perfil-avatar-input');
+  if (input) input.click();
+}
+
+function handleAvatarFile(event) {
+  const file = event.target.files && event.target.files[0];
+  if (!file || !USER_ID) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const image = new Image();
+    image.onload = function() {
+      // Redimensionamos en el navegador antes de subir para no mandar fotos gigantes
+      const size = 500;
+      const canvas = document.createElement('canvas');
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      const side = Math.min(image.width, image.height);
+      const sx = (image.width - side) / 2;
+      const sy = (image.height - side) / 2;
+      ctx.drawImage(image, sx, sy, side, side, 0, 0, size, size);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+      const img = document.getElementById('perfil-avatar-img');
+      const fallback = document.getElementById('perfil-avatar-fallback');
+      img.src = dataUrl;
+      img.style.display = 'block';
+      fallback.style.display = 'none';
+
+      fetch(`${API_BASE}/profile_photo`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({id: USER_ID, image: dataUrl})
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.avatar_version && userData) userData.avatar_version = data.avatar_version;
+      })
+      .catch(() => {});
+    };
+    image.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── PERFIL PUBLICO (de otro usuario) ──
+function viewProfile(uid) {
+  if (!uid) return;
+  fetch(`${API_BASE}/profile?id=${uid}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) return;
+      document.getElementById('perfil-pub-nickname').textContent = data.nickname || 'Cazador';
+      document.getElementById('perfil-pub-bio').textContent = data.bio || '';
+      document.getElementById('perfil-pub-level').innerHTML = `🐾 ${(data.level || '').toUpperCase()}`;
+      document.getElementById('perfil-pub-points').textContent = (data.points || 0).toLocaleString();
+      document.getElementById('perfil-pub-streak').textContent = `${data.streak || 0} días`;
+      const img = document.getElementById('perfil-pub-avatar-img');
+      const fallback = document.getElementById('perfil-pub-avatar-fallback');
+      if (data.avatar_version) {
+        img.src = `${API_BASE}/avatar?id=${uid}&v=${data.avatar_version}`;
+        img.style.display = 'block';
+        fallback.style.display = 'none';
+      } else {
+        img.style.display = 'none';
+        fallback.style.display = 'flex';
+      }
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const scr = document.getElementById('s-perfil-publico');
+      if (scr) scr.classList.add('active');
+      window.scrollTo(0, 0);
+    })
+    .catch(() => {});
 }
 
 async function loadWeeklyHunt() {
@@ -2589,12 +2807,16 @@ async function loadRanking() {
       const isMe = USER_ID && u.id === USER_ID;
       if(isMe) myRank = i+1;
       const pos = i < 3 ? medals[i] : (i+1);
-      const avatar = avatars[i % avatars.length];
-      html += `<div class="rank-row${isMe?' me':''}">
+      const fallbackEmoji = avatars[i % avatars.length];
+      const displayName = isMe ? 'Tú' : (u.nickname || u.username || u.first_name || 'Usuario');
+      const avatarHtml = u.avatar_version
+        ? `<img src="${API_BASE}/avatar?id=${u.id}&v=${u.avatar_version}" style="width:100%;height:100%;object-fit:cover;border-radius:50%" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'"><div style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:16px">${fallbackEmoji}</div>`
+        : fallbackEmoji;
+      html += `<div class="rank-row${isMe?' me':''}" ${isMe?'':`onclick="viewProfile('${u.id}')" style="cursor:pointer"`}>
         <div class="rank-pos">${pos}</div>
-        <div class="rank-avatar">${avatar}</div>
+        <div class="rank-avatar" style="overflow:hidden;position:relative">${avatarHtml}</div>
         <div class="rank-info">
-          <div class="rank-name">${isMe ? 'Tú' : (u.username || u.first_name || 'Usuario')}</div>
+          <div class="rank-name">${displayName}</div>
           <div class="rank-lv">${u.level}</div>
         </div>
         <div class="rank-pts">${u.points.toLocaleString()}</div>

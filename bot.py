@@ -4,10 +4,11 @@ PANTHER WALLET — MANADA PANTHER GAME BOT
 Módulo completo: Bot + API HTTP para Mini App
 """
 
-import os, json, logging, random, asyncio, threading, sqlite3, hashlib
+import os, json, logging, random, asyncio, threading, sqlite3, hashlib, base64, io
 from datetime import datetime, date, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
+from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler,
@@ -24,6 +25,13 @@ logger = logging.getLogger(__name__)
 TOKEN   = os.environ.get("BOT_TOKEN", "")
 DB_FILE  = "/data/panther_db.json"   # JSON legacy (para migración)
 SQLITE_FILE = "/data/panther.db"
+
+# ── Perfil — fotos de usuario, guardadas en el volumen persistente ──
+AVATAR_DIR = "/data/avatars"
+os.makedirs(AVATAR_DIR, exist_ok=True)
+AVATAR_MAX_UPLOAD_BYTES = 2 * 1024 * 1024  # 2MB antes de decodificar (base64)
+NICKNAME_MAX_LEN = 20
+BIO_MAX_LEN = 140
 
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
@@ -504,6 +512,17 @@ def init_db():
         # Intro de bienvenida a La Manada v2 (tarjeta estilo terminal que
         # explica las misiones nuevas) — se muestra una sola vez.
         ("seen_intro_v2",              "INTEGER DEFAULT 0"),
+        # Perfil — apodo, bio y version de la foto (para invalidar cache al
+        # subir una nueva). La foto en si se guarda en disco (AVATAR_DIR),
+        # no en la base de datos.
+        ("nickname",                "TEXT DEFAULT ''"),
+        ("bio",                     "TEXT DEFAULT ''"),
+        ("avatar_version",          "INTEGER DEFAULT 0"),
+        # Retiro de saldo La Manada — manada_retiro_pendiente ya existia
+        # como columna (sin usar); agregamos el monto congelado al momento
+        # de pedir el retiro para poder devolverlo si un mod lo rechaza.
+        ("manada_retiro_usdt",      "REAL DEFAULT 0"),
+        ("manada_retiro_pnt",       "REAL DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -646,8 +665,9 @@ def save_db(db):
                     manada_month_ref, manada_week_ref, manada_checkins_semana, manada_quiz_semana,
                     manada_last_quiz_date, manada_retiro_pendiente, manada_stake_semana,
                     manada_last_week_ref, manada_last_week_checkins, manada_last_week_quiz,
-                    seen_intro_v2, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    seen_intro_v2, nickname, bio, avatar_version, manada_retiro_usdt, manada_retiro_pnt,
+                    history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -702,6 +722,11 @@ def save_db(db):
                     data.get("manada_last_week_checkins", 0),
                     data.get("manada_last_week_quiz", 0),
                     int(data.get("seen_intro_v2", False)),
+                    data.get("nickname", ""),
+                    data.get("bio", ""),
+                    data.get("avatar_version", 0),
+                    data.get("manada_retiro_usdt", 0),
+                    data.get("manada_retiro_pnt", 0),
                     json.dumps(history),
                 ))
             conn.commit()
@@ -786,6 +811,44 @@ async def notify_mods(app, msg: str):
         )
     except Exception as e:
         logger.error(f"Error notificando mods: {e}")
+
+async def notify_retiro_request(app, uid: str, nombre: str, usdt: float, pnt: float):
+    """Avisa a los mods que un usuario pidio retirar su saldo de La Manada,
+    con botones para marcarlo pagado o rechazarlo (devuelve el saldo)."""
+    texto = (
+        f"💸 *Solicitud de retiro*\n\n"
+        f"Usuario: {nombre} (ID: {uid})\n"
+        f"Monto: *{usdt} USDT* + *{pnt} PNT*\n\n"
+        f"Sin monto maximo definido por ahora — el limite real es el tope "
+        f"de {MANADA_MONTHLY_CAP_USDT} USDT que puede ganar por mes.\n\n"
+        f"¿Confirmas el pago?"
+    )
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("✅ Ya pague", callback_data=f"retiroOk_{uid}")],
+        [InlineKeyboardButton("❌ Rechazar (devolver saldo)", callback_data=f"retiroNo_{uid}")],
+    ])
+    notified = False
+    try:
+        await app.bot.send_message(
+            chat_id=MOD_GROUP_ID,
+            text=texto,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+        notified = True
+    except Exception as e:
+        logger.error(f"Error notificando retiro al grupo de mods: {e}")
+    if not notified:
+        for mod_id in MOD_IDS:
+            try:
+                await app.bot.send_message(
+                    chat_id=mod_id,
+                    text=texto,
+                    parse_mode="Markdown",
+                    reply_markup=keyboard
+                )
+            except Exception as e:
+                logger.error(f"Error notificando retiro a mod {mod_id}: {e}")
 
 
     """Limpia nombres con caracteres especiales para SQLite"""
@@ -3071,6 +3134,57 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text(f"✅ Wallet aprobada. +150 pts enviados al referidor.")
         return
 
+    # ── Retiro de saldo La Manada (moderadores) ──
+    if data_str.startswith("retiroOk_") or data_str.startswith("retiroNo_"):
+        if query.from_user.id not in MOD_IDS:
+            await query.answer("❌ No tienes permisos de moderador.", show_alert=True)
+            return
+
+        aprobado = data_str.startswith("retiroOk_")
+        target_uid = data_str.split("_", 1)[1]
+
+        db = load_db()
+        if target_uid not in db:
+            await query.edit_message_text("Usuario no encontrado.")
+            return
+
+        udata = db[target_uid]
+        usdt = udata.get("manada_retiro_usdt", 0) or 0
+        pnt  = udata.get("manada_retiro_pnt", 0) or 0
+
+        udata["manada_retiro_pendiente"] = False
+        udata["manada_retiro_usdt"] = 0
+        udata["manada_retiro_pnt"]  = 0
+
+        if not aprobado:
+            # Rechazado — el saldo vuelve a estar disponible para el usuario
+            udata["manada_usdt_balance"] = (udata.get("manada_usdt_balance", 0) or 0) + usdt
+            udata["manada_pnt_balance"]  = (udata.get("manada_pnt_balance", 0) or 0) + pnt
+        save_db(db)
+
+        try:
+            if aprobado:
+                await context.bot.send_message(
+                    chat_id=int(target_uid),
+                    text=f"✅ *¡Retiro pagado!*\n\n"
+                         f"Se acreditaron *{usdt} USDT* y *{pnt} PNT* fuera de la app 🐆",
+                    parse_mode="Markdown"
+                )
+            else:
+                await context.bot.send_message(
+                    chat_id=int(target_uid),
+                    text=f"❌ *Retiro rechazado*\n\n"
+                         f"Tu saldo de *{usdt} USDT* y *{pnt} PNT* volvió a tu cuenta. "
+                         f"Escribile a un mod si tenés dudas.",
+                    parse_mode="Markdown"
+                )
+        except Exception:
+            pass
+
+        estado = "pagado ✅" if aprobado else "rechazado (saldo devuelto) ❌"
+        await query.edit_message_text(f"Retiro de {target_uid} — {usdt} USDT / {pnt} PNT — {estado}")
+        return
+
     # ── Aprobar/rechazar captura (moderadores) ──
     if data_str.startswith("approve_") or data_str.startswith("reject_"):
         logger.info(f"Callback mod check: from_user.id={query.from_user.id} type={type(query.from_user.id)} MOD_IDS={MOD_IDS}")
@@ -4516,6 +4630,13 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "weekly_hunt_quiz":     weekly_hunt_quiz,
                 "weekly_hunt_eligible": weekly_hunt_eligible,
                 "seen_intro_v2": bool(data.get("seen_intro_v2", False)),
+                "nickname":       data.get("nickname", ""),
+                "bio":            data.get("bio", ""),
+                "avatar_version": data.get("avatar_version", 0) or 0,
+                "manada_retiro_pendiente": bool(data.get("manada_retiro_pendiente", False)),
+                "manada_retiro_usdt":      data.get("manada_retiro_usdt", 0),
+                "manada_retiro_pnt":       data.get("manada_retiro_pnt", 0),
+                "manada_min_retiro_usdt":  MANADA_MIN_RETIRO_USDT,
             })
 
         # ── GET /quiz?id=123456 — Learn & Earn: pregunta del día ──
@@ -4670,12 +4791,14 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             top20 = sorted(valid, key=lambda x: x["points"], reverse=True)[:20]
             return self.send_json([
                 {
-                    "pos":        i + 1,
-                    "id":         u.get("id", ""),
-                    "username":   u.get("username", ""),
-                    "first_name": u.get("first_name", ""),
-                    "points":     u.get("points", 0),
-                    "level":      get_level(u.get("points", 0)),
+                    "pos":            i + 1,
+                    "id":             u.get("id", ""),
+                    "username":       u.get("username", ""),
+                    "first_name":     u.get("first_name", ""),
+                    "nickname":       u.get("nickname", ""),
+                    "avatar_version": u.get("avatar_version", 0) or 0,
+                    "points":         u.get("points", 0),
+                    "level":          get_level(u.get("points", 0)),
                 }
                 for i, u in enumerate(top20)
             ])
@@ -5791,6 +5914,44 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             except Exception as e:
                 self.send_json({"error": f"App not found: {str(e)}"}, 404)
 
+        # ── GET /avatar?id=123456 — sirve la foto de perfil del usuario ──
+        elif path == "/avatar":
+            uid = params.get("id", [None])[0]
+            avatar_path = os.path.join(AVATAR_DIR, f"{uid}.jpg") if uid else None
+            if not uid or not os.path.isfile(avatar_path):
+                return self.send_json({"error": "No avatar"}, 404)
+            try:
+                with open(avatar_path, "rb") as f:
+                    img_data = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "image/jpeg")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Cache-Control", "public, max-age=604800, immutable")
+                self.send_header("Content-Length", str(len(img_data)))
+                self.end_headers()
+                self.wfile.write(img_data)
+            except Exception as e:
+                self.send_json({"error": f"Avatar error: {str(e)}"}, 404)
+
+        # ── GET /profile?id=123456 — perfil PUBLICO de un usuario (lo ven otros) ──
+        elif path == "/profile":
+            uid = params.get("id", [None])[0]
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+            db   = load_db()
+            data = db.get(uid)
+            if not data:
+                return self.send_json({"error": "User not found"}, 404)
+            return self.send_json({
+                "id":             uid,
+                "nickname":       data.get("nickname") or data.get("username") or data.get("first_name") or "Cazador",
+                "bio":            data.get("bio", ""),
+                "avatar_version": data.get("avatar_version", 0) or 0,
+                "points":         data.get("points", 0),
+                "level":          get_level(data.get("points", 0)),
+                "streak":         data.get("streak", 0),
+            })
+
         elif path == "/music-game":
             try:
                 with open("pnt_defender_music.mp3", "rb") as f:
@@ -6052,6 +6213,82 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             data["seen_intro_v2"] = True
             save_db(db)
             return self.send_json({"status": "ok"})
+
+        # ── POST /profile — actualiza apodo y bio ──
+        elif path == "/profile":
+            uid = body.get("id")
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+            nickname = (body.get("nickname") or "").strip()[:NICKNAME_MAX_LEN]
+            bio      = (body.get("bio") or "").strip()[:BIO_MAX_LEN]
+            db   = load_db()
+            data = get_user(db, uid)
+            data["nickname"] = nickname
+            data["bio"]      = bio
+            save_db(db)
+            return self.send_json({"status": "ok", "nickname": nickname, "bio": bio})
+
+        # ── POST /profile_photo — sube/reemplaza la foto de perfil ──
+        elif path == "/profile_photo":
+            uid   = body.get("id")
+            image = body.get("image")  # data URL: "data:image/jpeg;base64,...."
+            if not uid or not image:
+                return self.send_json({"error": "Missing id or image"}, 400)
+            try:
+                if "," in image:
+                    image = image.split(",", 1)[1]
+                raw = base64.b64decode(image)
+                if len(raw) > AVATAR_MAX_UPLOAD_BYTES:
+                    return self.send_json({"error": "Imagen muy pesada (max 2MB)"}, 400)
+                img = Image.open(io.BytesIO(raw))
+                img = img.convert("RGB")
+                # Recortar al centro en cuadrado y redimensionar — todos los
+                # avatares quedan del mismo tamano sin importar la foto original.
+                w, h = img.size
+                side = min(w, h)
+                left = (w - side) // 2
+                top  = (h - side) // 2
+                img = img.crop((left, top, left + side, top + side)).resize((400, 400), Image.LANCZOS)
+                out_path = os.path.join(AVATAR_DIR, f"{uid}.jpg")
+                img.save(out_path, "JPEG", quality=85)
+            except Exception as e:
+                logger.error(f"Error procesando avatar de {uid}: {e}")
+                return self.send_json({"error": "Imagen invalida"}, 400)
+
+            db   = load_db()
+            data = get_user(db, uid)
+            data["avatar_version"] = int(data.get("avatar_version", 0) or 0) + 1
+            save_db(db)
+            return self.send_json({"status": "ok", "avatar_version": data["avatar_version"]})
+
+        # ── POST /request_retiro — pide retirar el saldo acumulado de La Manada ──
+        elif path == "/request_retiro":
+            uid = body.get("id")
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+            db   = load_db()
+            data = get_user(db, uid)
+            if data.get("manada_retiro_pendiente"):
+                return self.send_json({"error": "Ya tienes un retiro pendiente"}, 400)
+            usdt_bal = data.get("manada_usdt_balance", 0) or 0
+            pnt_bal  = data.get("manada_pnt_balance", 0) or 0
+            if usdt_bal < MANADA_MIN_RETIRO_USDT:
+                return self.send_json({"error": f"Necesitas al menos {MANADA_MIN_RETIRO_USDT} USDT para pedir un retiro"}, 400)
+
+            data["manada_retiro_pendiente"] = True
+            data["manada_retiro_usdt"] = usdt_bal
+            data["manada_retiro_pnt"]  = pnt_bal
+            data["manada_usdt_balance"] = 0
+            data["manada_pnt_balance"]  = 0
+            save_db(db)
+
+            nombre = data.get("nickname") or data.get("username") or data.get("first_name") or uid
+            if CombinedHandler.tg_app and CombinedHandler.tg_loop:
+                asyncio.run_coroutine_threadsafe(
+                    notify_retiro_request(CombinedHandler.tg_app, uid, nombre, usdt_bal, pnt_bal),
+                    CombinedHandler.tg_loop
+                )
+            return self.send_json({"status": "ok", "usdt": usdt_bal, "pnt": pnt_bal})
 
         # ── POST /follow ──
         elif path == "/follow":

@@ -501,6 +501,9 @@ def init_db():
         ("manada_last_week_ref",       "TEXT DEFAULT ''"),
         ("manada_last_week_checkins",  "INTEGER DEFAULT 0"),
         ("manada_last_week_quiz",      "INTEGER DEFAULT 0"),
+        # Intro de bienvenida a La Manada v2 (tarjeta estilo terminal que
+        # explica las misiones nuevas) — se muestra una sola vez.
+        ("seen_intro_v2",              "INTEGER DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -642,8 +645,9 @@ def save_db(db):
                     manada_usdt_balance, manada_pnt_balance, manada_usdt_month, manada_pnt_month,
                     manada_month_ref, manada_week_ref, manada_checkins_semana, manada_quiz_semana,
                     manada_last_quiz_date, manada_retiro_pendiente, manada_stake_semana,
-                    manada_last_week_ref, manada_last_week_checkins, manada_last_week_quiz, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    manada_last_week_ref, manada_last_week_checkins, manada_last_week_quiz,
+                    seen_intro_v2, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -697,6 +701,7 @@ def save_db(db):
                     data.get("manada_last_week_ref", ""),
                     data.get("manada_last_week_checkins", 0),
                     data.get("manada_last_week_quiz", 0),
+                    int(data.get("seen_intro_v2", False)),
                     json.dumps(history),
                 ))
             conn.commit()
@@ -4510,6 +4515,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "weekly_hunt_checkins": weekly_hunt_checkins,
                 "weekly_hunt_quiz":     weekly_hunt_quiz,
                 "weekly_hunt_eligible": weekly_hunt_eligible,
+                "seen_intro_v2": bool(data.get("seen_intro_v2", False)),
             })
 
         # ── GET /quiz?id=123456 — Learn & Earn: pregunta del día ──
@@ -6035,6 +6041,17 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             save_pending_missions()
             logger.info(f"set_mission_type OK: uid={uid} type={mission_type}")
             return self.send_json({"status": "ok", "type": mission_type})
+
+        # ── POST /intro_seen — marca que el usuario ya vio la intro de bienvenida ──
+        elif path == "/intro_seen":
+            uid = body.get("id")
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+            db   = load_db()
+            data = get_user(db, uid)
+            data["seen_intro_v2"] = True
+            save_db(db)
+            return self.send_json({"status": "ok"})
 
         # ── POST /follow ──
         elif path == "/follow":

@@ -665,13 +665,14 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.5">Lo necesitamos para poder pagarte cuando pidas un retiro — sin esto, tesorería no puede procesar el pago.</div>
     <button onclick="saveProfile()" style="width:100%;margin-top:16px;background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:15px;cursor:pointer">GUARDAR</button>
     <div id="perfil-save-msg" style="text-align:center;font-size:12px;color:#4ade80;margin-top:10px;min-height:16px"></div>
+    <button onclick="viewProfile(USER_ID, 'perfil')" style="width:100%;margin-top:10px;background:transparent;color:#ff8c42;border:1px solid #3a1500;border-radius:12px;padding:12px 0;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1.5px;font-size:14px;cursor:pointer">👁 VER MI PERFIL</button>
   </div>
 </div>
 
 <!-- PERFIL PUBLICO (de otro usuario, se abre desde el Ranking) -->
 <div class="screen" id="s-perfil-publico">
   <div style="padding:16px 18px 0">
-    <div onclick="goTo('ranking')" style="display:inline-flex;align-items:center;gap:6px;color:var(--t3);font-size:13px;cursor:pointer">← Volver al ranking</div>
+    <div id="perfil-pub-back" onclick="goTo(_perfilPublicoOrigin)" style="display:inline-flex;align-items:center;gap:6px;color:var(--t3);font-size:13px;cursor:pointer">← Volver</div>
   </div>
   <div style="padding:12px 18px 8px;text-align:center">
     <img id="perfil-pub-avatar-img" src="" style="display:none;width:96px;height:96px;border-radius:50%;object-fit:cover;border:2px solid var(--ob);margin:0 auto 12px">
@@ -2692,8 +2693,10 @@ function handleAvatarFile(event) {
 }
 
 // ── PERFIL PUBLICO (de otro usuario) ──
-function viewProfile(uid) {
+let _perfilPublicoOrigin = 'ranking';
+function viewProfile(uid, origin) {
   if (!uid) return;
+  _perfilPublicoOrigin = origin || 'ranking';
   fetch(`${API_BASE}/profile?id=${uid}`)
     .then(res => res.json())
     .then(data => {

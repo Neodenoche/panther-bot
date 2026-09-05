@@ -493,6 +493,14 @@ def init_db():
         ("manada_last_quiz_date",   "TEXT"),
         ("manada_retiro_pendiente", "INTEGER DEFAULT 0"),
         ("manada_stake_semana",     "INTEGER DEFAULT 0"),
+        # Weekly Hunt: snapshot de la semana recien terminada, tomado justo
+        # antes de resetear los contadores en curso (ver
+        # manada_reset_periods_if_needed). Sin esto, si un usuario hace
+        # check-in apenas empieza la semana nueva, se perderian sus
+        # totales de la semana anterior antes de que un mod pueda sortear.
+        ("manada_last_week_ref",       "TEXT DEFAULT ''"),
+        ("manada_last_week_checkins",  "INTEGER DEFAULT 0"),
+        ("manada_last_week_quiz",      "INTEGER DEFAULT 0"),
     ]
     with get_conn() as conn:
         for col_name, col_def in new_columns:
@@ -633,8 +641,9 @@ def save_db(db):
                     cazadores_evento, cazador_verificado, source, evento_pnt_ganado, panther_uid,
                     manada_usdt_balance, manada_pnt_balance, manada_usdt_month, manada_pnt_month,
                     manada_month_ref, manada_week_ref, manada_checkins_semana, manada_quiz_semana,
-                    manada_last_quiz_date, manada_retiro_pendiente, manada_stake_semana, history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    manada_last_quiz_date, manada_retiro_pendiente, manada_stake_semana,
+                    manada_last_week_ref, manada_last_week_checkins, manada_last_week_quiz, history)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -685,6 +694,9 @@ def save_db(db):
                     data.get("manada_last_quiz_date"),
                     int(data.get("manada_retiro_pendiente", False)),
                     data.get("manada_stake_semana", 0),
+                    data.get("manada_last_week_ref", ""),
+                    data.get("manada_last_week_checkins", 0),
+                    data.get("manada_last_week_quiz", 0),
                     json.dumps(history),
                 ))
             conn.commit()
@@ -839,10 +851,148 @@ def manada_reset_periods_if_needed(data: dict):
 
     wref = _manada_week_ref()
     if data.get("manada_week_ref") != wref:
+        # Weekly Hunt: guardar snapshot de la semana que termina antes de
+        # resetear los contadores, para que el sorteo semanal (que un mod
+        # dispara a mano, no necesariamente justo al cambiar de semana)
+        # todavia pueda leer los totales reales de esa semana.
+        data["manada_last_week_ref"]      = data.get("manada_week_ref", "")
+        data["manada_last_week_checkins"] = data.get("manada_checkins_semana", 0) or 0
+        data["manada_last_week_quiz"]     = data.get("manada_quiz_semana", 0) or 0
+
         data["manada_week_ref"]        = wref
         data["manada_checkins_semana"] = 0
         data["manada_quiz_semana"]     = 0
         data["manada_stake_semana"]    = 0
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LA MANADA v2 — Weekly Hunt: reemplaza a la Ruleta diaria. No es un juego de
+# azar individual, es un pool semanal fijo repartido por sorteo entre quienes
+# cumplen el requisito de actividad de la semana (3 check-ins + 1 quiz
+# acertado). El sorteo lo dispara un mod a mano desde /admin/weekly_hunt.
+# ═══════════════════════════════════════════════════════════════════════════
+WEEKLY_HUNT_CHECKINS_REQUIRED = 3
+WEEKLY_HUNT_QUIZ_REQUIRED     = 1
+WEEKLY_HUNT_POOL_USDT         = 10.0
+WEEKLY_HUNT_POOL_PNT          = 100.0
+WEEKLY_HUNT_WINNERS           = 5
+
+
+def get_weekly_hunt_status(data: dict, week_ref: str = None):
+    """Devuelve (checkins, quiz_correctos, elegible) para la semana indicada
+    (por defecto la semana en curso). Soporta tanto a un usuario que sigue
+    en esa semana (contadores en vivo) como a uno que ya roto a la semana
+    siguiente (usa el snapshot manada_last_week_*, ver
+    manada_reset_periods_if_needed)."""
+    if week_ref is None:
+        week_ref = _manada_week_ref()
+
+    if data.get("manada_week_ref") == week_ref:
+        checkins = data.get("manada_checkins_semana", 0) or 0
+        quiz     = data.get("manada_quiz_semana", 0) or 0
+    elif data.get("manada_last_week_ref") == week_ref:
+        checkins = data.get("manada_last_week_checkins", 0) or 0
+        quiz     = data.get("manada_last_week_quiz", 0) or 0
+    else:
+        checkins = 0
+        quiz     = 0
+
+    eligible = (
+        checkins >= WEEKLY_HUNT_CHECKINS_REQUIRED
+        and quiz >= WEEKLY_HUNT_QUIZ_REQUIRED
+    )
+    return checkins, quiz, eligible
+
+
+def _previous_week_ref() -> str:
+    """Semana ISO anterior a la actual — la semana 'recien terminada' que un
+    mod normalmente quiere sortear."""
+    y, w, _ = (date.today() - timedelta(days=7)).isocalendar()
+    return f"{y}-W{w:02d}"
+
+
+def get_weekly_hunt_eligible_uids(db: dict, week_ref: str):
+    """Lista de uids elegibles para el sorteo de la semana indicada."""
+    eligibles = []
+    for uid, data in db.items():
+        if uid.startswith("_") or not isinstance(data, dict):
+            continue
+        _, _, eligible = get_weekly_hunt_status(data, week_ref)
+        if eligible:
+            eligibles.append(uid)
+    return eligibles
+
+
+def run_weekly_hunt_draw(db: dict, week_ref: str, mod_name: str) -> dict:
+    """Sortea ganadores para la semana indicada y acredita el premio.
+    Idempotente: si esa semana ya fue sorteada, devuelve el resultado
+    guardado sin volver a sortear ni acreditar de nuevo."""
+    draws = db.get("_global", {}).get("weekly_hunt_draws", {})
+    if week_ref in draws:
+        return draws[week_ref]
+
+    eligibles = get_weekly_hunt_eligible_uids(db, week_ref)
+    n_winners = min(WEEKLY_HUNT_WINNERS, len(eligibles))
+    winners_uids = random.sample(eligibles, n_winners) if n_winners > 0 else []
+
+    usdt_per_winner = round(WEEKLY_HUNT_POOL_USDT / WEEKLY_HUNT_WINNERS, 4)
+    pnt_per_winner  = round(WEEKLY_HUNT_POOL_PNT / WEEKLY_HUNT_WINNERS, 4)
+
+    winners = []
+    for uid in winners_uids:
+        wdata = db[uid]
+        usdt_acreditado = add_manada_usdt(wdata, usdt_per_winner)
+        pnt_acreditado  = add_manada_pnt(wdata, pnt_per_winner)
+        winners.append({
+            "uid":    uid,
+            "nombre": wdata.get("username") or wdata.get("first_name") or uid,
+            "usdt":   usdt_acreditado,
+            "pnt":    pnt_acreditado,
+        })
+        if "history" not in wdata:
+            wdata["history"] = []
+        wdata["history"].append({
+            "type": "weekly_hunt",
+            "usdt": usdt_acreditado,
+            "pnt":  pnt_acreditado,
+            "date": date.today().isoformat(),
+            "time": datetime.now().strftime("%H:%M"),
+        })
+        wdata["history"] = wdata["history"][-20:]
+
+    if "_global" not in db:
+        db["_global"] = {}
+    if "weekly_hunt_draws" not in db["_global"]:
+        db["_global"]["weekly_hunt_draws"] = {}
+
+    result = {
+        "winners":        winners,
+        "eligible_count": len(eligibles),
+        "drawn_at":       datetime.now().isoformat(),
+        "drawn_by":       mod_name,
+    }
+    db["_global"]["weekly_hunt_draws"][week_ref] = result
+    return result
+
+
+async def notify_weekly_hunt_winner(app, uid: str, usdt: float, pnt: float, week_ref: str):
+    """Notifica por Telegram a un ganador del sorteo semanal (el momento de
+    'revelado' fuera de la mini app; dentro de la mini app se refleja en la
+    pantalla de Weekly Hunt la próxima vez que la abra)."""
+    try:
+        await app.bot.send_message(
+            chat_id=int(uid),
+            text=(
+                f"🏆 *¡Ganaste el sorteo semanal de La Manada!*\n\n"
+                f"Semana: `{week_ref}`\n"
+                f"➕ *+{usdt} USDT* y *+{pnt} PNT* a tu saldo de La Manada 🐆\n\n"
+                f"_Cumpliste los 3 check-ins + 1 quiz acertado de la semana. "
+                f"Seguí así para entrar al próximo sorteo_ 🐾"
+            ),
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        logger.error(f"Error notificando ganador de Weekly Hunt {uid}: {e}")
 
 
 def add_manada_usdt(data: dict, amount: float) -> float:
@@ -1114,6 +1264,11 @@ def mark_won_month(data, prize_type):
     data[f"{prize_type}_won_month"] = date.today().strftime("%Y-%m")
 
 def is_ruleta_active():
+    # ── DESACTIVADA: la Ruleta fue reemplazada por Weekly Hunt (ver
+    # get_weekly_hunt_status / run_weekly_hunt_draw / /admin/weekly_hunt).
+    # El código de la ruleta se deja intacto abajo por si se quisiera
+    # reactivar en el futuro; alcanza con revertir este return.
+    return False
     # Check manual override in DB
     db = load_db()
     override = db.get("_global", {}).get("ruleta_override")
@@ -4309,6 +4464,8 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             # Historial reciente (últimas 5 entradas del log si existe)
             history = data.get("history", [])[-5:]
 
+            weekly_hunt_checkins, weekly_hunt_quiz, weekly_hunt_eligible = get_weekly_hunt_status(data)
+
             return self.send_json({
                 "id":             uid,
                 "username":       data.get("username", ""),
@@ -4350,6 +4507,9 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "manada_usdt_balance": data.get("manada_usdt_balance", 0),
                 "manada_pnt_balance":  data.get("manada_pnt_balance", 0),
                 "quiz_today": data.get("manada_last_quiz_date") == today,
+                "weekly_hunt_checkins": weekly_hunt_checkins,
+                "weekly_hunt_quiz":     weekly_hunt_quiz,
+                "weekly_hunt_eligible": weekly_hunt_eligible,
             })
 
         # ── GET /quiz?id=123456 — Learn & Earn: pregunta del día ──
@@ -4374,6 +4534,63 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "options":   question["opts"],
                 "manada_usdt_balance": data.get("manada_usdt_balance", 0),
                 "manada_pnt_balance":  data.get("manada_pnt_balance", 0),
+            })
+
+        # ── GET /weekly_hunt?id=123456 — Weekly Hunt: progreso + resultado del sorteo pasado ──
+        elif path == "/weekly_hunt":
+            uid = params.get("id", [None])[0]
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+
+            db   = load_db()
+            data = db.get(uid)
+            if not data:
+                return self.send_json({"error": "User not found"}, 404)
+
+            week_ref = _manada_week_ref()
+            checkins, quiz, eligible = get_weekly_hunt_status(data, week_ref)
+
+            last_week_ref = _previous_week_ref()
+            lw_checkins, lw_quiz, lw_eligible = get_weekly_hunt_status(data, last_week_ref)
+
+            draws = db.get("_global", {}).get("weekly_hunt_draws", {})
+            last_week_draw = draws.get(last_week_ref)
+            drawn = last_week_draw is not None
+            won = False
+            usdt_ganado = 0
+            pnt_ganado  = 0
+            total_winners = 0
+            eligible_count = 0
+            if drawn:
+                total_winners = len(last_week_draw.get("winners", []))
+                eligible_count = last_week_draw.get("eligible_count", 0)
+                for w in last_week_draw.get("winners", []):
+                    if w.get("uid") == uid:
+                        won = True
+                        usdt_ganado = w.get("usdt", 0)
+                        pnt_ganado  = w.get("pnt", 0)
+                        break
+
+            return self.send_json({
+                "week_ref":  week_ref,
+                "checkins":  checkins,
+                "checkins_required": WEEKLY_HUNT_CHECKINS_REQUIRED,
+                "quiz":      quiz,
+                "quiz_required": WEEKLY_HUNT_QUIZ_REQUIRED,
+                "eligible":  eligible,
+                "pool_usdt": WEEKLY_HUNT_POOL_USDT,
+                "pool_pnt":  WEEKLY_HUNT_POOL_PNT,
+                "winners_count": WEEKLY_HUNT_WINNERS,
+                "last_week": {
+                    "week_ref":       last_week_ref,
+                    "eligible":       lw_eligible,
+                    "drawn":          drawn,
+                    "won":            won,
+                    "usdt":           usdt_ganado,
+                    "pnt":            pnt_ganado,
+                    "total_winners":  total_winners,
+                    "eligible_count": eligible_count,
+                },
             })
 
         # ── GET /ranking ──
@@ -4649,6 +4866,141 @@ class MiniAppHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
             self.end_headers()
             self.wfile.write(html_bytes)
+            return
+
+        # ── GET /admin/weekly_hunt?key=panther2026&week=YYYY-Www ── panel del sorteo semanal
+        elif path == "/admin/weekly_hunt":
+            key = params.get("key", [None])[0]
+            if key != "panther2026":
+                self.send_response(403)
+                self.end_headers()
+                return
+
+            db = load_db()
+            week_param = params.get("week", [None])[0]
+            week_ref = week_param or _previous_week_ref()
+
+            eligibles_uids = get_weekly_hunt_eligible_uids(db, week_ref)
+            eligibles_rows = ""
+            if eligibles_uids:
+                for uid in eligibles_uids:
+                    d = db.get(uid, {})
+                    nombre = d.get("username") or d.get("first_name") or uid
+                    checkins, quiz, _ = get_weekly_hunt_status(d, week_ref)
+                    eligibles_rows += f"""<tr>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee;font-weight:700'>{nombre}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee;color:#666;font-size:12px'>{uid}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee;text-align:center'>{checkins}/{WEEKLY_HUNT_CHECKINS_REQUIRED}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee;text-align:center'>{quiz}/{WEEKLY_HUNT_QUIZ_REQUIRED}</td>
+                    </tr>"""
+            else:
+                eligibles_rows = "<tr><td colspan='4' style='color:#888;text-align:center;padding:16px'>Nadie calificó esta semana</td></tr>"
+
+            draws = db.get("_global", {}).get("weekly_hunt_draws", {})
+            ya_sorteado = week_ref in draws
+
+            if ya_sorteado:
+                resultado = draws[week_ref]
+                winners_rows = ""
+                for w in resultado["winners"]:
+                    winners_rows += f"""<tr>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee;font-weight:700'>🏆 {w['nombre']}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee;color:#666;font-size:12px'>{w['uid']}</td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee'><span style='background:#1a3a1a;color:#4ade80;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>+{w['usdt']} USDT</span></td>
+                        <td style='padding:8px 12px;border-bottom:1px solid #eee'><span style='background:#1a0a2a;color:#cc88ff;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:700'>+{w['pnt']} PNT</span></td>
+                    </tr>"""
+                if not resultado["winners"]:
+                    winners_rows = "<tr><td colspan='4' style='color:#888;text-align:center;padding:16px'>Nadie calificó, no hubo ganadores</td></tr>"
+                accion_html = (
+                    f"<div class='sub'>✅ Sorteado el {resultado['drawn_at']} por {resultado['drawn_by']} · "
+                    f"{resultado['eligible_count']} elegibles</div>"
+                    f"<h2>🏆 Ganadores</h2>"
+                    f"<table><tr><th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>Usuario</th>"
+                    f"<th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>ID Telegram</th>"
+                    f"<th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>USDT</th>"
+                    f"<th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>PNT</th></tr>{winners_rows}</table>"
+                )
+            else:
+                accion_html = f"""
+                    <form method='GET' action='/admin/weekly_hunt_draw' style='margin:16px 0'>
+                        <input type='hidden' name='key' value='panther2026'>
+                        <input type='hidden' name='week' value='{week_ref}'>
+                        <button type='submit' style='background:#FF5A0E;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:700;cursor:pointer'
+                            onclick="return confirm('¿Sortear {WEEKLY_HUNT_WINNERS} ganadores para la semana {week_ref} entre {len(eligibles_uids)} elegibles? Esta acción no se puede deshacer.')">
+                            🎲 Sortear ganadores de {week_ref}
+                        </button>
+                    </form>
+                """
+
+            html = f"""<!DOCTYPE html><html><head><meta charset='utf-8'>
+            <title>Weekly Hunt — Manada Panther</title>
+            <style>
+              body{{background:#fff;color:#111;font-family:sans-serif;padding:24px;max-width:960px;margin:0 auto}}
+              h1{{color:#FF5A0E;margin-bottom:4px}}
+              h2{{color:#333;font-size:15px;margin:28px 0 12px;padding-bottom:6px;border-bottom:2px solid #FF5A0E}}
+              .sub{{color:#888;font-size:13px;margin-bottom:16px}}
+              table{{border-collapse:collapse;width:100%;margin-bottom:8px}}
+              td{{font-size:13px;color:#111}}
+              tr:hover td{{background:#fff8f5}}
+            </style></head><body>
+            <h1>🏆 Weekly Hunt — {week_ref}</h1>
+            <div class='sub'>
+                Pool semanal: <b>{WEEKLY_HUNT_POOL_USDT} USDT + {WEEKLY_HUNT_POOL_PNT} PNT</b> ·
+                {WEEKLY_HUNT_WINNERS} ganadores al azar
+                (≈{round(WEEKLY_HUNT_POOL_USDT/WEEKLY_HUNT_WINNERS,2)} USDT + {round(WEEKLY_HUNT_POOL_PNT/WEEKLY_HUNT_WINNERS,2)} PNT c/u) ·
+                requisito: {WEEKLY_HUNT_CHECKINS_REQUIRED} check-ins + {WEEKLY_HUNT_QUIZ_REQUIRED} quiz acertado en la semana ·
+                <a href='/admin/weekly_hunt?key=panther2026&week={_previous_week_ref()}' style='color:#FF5A0E'>semana pasada</a>
+            </div>
+
+            {accion_html}
+
+            <h2>✅ Elegibles esta semana — {len(eligibles_uids)}</h2>
+            <table><tr>
+                <th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>Usuario</th>
+                <th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>ID Telegram</th>
+                <th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>Check-ins</th>
+                <th style='background:#fff8f5;color:#FF5A0E;padding:8px 12px;text-align:left;border-bottom:2px solid #FF5A0E;font-size:13px'>Quiz</th>
+            </tr>{eligibles_rows}</table>
+
+            </body></html>"""
+
+            html_bytes = html.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(html_bytes)))
+            self.send_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'")
+            self.end_headers()
+            self.wfile.write(html_bytes)
+            return
+
+        # ── GET /admin/weekly_hunt_draw?key=panther2026&week=YYYY-Www ── dispara el sorteo (accion, redirige) ──
+        elif path == "/admin/weekly_hunt_draw":
+            key      = params.get("key", [None])[0]
+            week_ref = params.get("week", [None])[0]
+            if key == "panther2026" and week_ref:
+                db = load_db()
+                mod_name = "admin_panel"
+                already = week_ref in db.get("_global", {}).get("weekly_hunt_draws", {})
+                resultado = run_weekly_hunt_draw(db, week_ref, mod_name)
+                save_db(db)
+                logger.info(f"Weekly Hunt draw for {week_ref}: {len(resultado['winners'])} winners, already_existed={already}")
+
+                if not already and CombinedHandler.tg_app and CombinedHandler.tg_loop:
+                    for w in resultado["winners"]:
+                        asyncio.run_coroutine_threadsafe(
+                            notify_weekly_hunt_winner(CombinedHandler.tg_app, w["uid"], w["usdt"], w["pnt"], week_ref),
+                            CombinedHandler.tg_loop
+                        )
+                    if resultado["winners"]:
+                        ganadores_txt = ", ".join(f"{w['nombre']} (+{w['usdt']} USDT, +{w['pnt']} PNT)" for w in resultado["winners"])
+                        msg = f"🏆 *Weekly Hunt {week_ref} sorteado*\n\n{resultado['eligible_count']} elegibles.\nGanadores: {ganadores_txt}"
+                        asyncio.run_coroutine_threadsafe(
+                            notify_mods(CombinedHandler.tg_app, msg),
+                            CombinedHandler.tg_loop
+                        )
+            self.send_response(302)
+            self.send_header("Location", f"/admin/weekly_hunt?key=panther2026&week={week_ref}")
+            self.end_headers()
             return
 
         # ── GET /admin/misiones?key=panther2026 ──

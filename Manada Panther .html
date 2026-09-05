@@ -55,6 +55,10 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
 .screen.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
 @keyframes pawReveal{from{opacity:0;transform:scale(.6)}to{opacity:1;transform:scale(1)}}
+@keyframes whGlow{0%,100%{box-shadow:0 0 0px #4ade8000}50%{box-shadow:0 0 24px #4ade8088}}
+.wh-req-icon{font-size:20px;width:26px;text-align:center;flex-shrink:0}
+.wh-win{animation:pawReveal .5s ease both, whGlow 1.8s ease-in-out .5s infinite}
+.wh-lose{animation:pawReveal .5s ease both}
 
 /* ── HERO ── */
 .hero{display:flex;align-items:center;gap:16px;padding:8px 18px 14px}
@@ -352,7 +356,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   <div class="sec">
     <div class="stitle">Diarias</div>
     <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha en USDT</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
-    <div class="mc" id="mc-ruleta" onclick="goTo('ruleta')"><div class="mic i2">🎰</div><div class="mb"><div class="mn">Ruleta diaria</div><div class="ms" id="ruleta-sub">Pts, ×2 o premios en USDT</div></div><div class="mr"><div class="mpts" id="ruleta-mpts">?</div><div class="mplab">PTS</div></div><div class="marr" id="ruleta-arr">→</div></div>
+    <div class="mc" id="mc-weekly-hunt" onclick="goTo('weekly-hunt')"><div class="mic i2">🏆</div><div class="mb"><div class="mn">Weekly Hunt</div><div class="ms" id="wh-card-sub">3 check-ins + 1 quiz acertado esta semana</div></div><div class="mr"><div class="mpts" id="wh-card-mpts">?</div><div class="mplab">SEMANA</div></div><div class="marr" id="wh-card-arr">→</div></div>
     <div class="mc" id="mc-quiz" onclick="openQuizModal()"><div class="mic" style="background:#0a1a1f">🧠</div><div class="mb"><div class="mn">Quiz diario</div><div class="ms" id="quiz-sub">Responde y gana USDT o PNT · 1x/día</div></div><div class="mr"><div class="mpts" id="quiz-mpts">?</div><div class="mplab">PTS</div></div><div class="marr" id="quiz-arr">→</div></div>
   </div>
   <div class="sec">
@@ -631,6 +635,48 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="prize-card"><div class="prize-icon">💰</div><div class="prize-name">USDT</div><div class="prize-val">$5 · $10 · $50</div></div>
     <div class="prize-card"><div class="prize-icon">🐾</div><div class="prize-name">PNT Token</div><div class="prize-val">¡Sorpresa!</div></div>
     <div class="prize-card"><div class="prize-icon">⚡</div><div class="prize-name">Multiplicador</div><div class="prize-val">×2 pts actuales</div></div>
+  </div>
+</div>
+
+<!-- WEEKLY HUNT (reemplaza a la Ruleta diaria) -->
+<div class="screen" id="s-weekly-hunt">
+  <div style="padding:24px 18px 4px;text-align:center">
+    <div style="font-size:40px;margin-bottom:6px">🏆</div>
+    <div style="font-size:20px;font-weight:800;color:#fff">Weekly Hunt</div>
+    <div style="font-size:13px;color:#aaa;margin-top:4px">Cumple los requisitos de la semana y entra al sorteo</div>
+  </div>
+
+  <div class="sec"><div class="stitle">Requisitos de esta semana</div></div>
+  <div style="margin:0 14px 14px;background:var(--card);border:1px solid #282828;border-radius:16px;padding:16px">
+    <div id="wh-req-checkins" style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <div class="wh-req-icon" id="wh-icon-checkins">⬜</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:#fff">Check-ins diarios</div>
+        <div style="font-size:12px;color:#888" id="wh-checkins-sub">Cargando...</div>
+      </div>
+    </div>
+    <div id="wh-req-quiz" style="display:flex;align-items:center;gap:10px">
+      <div class="wh-req-icon" id="wh-icon-quiz">⬜</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:700;color:#fff">Quiz diario acertado</div>
+        <div style="font-size:12px;color:#888" id="wh-quiz-sub">Cargando...</div>
+      </div>
+    </div>
+    <div id="wh-eligible-banner" style="display:none;margin-top:14px;background:#0a2a0a;border:1px solid #2a5a2a;border-radius:10px;padding:10px;text-align:center;color:#4ade80;font-weight:700;font-size:13px">
+      🎉 ¡Calificaste! Ya estás en el sorteo de esta semana
+    </div>
+  </div>
+
+  <div class="sec"><div class="stitle">El pool de esta semana</div></div>
+  <div class="prize-grid">
+    <div class="prize-card"><div class="prize-icon">💰</div><div class="prize-name">Pool USDT</div><div class="prize-val" id="wh-pool-usdt">—</div></div>
+    <div class="prize-card"><div class="prize-icon">🐾</div><div class="prize-name">Pool PNT</div><div class="prize-val" id="wh-pool-pnt">—</div></div>
+  </div>
+  <div style="margin:10px 18px 4px;font-size:12px;color:#888;text-align:center" id="wh-winners-sub">Cargando...</div>
+
+  <div class="sec"><div class="stitle">Resultado de la semana pasada</div></div>
+  <div id="wh-last-week" style="margin:0 14px 24px;background:var(--card);border:1px solid #282828;border-radius:16px;padding:20px;text-align:center">
+    <div style="color:#888;font-size:13px">Cargando...</div>
   </div>
 </div>
 
@@ -1270,6 +1316,26 @@ function updateUI() {
           ? `🎰 ${spinsLeft} giro${spinsLeft !== 1 ? 's' : ''} disponible${spinsLeft !== 1 ? 's' : ''}`
           : 'Pts, ×2 o premios en USDT';
       }
+    }
+  }
+
+  const mcWeeklyHunt = document.getElementById('mc-weekly-hunt');
+  if (mcWeeklyHunt) {
+    const whSub  = document.getElementById('wh-card-sub');
+    const whArr  = document.getElementById('wh-card-arr');
+    const whMpts = document.getElementById('wh-card-mpts');
+    const checkins = userData.weekly_hunt_checkins || 0;
+    const quiz = userData.weekly_hunt_quiz || 0;
+    if (userData.weekly_hunt_eligible) {
+      mcWeeklyHunt.classList.add('done');
+      if (whArr) { whArr.classList.add('ok'); whArr.textContent = '✓'; }
+      if (whMpts) whMpts.textContent = '✓';
+      if (whSub) whSub.textContent = '🎉 Calificaste — ya estás en el sorteo';
+    } else {
+      mcWeeklyHunt.classList.remove('done');
+      if (whArr) { whArr.classList.remove('ok'); whArr.textContent = '→'; }
+      if (whMpts) whMpts.textContent = `${checkins}/3`;
+      if (whSub) whSub.textContent = `${checkins}/3 check-ins · ${quiz}/1 quiz esta semana`;
     }
   }
 
@@ -2354,6 +2420,77 @@ function goTo(n){
   if(n === 'ranking') { _currentRankTab = 'manada'; switchRankTab('manada'); }
   if(n === 'misiones') loadUserData();
   if(n === 'mis-pts') loadPremiosHistorial();
+  if(n === 'weekly-hunt') loadWeeklyHunt();
+}
+
+async function loadWeeklyHunt() {
+  if (!USER_ID) return;
+  try {
+    const res = await fetch(`${API_BASE}/weekly_hunt?id=${USER_ID}`);
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const iconCheckins = document.getElementById('wh-icon-checkins');
+    const subCheckins  = document.getElementById('wh-checkins-sub');
+    const iconQuiz     = document.getElementById('wh-icon-quiz');
+    const subQuiz      = document.getElementById('wh-quiz-sub');
+    const banner       = document.getElementById('wh-eligible-banner');
+
+    const checkinsOk = data.checkins >= data.checkins_required;
+    if (iconCheckins) iconCheckins.textContent = checkinsOk ? '✅' : '⬜';
+    if (subCheckins) subCheckins.textContent = `${data.checkins}/${data.checkins_required} esta semana`;
+
+    const quizOk = data.quiz >= data.quiz_required;
+    if (iconQuiz) iconQuiz.textContent = quizOk ? '✅' : '⬜';
+    if (subQuiz) subQuiz.textContent = `${data.quiz}/${data.quiz_required} esta semana`;
+
+    if (banner) banner.style.display = data.eligible ? 'block' : 'none';
+
+    const poolUsdt = document.getElementById('wh-pool-usdt');
+    const poolPnt  = document.getElementById('wh-pool-pnt');
+    const winnersSub = document.getElementById('wh-winners-sub');
+    if (poolUsdt) poolUsdt.textContent = `${data.pool_usdt} USDT`;
+    if (poolPnt) poolPnt.textContent = `${data.pool_pnt} PNT`;
+    if (winnersSub) winnersSub.textContent = `${data.winners_count} ganadores al azar entre quienes califican`;
+
+    renderWeeklyHuntLastWeek(data.last_week);
+  } catch(e) {
+    console.error('Weekly Hunt load error:', e);
+  }
+}
+
+function renderWeeklyHuntLastWeek(lw) {
+  const box = document.getElementById('wh-last-week');
+  if (!box || !lw) return;
+
+  if (!lw.drawn) {
+    box.className = '';
+    box.innerHTML = lw.eligible
+      ? `<div style="font-size:28px;margin-bottom:8px">⏳</div>
+         <div style="font-size:14px;font-weight:700;color:#fff">Calificaste la semana pasada</div>
+         <div style="font-size:12px;color:#888;margin-top:4px">El sorteo todavía no se hizo. Te avisamos por Telegram si ganas 🐆</div>`
+      : `<div style="font-size:28px;margin-bottom:8px">🐾</div>
+         <div style="font-size:14px;font-weight:700;color:#fff">No calificaste la semana pasada</div>
+         <div style="font-size:12px;color:#888;margin-top:4px">Cumple los 3 check-ins + 1 quiz esta semana para entrar al próximo sorteo</div>`;
+    return;
+  }
+
+  if (lw.won) {
+    box.className = 'wh-win';
+    box.innerHTML = `<div style="font-size:32px;margin-bottom:8px">🏆</div>
+       <div style="font-size:16px;font-weight:800;color:#4ade80">¡Ganaste el sorteo semanal!</div>
+       <div style="font-size:20px;font-weight:800;color:#fff;margin-top:6px">+${lw.usdt} USDT · +${lw.pnt} PNT</div>
+       <div style="font-size:12px;color:#888;margin-top:8px">Semana ${lw.week_ref} · ${lw.total_winners} ganadores entre ${lw.eligible_count} elegibles</div>`;
+  } else {
+    box.className = 'wh-lose';
+    box.innerHTML = lw.eligible
+      ? `<div style="font-size:28px;margin-bottom:8px">🎲</div>
+         <div style="font-size:14px;font-weight:700;color:#fff">Calificaste, pero no te tocó esta vez</div>
+         <div style="font-size:12px;color:#888;margin-top:4px">Semana ${lw.week_ref} · ${lw.total_winners} ganadores entre ${lw.eligible_count} elegibles</div>`
+      : `<div style="font-size:28px;margin-bottom:8px">🐾</div>
+         <div style="font-size:14px;font-weight:700;color:#fff">No calificaste la semana pasada</div>
+         <div style="font-size:12px;color:#888;margin-top:4px">Semana ${lw.week_ref} · ${lw.total_winners} ganadores entre ${lw.eligible_count} elegibles</div>`;
+  }
 }
 
 function openGame(){

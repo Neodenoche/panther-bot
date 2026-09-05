@@ -5980,7 +5980,6 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
         # ── /auth/validate — ❌ ELIMINADO junto con la integración Milton/Mundial ──
 
         elif path == "/debug":
-            import os
             db_exists = os.path.exists(DB_FILE)
             db_size = os.path.getsize(DB_FILE) if db_exists else 0
             db = load_db()

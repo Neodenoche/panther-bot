@@ -361,10 +361,10 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
   </div>
   <div class="sec">
     <div class="stitle">Sociales</div>
-    <div class="mc" onclick="openBotForShare('reel')"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Captura al Bot · máx 3/día</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
-    <div class="mc" onclick="openBotForShare('story')"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Captura al Bot · máx 3/día</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" id="mc-reel" onclick="openBotForShare('reel')"><div class="mic i3">📹</div><div class="mb"><div class="mn">Compartir reel de Panther</div><div class="ms">Captura al Bot · máx 3/día</div></div><div class="mr"><div class="mpts">+30</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" id="mc-story" onclick="openBotForShare('story')"><div class="mic i4">📸</div><div class="mb"><div class="mn">Compartir historia de Panther</div><div class="ms">Captura al Bot · máx 3/día</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
     <div class="mc" onclick="openBotForShare('story_mention')"><div class="mic" style="background:#1a0a20">📣</div><div class="mb"><div class="mn">Historia mencionando a un amigo</div><div class="ms">Sube una captura de la historia con mención · máx 3/día</div></div><div class="mr"><div class="mpts">+20</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
-    <div class="mc" onclick="goTo('referido')"><div class="mic i5">👥</div><div class="mb"><div class="mn">Referir a un amigo</div><div class="ms">+25 al unirse · +150 si activa la wallet</div></div><div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
+    <div class="mc" id="mc-refer" onclick="goTo('referido')"><div class="mic i5">👥</div><div class="mb"><div class="mn">Referir a un amigo</div><div class="ms">+25 al unirse · +150 si activa la wallet</div></div><div class="mr"><div class="mpts">+175</div><div class="mplab">PTS</div></div><div class="marr">→</div></div>
 
   <div class="stitle" style="margin-top:14px">REDES SOCIALES</div>
     <div class="mc" id="mc-follow-ig" onclick="openFollowModal('ig')"><div class="mic" style="background:#1a001a">📸</div><div class="mb"><div class="mn">Seguir a Panther en Instagram</div><div class="ms" id="sub-follow-ig">Toca para seguir y verificar</div></div><div class="mr"><div class="mpts">+15</div><div class="mplab">PTS</div></div><div class="marr" id="arr-follow-ig">→</div></div>
@@ -929,19 +929,28 @@ function t(key) {
 }
 
 function applyTranslations() {
-  applyWCLang();
   // Nav
   const navItems = document.querySelectorAll('.ni-lb');
   const navKeys = ['misionesTitle','misPtsTitle','rankingTitle','eventoTitle','referidoTitle'];
   navItems.forEach((el, i) => { if(navKeys[i]) el.textContent = t(navKeys[i]); });
 
-  // Mission cards — diarias
-  const mn = document.querySelectorAll('.mn');
-  const ms = document.querySelectorAll('.ms');
-  const missionNames = ['checkinName','ruletaName','reelName','storyName','referName'];
-  const missionSubs = ['checkinSub','ruletaSub','reelSub','storySub','referSub'];
-  mn.forEach((el, i) => { if(missionNames[i]) el.textContent = t(missionNames[i]); });
-  ms.forEach((el, i) => { if(missionSubs[i]) el.textContent = t(missionSubs[i]); });
+  // Mission cards — diarias/sociales (por ID, no por posición: la posición
+  // entre los elementos .mn dejó de ser confiable al agregar las tarjetas
+  // de Weekly Hunt y Quiz diario antes de estas)
+  const missionCardMap = {
+    'mc-checkin': { name: 'checkinName', sub: 'checkinSub' },
+    'mc-reel':    { name: 'reelName',    sub: 'reelSub'    },
+    'mc-story':   { name: 'storyName',   sub: 'storySub'   },
+    'mc-refer':   { name: 'referName',   sub: 'referSub'   },
+  };
+  for (const [cardId, keys] of Object.entries(missionCardMap)) {
+    const card = document.getElementById(cardId);
+    if (!card) continue;
+    const nameEl = card.querySelector('.mn');
+    const subEl  = card.querySelector('.ms');
+    if (nameEl) nameEl.textContent = t(keys.name);
+    if (subEl && !subEl.id) subEl.textContent = t(keys.sub);
+  }
 
   // Strip
   const strip = document.querySelector('.strip-t');

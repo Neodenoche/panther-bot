@@ -660,6 +660,9 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <input id="perfil-nickname" maxlength="20" placeholder="Tu apodo en La Manada" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid #282828;border-radius:12px;padding:12px 14px;color:#fff;font-size:15px">
     <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:2px;margin:16px 0 6px">Bio</div>
     <textarea id="perfil-bio" maxlength="140" placeholder="Contá algo sobre vos (140 caracteres)" rows="3" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid #282828;border-radius:12px;padding:12px 14px;color:#fff;font-size:14px;resize:none;font-family:inherit"></textarea>
+    <div style="font-size:11px;color:var(--t3);text-transform:uppercase;letter-spacing:2px;margin:16px 0 6px">UID de Panther Wallet</div>
+    <input id="perfil-panther-uid" maxlength="64" placeholder="Tu UID de Panther Wallet" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid #282828;border-radius:12px;padding:12px 14px;color:#fff;font-size:15px">
+    <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.5">Lo necesitamos para poder pagarte cuando pidas un retiro — sin esto, tesorería no puede procesar el pago.</div>
     <button onclick="saveProfile()" style="width:100%;margin-top:16px;background:#ff6b1a;color:#fff;border:none;border-radius:12px;padding:13px 0;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:2px;font-size:15px;cursor:pointer">GUARDAR</button>
     <div id="perfil-save-msg" style="text-align:center;font-size:12px;color:#4ade80;margin-top:10px;min-height:16px"></div>
   </div>
@@ -1362,7 +1365,14 @@ function updateUI() {
       retiroBtn.style.background = '#ff6b1a';
       retiroBtn.style.color = '#fff';
       retiroBtn.style.borderColor = '#ff6b1a';
-      if (retiroMsg) retiroMsg.textContent = '';
+      if (retiroMsg) {
+        if (!userData.panther_uid) {
+          retiroMsg.textContent = 'Configura tu UID de Panther Wallet en Perfil antes de pedirlo';
+          retiroMsg.style.color = '#ff8c42';
+        } else {
+          retiroMsg.textContent = '';
+        }
+      }
     } else {
       retiroBtn.disabled = true;
       retiroBtn.textContent = 'SOLICITAR RETIRO';
@@ -2601,8 +2611,10 @@ function loadMyProfile() {
   if (!USER_ID || !userData) return;
   const nickEl = document.getElementById('perfil-nickname');
   const bioEl  = document.getElementById('perfil-bio');
+  const uidEl  = document.getElementById('perfil-panther-uid');
   if (nickEl) nickEl.value = userData.nickname || '';
   if (bioEl) bioEl.value = userData.bio || '';
+  if (uidEl) uidEl.value = userData.panther_uid || '';
   const img = document.getElementById('perfil-avatar-img');
   const fallback = document.getElementById('perfil-avatar-fallback');
   if (userData.avatar_version) {
@@ -2619,15 +2631,16 @@ function saveProfile() {
   if (!USER_ID) return;
   const nickname = (document.getElementById('perfil-nickname').value || '').trim();
   const bio = (document.getElementById('perfil-bio').value || '').trim();
+  const panther_uid = (document.getElementById('perfil-panther-uid').value || '').trim();
   const msgEl = document.getElementById('perfil-save-msg');
   fetch(`${API_BASE}/profile`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({id: USER_ID, nickname, bio})
+    body: JSON.stringify({id: USER_ID, nickname, bio, panther_uid})
   })
   .then(res => res.json())
   .then(() => {
-    if (userData) { userData.nickname = nickname; userData.bio = bio; }
+    if (userData) { userData.nickname = nickname; userData.bio = bio; userData.panther_uid = panther_uid; }
     if (msgEl) { msgEl.textContent = 'Perfil guardado ✓'; setTimeout(() => msgEl.textContent = '', 2500); }
   })
   .catch(() => { if (msgEl) msgEl.textContent = 'Error de red, intentá de nuevo.'; });

@@ -35,6 +35,10 @@ BIO_MAX_LEN = 140
 
 # ── Moderadores ───────────────────────────────────────────────────────────────
 MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769405650,5605380987,1781826630").split(",") if x.strip()]
+# Tesoreria — unico(s) ID(s) que pueden confirmar "Ya pague" en un retiro
+# (mueve plata real). El resto de los mods sigue pudiendo Rechazar, que
+# no mueve nada y solo devuelve el saldo al usuario.
+TREASURY_IDS = [int(x) for x in os.environ.get("TREASURY_IDS", "8234467845").split(",") if x.strip()]
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
 MAIN_GROUP_ID = int(os.environ.get("MAIN_GROUP_ID", "-1001234567890"))  # chat general
 
@@ -812,16 +816,19 @@ async def notify_mods(app, msg: str):
     except Exception as e:
         logger.error(f"Error notificando mods: {e}")
 
-async def notify_retiro_request(app, uid: str, nombre: str, usdt: float, pnt: float):
+async def notify_retiro_request(app, uid: str, nombre: str, panther_uid: str, usdt: float, pnt: float):
     """Avisa a los mods que un usuario pidio retirar su saldo de La Manada,
-    con botones para marcarlo pagado o rechazarlo (devuelve el saldo)."""
+    con botones para marcarlo pagado o rechazarlo (devuelve el saldo).
+    Incluye el UID de Panther Wallet porque tesoreria lo necesita para
+    poder mandar el pago — sin esto no se puede procesar."""
     texto = (
         f"💸 *Solicitud de retiro*\n\n"
         f"Usuario: {nombre} (ID: {uid})\n"
+        f"UID Panther Wallet: `{panther_uid}`\n"
         f"Monto: *{usdt} USDT* + *{pnt} PNT*\n\n"
         f"Sin monto maximo definido por ahora — el limite real es el tope "
         f"de {MANADA_MONTHLY_CAP_USDT} USDT que puede ganar por mes.\n\n"
-        f"¿Confirmas el pago?"
+        f"Solo tesorería puede confirmar el pago."
     )
     keyboard = InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Ya pague", callback_data=f"retiroOk_{uid}")],
@@ -3136,11 +3143,15 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ── Retiro de saldo La Manada (moderadores) ──
     if data_str.startswith("retiroOk_") or data_str.startswith("retiroNo_"):
-        if query.from_user.id not in MOD_IDS:
+        aprobado = data_str.startswith("retiroOk_")
+        # "Ya pague" mueve plata real — solo tesoreria. "Rechazar" no mueve
+        # nada (solo devuelve el saldo), lo puede usar cualquier mod.
+        if aprobado and query.from_user.id not in TREASURY_IDS:
+            await query.answer("❌ Solo tesorería puede confirmar un pago.", show_alert=True)
+            return
+        if not aprobado and query.from_user.id not in MOD_IDS:
             await query.answer("❌ No tienes permisos de moderador.", show_alert=True)
             return
-
-        aprobado = data_str.startswith("retiroOk_")
         target_uid = data_str.split("_", 1)[1]
 
         db = load_db()
@@ -4637,6 +4648,7 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "manada_retiro_usdt":      data.get("manada_retiro_usdt", 0),
                 "manada_retiro_pnt":       data.get("manada_retiro_pnt", 0),
                 "manada_min_retiro_usdt":  MANADA_MIN_RETIRO_USDT,
+                "panther_uid":    data.get("panther_uid", ""),
             })
 
         # ── GET /quiz?id=123456 — Learn & Earn: pregunta del día ──
@@ -6213,7 +6225,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             save_db(db)
             return self.send_json({"status": "ok"})
 
-        # ── POST /profile — actualiza apodo y bio ──
+        # ── POST /profile — actualiza apodo, bio y UID de Panther Wallet ──
         elif path == "/profile":
             uid = body.get("id")
             if not uid:
@@ -6224,8 +6236,16 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             data = get_user(db, uid)
             data["nickname"] = nickname
             data["bio"]      = bio
+            # El UID de Panther Wallet es opcional en este endpoint: solo se
+            # actualiza si vino en el body, asi el mismo endpoint sirve para
+            # guardar apodo/bio sin pisar el UID por accidente.
+            if "panther_uid" in body:
+                data["panther_uid"] = (body.get("panther_uid") or "").strip()[:64]
             save_db(db)
-            return self.send_json({"status": "ok", "nickname": nickname, "bio": bio})
+            return self.send_json({
+                "status": "ok", "nickname": nickname, "bio": bio,
+                "panther_uid": data.get("panther_uid", ""),
+            })
 
         # ── POST /profile_photo — sube/reemplaza la foto de perfil ──
         elif path == "/profile_photo":
@@ -6269,6 +6289,9 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             data = get_user(db, uid)
             if data.get("manada_retiro_pendiente"):
                 return self.send_json({"error": "Ya tienes un retiro pendiente"}, 400)
+            panther_uid = (data.get("panther_uid") or "").strip()
+            if not panther_uid:
+                return self.send_json({"error": "Configura tu UID de Panther Wallet en tu Perfil antes de pedir un retiro"}, 400)
             usdt_bal = data.get("manada_usdt_balance", 0) or 0
             pnt_bal  = data.get("manada_pnt_balance", 0) or 0
             if usdt_bal < MANADA_MIN_RETIRO_USDT:
@@ -6284,7 +6307,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             nombre = data.get("nickname") or data.get("username") or data.get("first_name") or uid
             if CombinedHandler.tg_app and CombinedHandler.tg_loop:
                 asyncio.run_coroutine_threadsafe(
-                    notify_retiro_request(CombinedHandler.tg_app, uid, nombre, usdt_bal, pnt_bal),
+                    notify_retiro_request(CombinedHandler.tg_app, uid, nombre, panther_uid, usdt_bal, pnt_bal),
                     CombinedHandler.tg_loop
                 )
             return self.send_json({"status": "ok", "usdt": usdt_bal, "pnt": pnt_bal})

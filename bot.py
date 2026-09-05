@@ -4,7 +4,7 @@ PANTHER WALLET — MANADA PANTHER GAME BOT
 Módulo completo: Bot + API HTTP para Mini App
 """
 
-import os, json, logging, random, asyncio, threading, sqlite3
+import os, json, logging, random, asyncio, threading, sqlite3, hashlib
 from datetime import datetime, date, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -873,6 +873,177 @@ def get_daily_hunt_bonus_usdt(streak: int) -> float:
         return 0.03
     else:
         return 0.01
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+# LA MANADA v2 — Learn & Earn: quiz corto de 1 pregunta por día, verificación
+# automática (sin mod). Recompensa en USDT o PNT, alternada al azar entre
+# quienes acierten. Reutiliza las columnas manada_quiz_semana /
+# manada_last_quiz_date ya creadas para el modelo de datos de La Manada.
+# ═══════════════════════════════════════════════════════════════════════════
+QUIZ_USDT_MIN = 0.02
+QUIZ_USDT_MAX = 0.10
+QUIZ_PNT_MIN  = 0.1
+QUIZ_PNT_MAX  = 1.0
+
+QUIZ_BANK = [
+    {"cat": "Fundamentos Blockchain", "dif": "Fácil", "q": "¿Qué es una blockchain?", "opts": {"A": "Una base de datos centralizada controlada por un banco", "B": "Un registro de transacciones distribuido entre muchas computadoras", "C": "Un tipo de tarjeta de crédito", "D": "Una moneda física"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Fácil", "q": "¿Qué significa que una red sea 'descentralizada'?", "opts": {"A": "Que una sola empresa controla todo", "B": "Que no existe una autoridad central única, sino una red de participantes", "C": "Que solo los bancos pueden participar", "D": "Que las transacciones se hacen en efectivo"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Fácil", "q": "¿Qué es un 'bloque' en una blockchain?", "opts": {"A": "Un grupo de transacciones agrupadas y validadas en conjunto", "B": "Una billetera perdida", "C": "Un tipo de moneda", "D": "Un error del sistema"}, "correct": "A"},
+    {"cat": "Fundamentos Blockchain", "dif": "Medio", "q": "¿Qué es un 'hash'?", "opts": {"A": "Un tipo de criptomoneda", "B": "Un código único que identifica y protege un bloque de datos", "C": "Una comisión de red", "D": "Una wallet de papel"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Medio", "q": "¿Qué significa 'minar' criptomonedas en una red de prueba de trabajo (Proof of Work)?", "opts": {"A": "Cavar de forma literal en busca de monedas", "B": "Usar poder computacional para validar transacciones y crear nuevos bloques", "C": "Comprar criptomonedas con tarjeta", "D": "Transferir criptomonedas entre wallets"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Medio", "q": "¿Qué es un 'nodo' en una red blockchain?", "opts": {"A": "Una computadora que participa validando y almacenando una copia de la red", "B": "Un tipo de moneda", "C": "Una wallet de hardware", "D": "Un exchange"}, "correct": "A"},
+    {"cat": "Fundamentos Blockchain", "dif": "Fácil", "q": "¿Quién creó Bitcoin?", "opts": {"A": "Elon Musk", "B": "Un desarrollador o grupo bajo el seudónimo Satoshi Nakamoto", "C": "El gobierno de Estados Unidos", "D": "Vitalik Buterin"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Difícil", "q": "¿En qué año se publicó el whitepaper de Bitcoin?", "opts": {"A": "2005", "B": "2008", "C": "2013", "D": "2017"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Medio", "q": "¿Qué blockchain popularizó los contratos inteligentes?", "opts": {"A": "Bitcoin", "B": "Ethereum", "C": "Dogecoin", "D": "Litecoin"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Medio", "q": "¿Qué es un contrato inteligente (smart contract)?", "opts": {"A": "Un contrato en papel firmado de forma digital", "B": "Un programa que ejecuta acciones de manera automática cuando se cumplen ciertas condiciones", "C": "Un tipo de préstamo bancario", "D": "Un NFT"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Fácil", "q": "¿Qué significa que una blockchain sea 'inmutable'?", "opts": {"A": "Que se puede editar libremente", "B": "Que, una vez confirmada, una transacción no se puede alterar ni eliminar", "C": "Que no tiene ningún costo", "D": "Que solo funciona un día"}, "correct": "B"},
+    {"cat": "Fundamentos Blockchain", "dif": "Medio", "q": "¿Qué es un explorador de bloques (block explorer)?", "opts": {"A": "Una wallet física", "B": "Una herramienta web para consultar transacciones y direcciones públicas de una blockchain", "C": "Un exchange centralizado", "D": "Un tipo de minero"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "¿Qué es una 'seed phrase' o frase semilla?", "opts": {"A": "Una contraseña que se puede cambiar cuando se quiera", "B": "Un conjunto de palabras que permite recuperar el acceso completo a una wallet", "C": "El nombre de la wallet", "D": "Un código que entrega el exchange"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "¿Con quién se debe compartir la seed phrase o la clave privada?", "opts": {"A": "Con soporte técnico si la solicita", "B": "Con nadie, nunca", "C": "Con un moderador de confianza", "D": "Con familiares cercanos"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es una wallet 'no custodial'?", "opts": {"A": "Una wallet en la que un tercero guarda las claves por el usuario", "B": "Una wallet en la que el usuario controla por sí mismo las claves privadas", "C": "Una wallet solo para exchanges", "D": "Una wallet que no necesita ninguna clave"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es una wallet 'custodial'?", "opts": {"A": "Una en la que el usuario controla el cien por ciento de las claves privadas", "B": "Una en la que un tercero, como un exchange, guarda las claves por el usuario", "C": "Una wallet de hardware", "D": "Una wallet sin conexión a internet"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es una 'cold wallet' o billetera fría?", "opts": {"A": "Una wallet conectada a internet todo el tiempo", "B": "Una wallet que almacena las claves sin conexión a internet", "C": "Una wallet solo para stablecoins", "D": "Una wallet de un exchange"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es una 'hot wallet' o billetera caliente?", "opts": {"A": "Una wallet física guardada en una caja fuerte", "B": "Una wallet conectada a internet, más cómoda pero más expuesta a ataques", "C": "Una wallet que no se puede usar", "D": "Un tipo de tarjeta de crédito"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "Si se pierde la seed phrase y no existe una copia de respaldo, ¿qué ocurre?", "opts": {"A": "Se puede solicitar una nueva al soporte técnico", "B": "Se pierde el acceso a los fondos de esa wallet de forma definitiva", "C": "El dinero regresa de forma automática a la cuenta bancaria", "D": "No ocurre nada, se puede restablecer con el correo electrónico"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "¿Qué es la autenticación de dos factores (2FA)?", "opts": {"A": "Usar dos contraseñas iguales", "B": "Una capa adicional de seguridad que solicita un segundo código además de la contraseña", "C": "Un tipo de wallet", "D": "Un impuesto sobre las criptomonedas"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "¿Cuál es una buena práctica para guardar una seed phrase?", "opts": {"A": "Tomarle una foto y publicarla en redes sociales", "B": "Escribirla en papel y guardarla en un lugar físico seguro", "C": "Enviarla por mensaje a un amigo", "D": "Guardarla en un documento en línea de acceso público"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es la clave pública de una wallet?", "opts": {"A": "La contraseña secreta que nunca se debe compartir", "B": "La dirección que se puede compartir para recibir fondos", "C": "El nombre de usuario del exchange", "D": "Un tipo de NFT"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es una clave privada?", "opts": {"A": "El código secreto que otorga control total sobre los fondos de una wallet", "B": "La dirección pública para recibir pagos", "C": "El nombre de la blockchain", "D": "Un código de descuento"}, "correct": "A"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "¿Por qué es importante verificar bien una dirección antes de enviar criptomonedas?", "opts": {"A": "No es importante, siempre se puede revertir el envío", "B": "Porque las transacciones en blockchain son irreversibles", "C": "Porque las direcciones cambian por sí solas", "D": "Porque el banco cobra una multa"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué es una wallet de hardware?", "opts": {"A": "Una aplicación en el teléfono", "B": "Un dispositivo físico diseñado para almacenar claves privadas sin conexión", "C": "Una tarjeta de crédito común", "D": "Un tipo de exchange"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "Si una wallet o una persona pide la seed phrase para 'verificar la cuenta', ¿qué corresponde hacer?", "opts": {"A": "Escribirla porque es un trámite habitual", "B": "Sospechar: ninguna aplicación o soporte legítimo la solicita jamás", "C": "Compartirla solo en un mensaje privado", "D": "Enviarla por correo electrónico"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Difícil", "q": "¿Qué significa la expresión 'not your keys, not your coins'?", "opts": {"A": "Que las monedas no tienen dueño", "B": "Que si no se controlan las claves privadas, no se controla realmente el fondo", "C": "Que las claves privadas no tienen ninguna utilidad", "D": "Que todas las wallets son iguales"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Difícil", "q": "¿Qué es una wallet 'multisig' o de múltiples firmas?", "opts": {"A": "Una wallet que requiere más de una firma o aprobación para autorizar una transacción", "B": "Un tipo de moneda", "C": "Una firma digital falsa", "D": "Un exchange centralizado"}, "correct": "A"},
+    {"cat": "Wallets y Seguridad", "dif": "Fácil", "q": "¿Es recomendable usar la misma contraseña en la wallet y en otras cuentas?", "opts": {"A": "Sí, es más fácil de recordar", "B": "No, aumenta el riesgo si alguna de esas cuentas es vulnerada", "C": "Solo si la contraseña es larga", "D": "No tiene ninguna importancia en criptomonedas"}, "correct": "B"},
+    {"cat": "Wallets y Seguridad", "dif": "Medio", "q": "¿Qué se debe revisar antes de conectar una wallet a una aplicación o sitio web?", "opts": {"A": "Nada, siempre es seguro", "B": "Que el sitio sea legítimo y comprender qué permisos se le otorgan a la wallet", "C": "El clima", "D": "El saldo de la cuenta bancaria"}, "correct": "B"},
+    {"cat": "Transacciones y Comisiones", "dif": "Medio", "q": "¿Qué es el 'gas fee' en Ethereum?", "opts": {"A": "Un impuesto anual", "B": "La comisión que se paga a la red por procesar una transacción o un contrato", "C": "El costo de crear una wallet", "D": "Una recompensa por hacer staking"}, "correct": "B"},
+    {"cat": "Transacciones y Comisiones", "dif": "Medio", "q": "¿Por qué pueden subir las comisiones de red en ciertos momentos?", "opts": {"A": "Por decisión de un banco central", "B": "Por congestión, cuando hay mucha demanda de transacciones en la red", "C": "Nunca cambian", "D": "Porque las monedas se vuelven más pesadas"}, "correct": "B"},
+    {"cat": "Transacciones y Comisiones", "dif": "Fácil", "q": "¿Qué sucede si se envían criptomonedas a una dirección incorrecta?", "opts": {"A": "El sistema las devuelve de forma automática", "B": "Por lo general se pierden, ya que las transacciones son irreversibles", "C": "El exchange reembolsa el monto", "D": "No es posible enviar a una dirección incorrecta"}, "correct": "B"},
+    {"cat": "Transacciones y Comisiones", "dif": "Fácil", "q": "¿Qué es una transacción 'on-chain'?", "opts": {"A": "Una transacción registrada directamente en la blockchain", "B": "Una transacción solo entre amigos", "C": "Una transacción en efectivo", "D": "Una transacción cancelada"}, "correct": "A"},
+    {"cat": "Transacciones y Comisiones", "dif": "Fácil", "q": "¿Qué es el tiempo de 'confirmación' de una transacción?", "opts": {"A": "El tiempo que tarda la red en validar e incluir la transacción en un bloque", "B": "El tiempo que tarda en llegar un correo electrónico", "C": "El tiempo que permanece activa una wallet", "D": "Un plazo legal impuesto por el gobierno"}, "correct": "A"},
+    {"cat": "Transacciones y Comisiones", "dif": "Difícil", "q": "¿Qué son las redes de 'capa 2' (Layer 2)?", "opts": {"A": "Blockchains sin ninguna relación entre sí", "B": "Soluciones construidas sobre una blockchain principal para hacerla más rápida y económica", "C": "Un tipo de wallet", "D": "Un exchange centralizado"}, "correct": "B"},
+    {"cat": "Transacciones y Comisiones", "dif": "Medio", "q": "Al enviar criptomonedas, ¿por qué es fundamental elegir la red correcta?", "opts": {"A": "No tiene importancia, todas las redes son compatibles entre sí", "B": "Porque enviar por la red equivocada puede provocar la pérdida de los fondos", "C": "Porque cambia el color de la wallet", "D": "Porque afecta el nombre de la moneda"}, "correct": "B"},
+    {"cat": "Transacciones y Comisiones", "dif": "Fácil", "q": "¿Qué es una 'transacción pendiente'?", "opts": {"A": "Una transacción cancelada", "B": "Una transacción enviada que todavía no fue confirmada por la red", "C": "Una transacción ilegal", "D": "Un tipo de estafa"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué significa 'HODL' en la jerga cripto?", "opts": {"A": "Un tipo de exchange", "B": "Mantener una inversión a largo plazo en lugar de vender de forma apresurada", "C": "Una orden de venta automática", "D": "Un tipo de wallet"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué significa 'FOMO'?", "opts": {"A": "Miedo a perderse una oportunidad ('fear of missing out')", "B": "Un tipo de moneda", "C": "Una wallet fría", "D": "Un protocolo de seguridad"}, "correct": "A"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué significa 'FUD'?", "opts": {"A": "Un tipo de token", "B": "Miedo, incertidumbre y duda difundidos para influir en el mercado", "C": "Una wallet de hardware", "D": "Una comisión de red"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué es una 'ballena' (whale) en el mundo cripto?", "opts": {"A": "Un tipo de moneda", "B": "Una persona que posee una cantidad muy grande de una criptomoneda", "C": "Un exchange pequeño", "D": "Un error del sistema"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué significa la sigla 'DYOR'?", "opts": {"A": "Un tipo de wallet", "B": "Investigar por cuenta propia antes de invertir", "C": "Una orden de compra automática", "D": "Un protocolo de consenso"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué es un 'rug pull'?", "opts": {"A": "Una promoción de descuentos", "B": "Una estafa en la que los creadores de un proyecto lo abandonan y se quedan con los fondos de los inversores", "C": "Un tipo de wallet segura", "D": "Una actualización de red"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué es un 'altcoin'?", "opts": {"A": "Bitcoin", "B": "Cualquier criptomoneda que no sea Bitcoin", "C": "Una wallet alternativa", "D": "Un tipo de NFT"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué es la capitalización de mercado (market cap) de una criptomoneda?", "opts": {"A": "El precio de una sola unidad", "B": "El valor total de todas las unidades en circulación (precio por cantidad)", "C": "La cantidad de wallets existentes", "D": "El costo de crear la moneda"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué significa 'airdrop' en el ámbito cripto?", "opts": {"A": "Una caída del precio", "B": "Una distribución gratuita de tokens a ciertas wallets, frecuentemente como promoción", "C": "Un tipo de estafa siempre", "D": "Un ataque a una wallet"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué es un 'token'?", "opts": {"A": "Una unidad de valor creada sobre una blockchain existente, distinta de su moneda nativa", "B": "Únicamente Bitcoin", "C": "Una wallet física", "D": "Un tipo de exchange"}, "correct": "A"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué es un 'exchange' de criptomonedas?", "opts": {"A": "Una wallet de hardware", "B": "Una plataforma donde se pueden comprar, vender e intercambiar criptomonedas", "C": "Un tipo de blockchain", "D": "Un contrato inteligente"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué es el 'DCA' o promedio de costo en dólares (dollar-cost averaging)?", "opts": {"A": "Invertir todo el capital de una sola vez", "B": "Invertir montos fijos de manera periódica para reducir el impacto de la volatilidad", "C": "Retirar todo el dinero de golpe", "D": "Un tipo de wallet"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué es 'KYC' (Know Your Customer)?", "opts": {"A": "Un tipo de moneda", "B": "El proceso de verificación de identidad que exigen muchos exchanges", "C": "Una wallet anónima", "D": "Un protocolo de minería"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Fácil", "q": "¿Qué significa que un proyecto sea de 'código abierto' (open source)?", "opts": {"A": "Que su uso siempre es gratuito", "B": "Que su código es público y cualquiera puede revisarlo", "C": "Que no tiene ningún dueño legal", "D": "Que solo funciona en una wallet"}, "correct": "B"},
+    {"cat": "Términos y Jerga", "dif": "Medio", "q": "¿Qué es una 'ICO' (Initial Coin Offering)?", "opts": {"A": "Una forma en que un proyecto nuevo recauda fondos vendiendo sus tokens al público", "B": "Un tipo de wallet fría", "C": "Un impuesto sobre las criptomonedas", "D": "Una estafa siempre"}, "correct": "A"},
+    {"cat": "Stablecoins y Tokens", "dif": "Fácil", "q": "¿Qué es una 'stablecoin'?", "opts": {"A": "Una moneda que sube de precio todos los días", "B": "Una criptomoneda diseñada para mantener un valor estable, por lo general vinculado a una moneda como el dólar", "C": "Un tipo de NFT", "D": "Una wallet de hardware"}, "correct": "B"},
+    {"cat": "Stablecoins y Tokens", "dif": "Fácil", "q": "¿A qué está vinculado normalmente el valor del USDT?", "opts": {"A": "Al oro", "B": "Al dólar estadounidense", "C": "Al euro", "D": "A Bitcoin"}, "correct": "B"},
+    {"cat": "Stablecoins y Tokens", "dif": "Medio", "q": "¿Qué es un 'token de utilidad' (utility token)?", "opts": {"A": "Un token que otorga acceso a funciones específicas dentro de un ecosistema o una aplicación", "B": "Únicamente una moneda especulativa", "C": "Un tipo de NFT coleccionable", "D": "Una wallet"}, "correct": "A"},
+    {"cat": "Stablecoins y Tokens", "dif": "Fácil", "q": "¿Qué es un NFT?", "opts": {"A": "Una criptomoneda estable", "B": "Un token único y no intercambiable que representa la propiedad de un activo digital", "C": "Un tipo de wallet", "D": "Una comisión de red"}, "correct": "B"},
+    {"cat": "Stablecoins y Tokens", "dif": "Medio", "q": "¿Qué significa que un token sea 'fungible'?", "opts": {"A": "Que cada unidad es única e irremplazable", "B": "Que cada unidad es idéntica e intercambiable por otra igual, como el dinero", "C": "Que carece de valor", "D": "Que solo existe una unidad"}, "correct": "B"},
+    {"cat": "Stablecoins y Tokens", "dif": "Difícil", "q": "¿Qué riesgo debe considerarse con las stablecoins?", "opts": {"A": "Ninguno, son totalmente infalibles", "B": "Que dependen de que el emisor realmente cuente con las reservas que respaldan su valor", "C": "Que solo sirven para NFTs", "D": "Que no se pueden transferir"}, "correct": "B"},
+    {"cat": "Stablecoins y Tokens", "dif": "Medio", "q": "¿Qué son los 'tokens de gobernanza'?", "opts": {"A": "Tokens que otorgan derecho a votar sobre decisiones de un protocolo o proyecto", "B": "Tokens que solo sirven para pagar impuestos", "C": "Un tipo de NFT", "D": "Una wallet institucional"}, "correct": "A"},
+    {"cat": "Stablecoins y Tokens", "dif": "Medio", "q": "¿Qué significa 'quemar' (burn) tokens?", "opts": {"A": "Venderlos todos de una sola vez", "B": "Eliminarlos de circulación de forma permanente, reduciendo la oferta total", "C": "Transferirlos a un exchange", "D": "Convertirlos en un NFT"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Medio", "q": "¿Qué significa 'DeFi'?", "opts": {"A": "Finanzas centralizadas", "B": "Finanzas descentralizadas: servicios financieros sin intermediarios tradicionales", "C": "Un tipo de wallet", "D": "Un impuesto sobre las criptomonedas"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Fácil", "q": "¿Qué es el 'staking'?", "opts": {"A": "Vender criptomonedas con rapidez", "B": "Bloquear criptomonedas para ayudar a validar la red y recibir recompensas a cambio", "C": "Un tipo de estafa", "D": "Transferir criptomonedas entre exchanges"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Difícil", "q": "¿Qué es 'Proof of Stake' (prueba de participación)?", "opts": {"A": "Un mecanismo de consenso en el que los validadores bloquean monedas para poder validar transacciones", "B": "Un tipo de minería con computadoras potentes", "C": "Un impuesto sobre las ganancias", "D": "Una wallet fría"}, "correct": "A"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Difícil", "q": "¿Qué es 'Proof of Work' (prueba de trabajo)?", "opts": {"A": "Un mecanismo de consenso en el que los mineros compiten resolviendo cálculos con poder computacional", "B": "Un contrato laboral", "C": "Un tipo de stablecoin", "D": "Una wallet custodial"}, "correct": "A"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Medio", "q": "¿Qué es un 'pool de staking'?", "opts": {"A": "Una piscina física", "B": "Un grupo de usuarios que combina sus fondos para hacer staking en conjunto y compartir recompensas", "C": "Un tipo de exchange", "D": "Una wallet de hardware"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Difícil", "q": "¿Qué es el 'yield farming'?", "opts": {"A": "Cultivar alimentos con criptomonedas", "B": "Mover fondos entre distintos protocolos DeFi para maximizar el rendimiento obtenido", "C": "Un tipo de minería", "D": "Una estafa siempre"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Medio", "q": "¿Qué es una 'DAO' u organización autónoma descentralizada?", "opts": {"A": "Una empresa tradicional con un director ejecutivo", "B": "Una organización gobernada por reglas en código y decisiones votadas por sus miembros", "C": "Un tipo de wallet", "D": "Un exchange centralizado"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Medio", "q": "¿Qué riesgo tiene el staking que conviene conocer?", "opts": {"A": "Ninguno, es totalmente seguro", "B": "Que los fondos pueden quedar bloqueados por un tiempo y el valor de la moneda puede bajar mientras tanto", "C": "Que se convierte automáticamente en un NFT", "D": "Que pierde validez legal"}, "correct": "B"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Difícil", "q": "¿Qué es un 'protocolo' en el contexto de DeFi?", "opts": {"A": "Un conjunto de reglas y contratos inteligentes que definen el funcionamiento de una aplicación descentralizada", "B": "Un tipo de moneda", "C": "Una wallet de hardware", "D": "Un documento legal firmado en papel"}, "correct": "A"},
+    {"cat": "DeFi, Staking y Consenso", "dif": "Difícil", "q": "¿Qué es un 'liquidity pool' o fondo de liquidez?", "opts": {"A": "Un fondo de tokens bloqueados que permite realizar intercambios en un exchange descentralizado", "B": "Una wallet fría", "C": "Un tipo de NFT", "D": "Un impuesto sobre las transacciones"}, "correct": "A"},
+    {"cat": "Estafas y Phishing", "dif": "Fácil", "q": "Si alguien escribe por mensaje privado ofreciendo 'duplicar una inversión' en criptomonedas, ¿qué es lo más probable?", "opts": {"A": "Una oportunidad única", "B": "Una estafa", "C": "Un obsequio oficial de la plataforma", "D": "Un airdrop legítimo"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Fácil", "q": "¿Qué es el 'phishing'?", "opts": {"A": "Un tipo de moneda", "B": "Un engaño para robar datos o claves haciéndose pasar por una fuente confiable", "C": "Una técnica de minería", "D": "Un tipo de staking"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Medio", "q": "¿Cómo se puede identificar un sitio web falso que imita a uno real?", "opts": {"A": "Es imposible detectarlo", "B": "Revisando con cuidado la dirección web, el dominio y si cuenta con certificado de seguridad", "C": "Por el color de la página", "D": "Por la cantidad de anuncios"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Fácil", "q": "Si un supuesto 'soporte técnico' solicita acceso remoto a la computadora o a la wallet, ¿qué corresponde hacer?", "opts": {"A": "Otorgar el acceso porque indica que es urgente", "B": "Desconfiar y cortar la comunicación: el soporte legítimo nunca solicita esto", "C": "Pedirle que llame por otra vía", "D": "Aceptar si su foto de perfil parece oficial"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Medio", "q": "¿Qué es un contrato inteligente malicioso?", "opts": {"A": "Un contrato que siempre es seguro", "B": "Un contrato programado para robar o bloquear los fondos de quienes interactúan con él", "C": "Un tipo de wallet", "D": "Un protocolo de consenso"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Fácil", "q": "¿Qué señal de alerta debería generar dudas sobre un proyecto cripto?", "opts": {"A": "Que cuente con un sitio web", "B": "Que prometa ganancias garantizadas y sin ningún riesgo", "C": "Que tenga redes sociales", "D": "Que cuente con un whitepaper"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Difícil", "q": "¿Qué es el 'pig butchering' o estafa de engorde?", "opts": {"A": "Un tipo de staking", "B": "Una estafa en la que se construye una relación de confianza a largo plazo antes de solicitar una inversión", "C": "Un protocolo DeFi legítimo", "D": "Una wallet de hardware"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Fácil", "q": "Si aparece un enlace acortado o sospechoso en un chat pidiendo conectar la wallet, ¿cuál es la opción más segura?", "opts": {"A": "Conectarla de todos modos, no representa un riesgo", "B": "No hacer clic y verificar la fuente por canales oficiales", "C": "Compartirlo con más personas", "D": "Conectar solo una parte de la wallet"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Medio", "q": "¿Qué es un 'soporte falso' en Telegram o Discord?", "opts": {"A": "Una cuenta oficial verificada", "B": "Una cuenta que se hace pasar por soporte oficial para robar datos o dinero", "C": "Un bot legítimo del proyecto", "D": "Un tipo de NFT"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Difícil", "q": "¿Por qué resulta riesgoso aprobar (approve) un contrato sin revisarlo con detenimiento?", "opts": {"A": "No implica ningún riesgo", "B": "Porque se le puede estar dando permiso a un contrato para mover los tokens sin pedir confirmación cada vez", "C": "Porque cambia el color de la wallet", "D": "Porque elimina la cuenta de Telegram"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Medio", "q": "¿Qué corresponde hacer si existe la sospecha de haber caído en una estafa cripto?", "opts": {"A": "No comentarlo con nadie", "B": "Dejar de interactuar con esa fuente, informar a la comunidad o al soporte oficial y revisar la seguridad de la wallet", "C": "Compartir la seed phrase para que 'reviertan' la transacción", "D": "Esperar a que la situación se resuelva sola"}, "correct": "B"},
+    {"cat": "Estafas y Phishing", "dif": "Fácil", "q": "¿Qué es un 'giveaway' o sorteo falso?", "opts": {"A": "Un sorteo oficial verificado", "B": "Una estafa que solicita enviar criptomonedas primero para 'recibir el doble' después", "C": "Un airdrop real", "D": "Un tipo de staking"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "¿Cómo se llama la comunidad de Telegram de Panther Wallet?", "opts": {"A": "Panther Squad", "B": "La Manada Panther", "C": "Panther Army", "D": "Wallet Warriors"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "¿Qué token tiene Panther Wallet además de aceptar USDT?", "opts": {"A": "PNT", "B": "PTH", "C": "PAW", "D": "PANT"}, "correct": "A"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "¿Cuál es el juego integrado dentro de la mini aplicación de Panther?", "opts": {"A": "Panther Runner", "B": "PNT Defender", "C": "Crypto Jump", "D": "Wallet Wars"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "Dentro de la mini aplicación, ¿qué sección ayuda a aprender términos cripto?", "opts": {"A": "Glosario Crypto", "B": "Panther Academy", "C": "Crypto School", "D": "Learn Center"}, "correct": "A"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Cómo se sube de nivel en el ranking de Panther (por ejemplo, de 'Cachorro' a 'Rastreador')?", "opts": {"A": "Pagando una suscripción", "B": "Acumulando puntos mediante actividades como el check-in diario, referidos y misiones", "C": "Comprando NFTs", "D": "Haciendo staking exclusivamente"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Qué se obtiene al hacer el check-in diario en la mini aplicación de Panther?", "opts": {"A": "Nada", "B": "Puntos, y con una racha activa un pequeño bono en USDT (Daily Hunt)", "C": "Un NFT gratuito", "D": "Acceso a soporte VIP"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Qué tipo de producto físico o virtual puede tener una persona usuaria de Panther Wallet?", "opts": {"A": "Solo una wallet de papel", "B": "Una tarjeta virtual o física", "C": "Un token no fungible personal", "D": "Un préstamo bancario"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "¿Qué se utiliza para invitar a otra persona a Panther Wallet?", "opts": {"A": "La contraseña personal", "B": "El código de referido único", "C": "La seed phrase", "D": "La clave privada"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿En qué plataformas tiene presencia oficial Panther Wallet?", "opts": {"A": "Solo en Telegram", "B": "Instagram, YouTube, TikTok, sitio web y Telegram", "C": "Solo en TikTok", "D": "Solo en su sitio web"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "Si alguien escribe por mensaje privado en Telegram diciendo ser 'soporte de Panther' y solicita la seed phrase, ¿qué corresponde hacer?", "opts": {"A": "Entregarla porque asegura ser soporte oficial", "B": "No compartirla nunca: se trata de una estafa, ningún canal oficial la solicita", "C": "Pedirle que la confirme por audio", "D": "Compartirla solo si su foto de perfil parece de Panther"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Qué busca aportar 'La Manada' además de los puntos de nivel?", "opts": {"A": "Nada adicional, solo puntos", "B": "Un saldo acumulable en USDT o PNT mediante distintas misiones", "C": "Descuentos en tiendas físicas", "D": "Acciones de la empresa"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "Además del check-in diario, ¿qué tipo de actividad puede otorgar puntos en Panther?", "opts": {"A": "Compartir reels o historias mencionando a Panther", "B": "Comprar acciones", "C": "Hacer staking de manera obligatoria", "D": "Ninguna otra actividad otorga puntos"}, "correct": "A"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Qué programa de Panther está pensado para las personas más activas que buscan recompensas mayores, más allá de La Manada?", "opts": {"A": "Partners", "B": "VIP Club", "C": "Panther Elite", "D": "Founders Only"}, "correct": "A"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Qué verifica un moderador antes de acreditar puntos o USDT por una misión con captura de pantalla en Panther?", "opts": {"A": "Nada, se acredita de forma automática siempre", "B": "Que la captura corresponda realmente a la acción solicitada, por ejemplo un reel o una reseña genuina", "C": "El horario exacto al segundo", "D": "El modelo de teléfono utilizado"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Medio", "q": "¿Qué ocurre si se comparte contenido de baja calidad solo para intentar obtener más recompensas en Panther?", "opts": {"A": "Se aprueba sin ningún inconveniente", "B": "Un moderador puede rechazarlo o acreditar un monto menor, ya que la aprobación es manual y a su criterio", "C": "Se premia siempre con el monto máximo de forma automática", "D": "No tiene ninguna consecuencia"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Difícil", "q": "¿Por qué Panther separa el saldo de 'La Manada' (USDT o PNT) de los puntos de nivel o ranking?", "opts": {"A": "Porque son exactamente lo mismo con otro nombre", "B": "Porque cumplen funciones distintas: los puntos miden actividad y ranking, y el saldo es una recompensa económica acumulable", "C": "Por un error de programación", "D": "Porque los puntos no tienen ninguna utilidad"}, "correct": "B"},
+    {"cat": "Panther Wallet", "dif": "Fácil", "q": "¿Cuál es una buena costumbre para aprovechar mejor las misiones diarias de Panther, como Daily Hunt?", "opts": {"A": "Ingresar una sola vez al mes", "B": "Ingresar todos los días para no perder la racha, que incrementa la recompensa", "C": "Compartir la seed phrase con la comunidad", "D": "Ignorar las misiones automáticas"}, "correct": "B"},
+]
+
+def get_daily_quiz_index(uid: str, day: str) -> int:
+    """Elige una pregunta determinística por usuario y por día (misma pregunta
+    todo el día para ese usuario, cambia al día siguiente)."""
+    h = hashlib.sha256(f"{uid}-{day}".encode()).hexdigest()
+    return int(h, 16) % len(QUIZ_BANK)
+
+
+def get_daily_quiz_question(uid: str, day: str) -> dict:
+    return QUIZ_BANK[get_daily_quiz_index(uid, day)]
+
+
+def grade_quiz_answer(data: dict, uid: str, answer: str):
+    """Corrige la respuesta del quiz diario y acredita la recompensa si es
+    correcta. Devuelve un dict con el resultado. Idempotente: si ya se
+    respondió hoy, devuelve already_done=True sin volver a acreditar."""
+    today = date.today().isoformat()
+    if data.get("manada_last_quiz_date") == today:
+        return {"already_done": True}
+
+    question = get_daily_quiz_question(uid, today)
+    correcto = str(answer).strip().upper() == question["correct"]
+
+    data["manada_last_quiz_date"] = today
+    manada_reset_periods_if_needed(data)
+
+    resultado = {
+        "already_done":  False,
+        "correct":       correcto,
+        "correct_answer": question["correct"],
+        "manada_usdt_earned": 0,
+        "manada_pnt_earned":  0,
+    }
+
+    if correcto:
+        data["manada_quiz_semana"] = (data.get("manada_quiz_semana", 0) or 0) + 1
+        if random.random() < 0.5:
+            monto = round(random.uniform(QUIZ_USDT_MIN, QUIZ_USDT_MAX), 2)
+            resultado["manada_usdt_earned"] = add_manada_usdt(data, monto)
+        else:
+            monto = round(random.uniform(QUIZ_PNT_MIN, QUIZ_PNT_MAX), 2)
+            resultado["manada_pnt_earned"] = add_manada_pnt(data, monto)
+
+        if "history" not in data:
+            data["history"] = []
+        data["history"].append({
+            "type": "quiz",
+            "correct": True,
+            "usdt": resultado["manada_usdt_earned"],
+            "pnt":  resultado["manada_pnt_earned"],
+            "date": today,
+            "time": datetime.now().strftime("%H:%M"),
+        })
+        data["history"] = data["history"][-20:]
+
+    return resultado
 
 
 DAILY_COUNT_FIELD = {
@@ -4080,6 +4251,33 @@ class MiniAppHandler(BaseHTTPRequestHandler):
                 "usdt_won_month": has_won_this_month(data, "usdt"),
                 "pnt_won_month":  has_won_this_month(data, "pnt"),
                 "history":        history,
+                "manada_usdt_balance": data.get("manada_usdt_balance", 0),
+                "manada_pnt_balance":  data.get("manada_pnt_balance", 0),
+                "quiz_today": data.get("manada_last_quiz_date") == today,
+            })
+
+        # ── GET /quiz?id=123456 — Learn & Earn: pregunta del día ──
+        elif path == "/quiz":
+            uid = params.get("id", [None])[0]
+            if not uid:
+                return self.send_json({"error": "Missing id"}, 400)
+
+            db   = load_db()
+            data = db.get(uid)
+            if not data:
+                return self.send_json({"error": "User not found"}, 404)
+
+            today = date.today().isoformat()
+            done  = data.get("manada_last_quiz_date") == today
+            question = get_daily_quiz_question(uid, today)
+
+            return self.send_json({
+                "already_done": done,
+                "question": question["q"],
+                "category":  question["cat"],
+                "options":   question["opts"],
+                "manada_usdt_balance": data.get("manada_usdt_balance", 0),
+                "manada_pnt_balance":  data.get("manada_pnt_balance", 0),
             })
 
         # ── GET /ranking ──
@@ -5359,6 +5557,23 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
                 "manada_usdt_earned":  usdt_acreditado,
                 "manada_usdt_balance": data.get("manada_usdt_balance", 0),
             })
+
+        # ── POST /quiz/answer — Learn & Earn: responder la pregunta del día ──
+        elif path == "/quiz/answer":
+            uid    = body.get("id")
+            answer = body.get("answer")
+            if not uid or not answer:
+                return self.send_json({"error": "Missing id or answer"}, 400)
+
+            db   = load_db()
+            data = get_user(db, uid)
+
+            resultado = grade_quiz_answer(data, uid, answer)
+            save_db(db)
+
+            resultado["manada_usdt_balance"] = data.get("manada_usdt_balance", 0)
+            resultado["manada_pnt_balance"]  = data.get("manada_pnt_balance", 0)
+            return self.send_json(resultado)
 
         # ── POST /set_mission_type — guarda qué misión va a subir el usuario ──
         elif path == "/set_mission_type":

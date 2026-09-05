@@ -353,6 +353,7 @@ body{background:var(--bg);color:var(--t);font-family:'DM Sans',sans-serif;max-wi
     <div class="stitle">Diarias</div>
     <div class="mc" id="mc-checkin" onclick="handleCheckinClick()"><div class="mic i1">🔥</div><div class="mb"><div class="mn">Check-in diario</div><div class="ms" id="checkin-sub">+5 a +10 pts · bonus por racha en USDT</div></div><div class="mr"><div class="mpts">+10</div><div class="mplab">PTS</div></div><div class="marr" id="checkin-arr">→</div></div>
     <div class="mc" id="mc-ruleta" onclick="goTo('ruleta')"><div class="mic i2">🎰</div><div class="mb"><div class="mn">Ruleta diaria</div><div class="ms" id="ruleta-sub">Pts, ×2 o premios en USDT</div></div><div class="mr"><div class="mpts" id="ruleta-mpts">?</div><div class="mplab">PTS</div></div><div class="marr" id="ruleta-arr">→</div></div>
+    <div class="mc" id="mc-quiz" onclick="openQuizModal()"><div class="mic" style="background:#0a1a1f">🧠</div><div class="mb"><div class="mn">Quiz diario</div><div class="ms" id="quiz-sub">Responde y gana USDT o PNT · 1x/día</div></div><div class="mr"><div class="mpts" id="quiz-mpts">?</div><div class="mplab">PTS</div></div><div class="marr" id="quiz-arr">→</div></div>
   </div>
   <div class="sec">
     <div class="stitle">Sociales</div>
@@ -1261,6 +1262,24 @@ function updateUI() {
     }
   }
 
+  const mcQuiz = document.getElementById('mc-quiz');
+  if (mcQuiz) {
+    const quizSub  = document.getElementById('quiz-sub');
+    const quizArr  = document.getElementById('quiz-arr');
+    const quizMpts = document.getElementById('quiz-mpts');
+    if (userData.quiz_today) {
+      mcQuiz.classList.add('done');
+      if (quizArr) { quizArr.classList.add('ok'); quizArr.textContent = '✓'; }
+      if (quizMpts) quizMpts.textContent = '✓';
+      if (quizSub) quizSub.textContent = '✅ Completado hoy · vuelve mañana';
+    } else {
+      mcQuiz.classList.remove('done');
+      if (quizArr) { quizArr.classList.remove('ok'); quizArr.textContent = '→'; }
+      if (quizMpts) quizMpts.textContent = '?';
+      if (quizSub) quizSub.textContent = 'Responde y gana USDT o PNT · 1x/día';
+    }
+  }
+
   // Social follow missions
   ['ig', 'x', 'tiktok', 'facebook', 'youtube'].forEach(red => {
     const done = userData['follow_' + red];
@@ -1394,6 +1413,105 @@ const originalGoTo = function(n) {
   window.scrollTo(0,0);
   loadUserData();
 };
+
+let _quizAnswered = false;
+
+function openQuizModal() {
+  if (!USER_ID) return;
+  fetch(`${API_BASE}/quiz?id=${USER_ID}`)
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) return;
+      _quizAnswered = !!data.already_done;
+
+      document.getElementById('quiz-cat').textContent = (data.category || '').toUpperCase();
+      document.getElementById('quiz-question').textContent = data.question || '';
+      renderQuizOptions(data.options || {});
+
+      const result = document.getElementById('quiz-result');
+      const closeBtn = document.getElementById('quiz-close-btn');
+      if (data.already_done) {
+        document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+        result.style.display = 'block';
+        result.style.background = '#1a1a1a';
+        result.style.color = '#aaa';
+        result.textContent = '✅ Ya respondiste el quiz de hoy. Vuelve mañana.';
+        closeBtn.textContent = 'Cerrar';
+      } else {
+        result.style.display = 'none';
+        closeBtn.textContent = 'Cancelar';
+      }
+
+      document.getElementById('quiz-modal').style.display = 'flex';
+    })
+    .catch(e => console.error('Quiz load error:', e));
+}
+
+function renderQuizOptions(opts) {
+  const container = document.getElementById('quiz-options');
+  container.innerHTML = '';
+  ['A', 'B', 'C', 'D'].forEach(letter => {
+    if (!opts[letter]) return;
+    const btn = document.createElement('button');
+    btn.textContent = letter + '. ' + opts[letter];
+    btn.className = 'quiz-opt-btn';
+    btn.style.cssText = 'background:#1a1a1a;color:#fff;border:1px solid #333;border-radius:12px;padding:12px 14px;font-size:14px;text-align:left;cursor:pointer';
+    btn.onclick = () => submitQuizAnswer(letter, btn);
+    container.appendChild(btn);
+  });
+}
+
+function submitQuizAnswer(letter, btnEl) {
+  if (_quizAnswered || !USER_ID) return;
+  _quizAnswered = true;
+  document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = true);
+  document.getElementById('quiz-close-btn').textContent = 'Cerrar';
+
+  fetch(`${API_BASE}/quiz/answer`, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({id: USER_ID, answer: letter})
+  })
+    .then(res => res.json())
+    .then(data => {
+      const result = document.getElementById('quiz-result');
+      result.style.display = 'block';
+
+      if (data.already_done) {
+        result.style.background = '#1a1a1a';
+        result.style.color = '#aaa';
+        result.textContent = '✅ Ya respondiste el quiz de hoy. Vuelve mañana.';
+        return;
+      }
+
+      if (data.correct) {
+        btnEl.style.background = '#0a2a0a';
+        btnEl.style.borderColor = '#4ade80';
+        const usdt = parseFloat(data.manada_usdt_earned || 0);
+        const pnt  = parseFloat(data.manada_pnt_earned || 0);
+        const premio = usdt > 0 ? (usdt.toFixed(2) + ' USDT') : (pnt.toFixed(2) + ' PNT');
+        result.style.background = '#0a2a0a';
+        result.style.color = '#4ade80';
+        result.textContent = '🎉 ¡Correcto! Ganaste ' + premio;
+      } else {
+        btnEl.style.background = '#2a0a0a';
+        btnEl.style.borderColor = '#ff4444';
+        result.style.background = '#2a0a0a';
+        result.style.color = '#ff8888';
+        result.textContent = '❌ Incorrecto. La respuesta correcta era ' + data.correct_answer + '. Vuelve mañana.';
+      }
+    })
+    .catch(e => {
+      console.error('Quiz answer error:', e);
+      _quizAnswered = false;
+      document.querySelectorAll('.quiz-opt-btn').forEach(b => b.disabled = false);
+    });
+}
+
+function closeQuizModal() {
+  document.getElementById('quiz-modal').style.display = 'none';
+  loadUserData();
+}
 
 function handleCheckinClick() {
   const mcCheckin = document.getElementById('mc-checkin');
@@ -2768,6 +2886,18 @@ function openEmojiMission() {
     <div style="font-size:16px;font-weight:700;color:#fff">🏅 Tabla de Niveles</div>
   </div>
   <div id="niveles-list" style="display:flex;flex-direction:column;gap:10px;padding-bottom:40px"></div>
+</div>
+
+<div id="quiz-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:#161616;border-radius:20px;padding:24px;width:100%;max-width:360px;border:1px solid #2a2a2a">
+    <div id="quiz-cat" style="font-size:12px;color:#FF8C4A;font-weight:700;margin-bottom:8px;letter-spacing:.5px"></div>
+    <div id="quiz-question" style="font-size:18px;font-weight:700;color:#fff;margin-bottom:18px;line-height:1.4"></div>
+    <div id="quiz-options" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+    <div id="quiz-result" style="display:none;border-radius:10px;padding:12px;text-align:center;margin-bottom:16px;font-weight:700;font-size:14px"></div>
+    <button onclick="closeQuizModal()" id="quiz-close-btn" style="background:transparent;color:#666;border:1px solid #333;border-radius:12px;padding:11px 0;width:100%;font-size:14px;cursor:pointer">
+      Cerrar
+    </button>
+  </div>
 </div>
 
 <div id="wallet-mission-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;padding:20px">

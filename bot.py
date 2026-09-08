@@ -70,7 +70,10 @@ SCAM_PATTERN = re.compile(
     r"double\s*your\s*(money|investment|crypto)|ganancia\s*garantizada|"
     r"guaranteed\s*(profit|return)|(conecta|connect)\s*(tu\s*|your\s*)?wallet|"
     r"(verifica|verify)\s*(tu\s*|your\s*)?wallet|100%\s*(profit|ganancia)|"
-    r"inversi[oó]n\s*segura|investment\s*opportunity)",
+    r"inversi[oó]n\s*segura|investment\s*opportunity|"
+    r"promotion\s*(on|in)\s*(my|our)\s*(channel|group|telegram)|paid\s*promotion|"
+    r"promoci[oó]n\s*(en|de)\s*(mi|nuestro)\s*canal|promoci[oó]n\s*pagada|"
+    r"investors?\s*contact\s*me|contact\s*me\s*for\s*promotion|inversores?\s*contact\w*)",
     re.IGNORECASE,
 )
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))

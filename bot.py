@@ -4,7 +4,7 @@ PANTHER WALLET — MANADA PANTHER GAME BOT
 Módulo completo: Bot + API HTTP para Mini App
 """
 
-import os, json, logging, random, asyncio, threading, sqlite3, hashlib, base64, io
+import os, json, logging, random, asyncio, threading, sqlite3, hashlib, base64, io, re
 from datetime import datetime, date, timedelta
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
@@ -39,6 +39,24 @@ MOD_IDS = [int(x) for x in os.environ.get("MOD_IDS", "8234467845,8249484524,1769
 # (mueve plata real). El resto de los mods sigue pudiendo Rechazar, que
 # no mueve nada y solo devuelve el saldo al usuario.
 TREASURY_IDS = [int(x) for x in os.environ.get("TREASURY_IDS", "8234467845").split(",") if x.strip()]
+
+# ── Firewall anti-scam ────────────────────────────────────────────────────
+# Bots de Telegram (is_bot=True) que SI se permite que entren al chat general.
+# Nuestro propio bot nunca se banea a si mismo, eso ya esta contemplado aparte.
+TRUSTED_BOT_USERNAMES = set(
+    x.strip().lower().lstrip("@")
+    for x in os.environ.get("TRUSTED_BOT_USERNAMES", "").split(",")
+    if x.strip()
+)
+# Usuarios recien unidos cuyo primer mensaje todavia no fue evaluado.
+NEW_MEMBERS_PENDING_FIRST_MSG: set = set()
+# Cualquier link — http(s), t.me, www o un dominio con extension comun.
+# Alguien recien unido casi nunca necesita mandar un link como primer mensaje,
+# asi que esto es deliberadamente amplio (no solo palabras de estafa).
+URL_PATTERN = re.compile(
+    r"(https?://|t\.me/|www\.|@\w{4,}bot\b|\b[a-zA-Z0-9-]{2,}\.[a-zA-Z]{2,6}\b)",
+    re.IGNORECASE,
+)
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
 MAIN_GROUP_ID = int(os.environ.get("MAIN_GROUP_ID", "-1001234567890"))  # chat general
 
@@ -159,6 +177,10 @@ async def antiflood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     Detecta flood: si un usuario manda más de FLOOD_MAX_MSGS mensajes
     en FLOOD_WINDOW segundos, lo mutea por FLOOD_MUTE_SECS segundos.
     Solo actúa en grupos. Ignora a mods y admins.
+
+    Tambien hace de firewall: si el PRIMER mensaje de alguien recien unido
+    trae un link, se borra y se lo restringe hasta que un mod lo revise —
+    los scammers casi siempre postean el link de estafa apenas entran.
     """
     if not update.message or update.effective_chat.type not in ("group", "supergroup"):
         return
@@ -169,6 +191,41 @@ async def antiflood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     uid = user.id
     now = datetime.now()
+
+    # ── Firewall: primer mensaje con link de alguien recien unido ──
+    uid_str = str(uid)
+    if uid_str in NEW_MEMBERS_PENDING_FIRST_MSG:
+        NEW_MEMBERS_PENDING_FIRST_MSG.discard(uid_str)
+        texto_msg = update.message.text or update.message.caption or ""
+        if URL_PATTERN.search(texto_msg):
+            try:
+                await update.message.delete()
+            except Exception:
+                pass
+            try:
+                await context.bot.restrict_chat_member(
+                    chat_id=update.effective_chat.id,
+                    user_id=uid,
+                    permissions={"can_send_messages": False},
+                )
+            except Exception as e:
+                logger.warning(f"Firewall: no se pudo restringir a {uid}: {e}")
+            nombre = user.first_name or "Usuario"
+            username_line = f" (@{user.username})" if user.username else ""
+            try:
+                await context.bot.send_message(
+                    chat_id=MOD_GROUP_ID,
+                    text=(
+                        f"🛡️ *Silenciado por link en su primer mensaje*\n\n"
+                        f"{nombre}{username_line} (ID {uid})\n\n"
+                        f"Si es un falso positivo, restaurar con `/liberar {uid}`. "
+                        f"Si es scam, banealo a mano desde el grupo."
+                    ),
+                    parse_mode="Markdown",
+                )
+            except Exception:
+                pass
+            return
 
     # Si ya está muteado y el mute sigue vigente, borrar el mensaje
     if uid in FLOOD_MUTED:
@@ -1508,14 +1565,45 @@ async def send_founder_badge(bot, uid: str, name: str, number: int):
 
 # ── Bienvenida a nuevos miembros ──────────────────────────────────────────────
 async def handle_new_member(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Detecta cuando alguien se une al grupo y lo saluda en el chat general."""
+    """Detecta cuando alguien se une al grupo. Si es un bot no autorizado lo
+    banea al toque (firewall anti-scam) — si es una persona, la saluda y la
+    deja en observación para revisar su primer mensaje."""
     for member in update.message.new_chat_members:
         if member.is_bot:
+            # Nunca banear al propio bot, ni a los que estan en la lista blanca.
+            if member.id == context.bot.id:
+                continue
+            username = (member.username or "").lower()
+            if username in TRUSTED_BOT_USERNAMES:
+                continue
+            try:
+                await context.bot.ban_chat_member(
+                    chat_id=update.effective_chat.id,
+                    user_id=member.id,
+                )
+                logger.info(f"Firewall: bot bloqueado @{username or 'sin_username'} (ID {member.id})")
+                try:
+                    await update.message.delete()
+                except Exception:
+                    pass
+                try:
+                    await context.bot.send_message(
+                        chat_id=MOD_GROUP_ID,
+                        text=f"🛡️ Bot bloqueado automáticamente: @{username or 'sin_username'} (ID {member.id})",
+                    )
+                except Exception:
+                    pass
+            except Exception as e:
+                logger.warning(f"Firewall: no se pudo banear bot {member.id}: {e}")
             continue
 
         uid = str(member.id)
         db  = load_db()
         data = db.get(uid, {})
+
+        # Poner en observacion: si su primer mensaje trae un link, se borra
+        # y se le restringe hasta que un mod lo revise (ver antiflood_handler).
+        NEW_MEMBERS_PENDING_FIRST_MSG.add(uid)
 
         # Borrar el mensaje de sistema "X se unió al grupo"
         try:
@@ -2981,6 +3069,36 @@ async def cmd_aprobar(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
     except Exception:
         pass
+
+# ── /liberar USER_ID — restaura a alguien que el firewall silencio por error ──
+async def cmd_liberar(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in MOD_IDS:
+        await update.message.reply_text("❌ No tienes permisos para usar este comando.")
+        return
+    if not context.args:
+        await update.message.reply_text("Uso: /liberar USER_ID")
+        return
+    target_uid = context.args[0]
+    try:
+        await context.bot.restrict_chat_member(
+            chat_id=update.effective_chat.id,
+            user_id=int(target_uid),
+            permissions={
+                "can_send_messages": True,
+                "can_send_audios": True,
+                "can_send_documents": True,
+                "can_send_photos": True,
+                "can_send_videos": True,
+                "can_send_video_notes": True,
+                "can_send_voice_notes": True,
+                "can_send_polls": True,
+                "can_send_other_messages": True,
+                "can_add_web_page_previews": True,
+            },
+        )
+        await update.message.reply_text(f"✅ {target_uid} fue restaurado, ya puede escribir normal.")
+    except Exception as e:
+        await update.message.reply_text(f"Error al restaurar: {e}")
 
 # ── /transferir — traspaso de puntos entre usuarios (solo mods) ──────────────
 async def cmd_transferir(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -6512,6 +6630,7 @@ def main():
     app.add_handler(CommandHandler("ayuda",      cmd_ayuda))
     app.add_handler(CommandHandler("aprobar",    cmd_aprobar))
     app.add_handler(CommandHandler("transferir", cmd_transferir))
+    app.add_handler(CommandHandler("liberar",    cmd_liberar))
     app.add_handler(CommandHandler("resetcheck", cmd_resetcheck))
     app.add_handler(CommandHandler("dar_puntos", cmd_dar_puntos))
     app.add_handler(CommandHandler("reset_ruleta",  cmd_reset_ruleta))

@@ -57,6 +57,22 @@ URL_PATTERN = re.compile(
     r"(https?://|t\.me/|www\.|@\w{4,}bot\b|\b[a-zA-Z0-9-]{2,}\.[a-zA-Z]{2,6}\b)",
     re.IGNORECASE,
 )
+# Frases tipicas de scam que NO necesitan traer un link para ser peligrosas
+# (pedido de seed phrase, suplantacion de soporte, regalo/airdrop falso,
+# presion a conectar la wallet, retorno "garantizado"). Frases de varias
+# palabras a proposito, para no disparar con una sola palabra suelta comun.
+SCAM_PATTERN = re.compile(
+    r"(seed\s*phrase|frase\s*semilla|recovery\s*phrase|private\s*key|clave\s*privada|"
+    r"soporte\s*oficial|official\s*support|"
+    r"(contact|escrib\w*|mensaje|mand\w*).{0,15}(privado|por\s*dm|soporte|admin)|"
+    r"airdrop\s*gratis|free\s*airdrop|reclama\s*tu\s*premio|claim\s*your\s*(reward|prize)|"
+    r"free\s*(usdt|btc|eth|bnb)|duplica\s*tu\s*(inversi[oó]n|dinero|cripto)|"
+    r"double\s*your\s*(money|investment|crypto)|ganancia\s*garantizada|"
+    r"guaranteed\s*(profit|return)|(conecta|connect)\s*(tu\s*|your\s*)?wallet|"
+    r"(verifica|verify)\s*(tu\s*|your\s*)?wallet|100%\s*(profit|ganancia)|"
+    r"inversi[oó]n\s*segura|investment\s*opportunity)",
+    re.IGNORECASE,
+)
 MOD_GROUP_ID = int(os.environ.get("MOD_GROUP_ID", "-3777494908"))
 MAIN_GROUP_ID = int(os.environ.get("MAIN_GROUP_ID", "-1001234567890"))  # chat general
 
@@ -197,7 +213,9 @@ async def antiflood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid_str in NEW_MEMBERS_PENDING_FIRST_MSG:
         NEW_MEMBERS_PENDING_FIRST_MSG.discard(uid_str)
         texto_msg = update.message.text or update.message.caption or ""
-        if URL_PATTERN.search(texto_msg):
+        tiene_link = bool(URL_PATTERN.search(texto_msg))
+        tiene_frase_scam = bool(SCAM_PATTERN.search(texto_msg))
+        if tiene_link or tiene_frase_scam:
             try:
                 await update.message.delete()
             except Exception:
@@ -212,12 +230,19 @@ async def antiflood_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning(f"Firewall: no se pudo restringir a {uid}: {e}")
             nombre = user.first_name or "Usuario"
             username_line = f" (@{user.username})" if user.username else ""
+            if tiene_link and tiene_frase_scam:
+                motivo = "trae un link Y una frase típica de estafa"
+            elif tiene_link:
+                motivo = "trae un link"
+            else:
+                motivo = "trae una frase típica de estafa (sin link)"
             try:
                 await context.bot.send_message(
                     chat_id=MOD_GROUP_ID,
                     text=(
-                        f"🛡️ *Silenciado por link en su primer mensaje*\n\n"
-                        f"{nombre}{username_line} (ID {uid})\n\n"
+                        f"🛡️ *Silenciado — primer mensaje {motivo}*\n\n"
+                        f"{nombre}{username_line} (ID {uid})\n"
+                        f"Mensaje: _{texto_msg[:200]}_\n\n"
                         f"Si es un falso positivo, restaurar con `/liberar {uid}`. "
                         f"Si es scam, banealo a mano desde el grupo."
                     ),

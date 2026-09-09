@@ -755,8 +755,11 @@ def save_db(db):
                     manada_last_quiz_date, manada_retiro_pendiente, manada_stake_semana,
                     manada_last_week_ref, manada_last_week_checkins, manada_last_week_quiz,
                     seen_intro_v2, nickname, bio, avatar_version, manada_retiro_usdt, manada_retiro_pnt,
+                    review_store_done, review_trust_done, founder_number, last_game,
+                    comment_ig_count, comment_tt_count, story_mention_count,
+                    follow_emb_emi, follow_emb_lorena, first_deposit_done, emoji_tg_done,
                     history)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     data["id"],
                     sanitize_name(data.get("username", "")),
@@ -816,6 +819,17 @@ def save_db(db):
                     data.get("avatar_version", 0),
                     data.get("manada_retiro_usdt", 0),
                     data.get("manada_retiro_pnt", 0),
+                    int(data.get("review_store_done", False)),
+                    int(data.get("review_trust_done", False)),
+                    data.get("founder_number"),
+                    data.get("last_game"),
+                    data.get("comment_ig_count", 0),
+                    data.get("comment_tt_count", 0),
+                    data.get("story_mention_count", 0),
+                    int(data.get("follow_emb_emi", False)),
+                    int(data.get("follow_emb_lorena", False)),
+                    int(data.get("first_deposit_done", False)),
+                    int(data.get("emoji_tg_done", False)),
                     json.dumps(history),
                 ))
             conn.commit()
@@ -2933,6 +2947,10 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [
             InlineKeyboardButton("💬 Comment TT (+5 pts)", callback_data=f"approve_{uid}_comment_tt"),
             InlineKeyboardButton("💬 Ultimo TT (+30 pts)", callback_data=f"approve_{uid}_comment_tt_last"),
+        ],
+        [
+            InlineKeyboardButton(f"💰 1er Depósito (+{PTS['first_deposit']} pts)", callback_data=f"approve_{uid}_first_deposit"),
+            InlineKeyboardButton(f"📣 Historia c/mención (+{PTS['story_mention']} pts)", callback_data=f"approve_{uid}_story_mention"),
         ],
         [
             InlineKeyboardButton("❌ Rechazar", callback_data=f"reject_{uid}"),

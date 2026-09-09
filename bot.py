@@ -1691,12 +1691,21 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Mostrar mensaje de instrucción y esperar la foto
         mission_type = PENDING_MISSIONS.get(uid)
         tipo_labels = {
-            "wallet_activate": "🔐 Activación de Wallet",
-            "review_store":    "⭐ Review en Tienda",
-            "review_trust":    "🌟 Review en Trustpilot",
-            "content":         "✏️ Contenido propio",
-            "reel":            "🎬 Reel de Panther",
-            "story":           "📸 Historia de Panther",
+            "wallet_activate":   "🔐 Activación de Wallet",
+            "review_store":      "⭐ Review en Tienda",
+            "review_trust":      "🌟 Review en Trustpilot",
+            "content":           "✏️ Contenido propio",
+            "reel":              "🎬 Reel de Panther",
+            "story":             "📸 Historia de Panther",
+            "comment_ig":        "💬 Comentario en Instagram",
+            "comment_ig_last":   "💬 Comentario en Último Post IG",
+            "comment_tt":        "💬 Comentario en TikTok",
+            "comment_tt_last":   "💬 Comentario en Último Video TikTok",
+            "stake":             "💰 Stake Challenge",
+            "follow_emb_emi":    "🐆 Seguir Embajador @neodenoche",
+            "follow_emb_lorena": "🐆 Seguir Embajadora @pegandolavuelta",
+            "first_deposit":     "💰 Primer depósito en Panther Wallet",
+            "story_mention":     "📣 Historia mencionando a un amigo",
         }
         tipo_label = tipo_labels.get(mission_type, "📎 Tu misión")
         await update.message.reply_text(
@@ -6352,7 +6361,7 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             uid = body.get("id")
             mission_type = body.get("type")
             logger.info(f"set_mission_type: uid={uid} type={mission_type}")
-            if not uid or mission_type not in ["reel", "story", "content", "wallet_activate", "review_store", "review_trust", "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last"]:
+            if not uid or mission_type not in ["reel", "story", "content", "wallet_activate", "review_store", "review_trust", "comment_ig", "comment_ig_last", "comment_tt", "comment_tt_last", "stake", "follow_emb_emi", "follow_emb_lorena", "first_deposit", "story_mention"]:
                 logger.warning(f"set_mission_type INVALID: uid={uid} type={mission_type}")
                 return self.send_json({"error": "Invalid params"}, 400)
             PENDING_MISSIONS[uid] = mission_type

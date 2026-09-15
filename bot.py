@@ -456,6 +456,22 @@ def get_usdt_prize():
 
 # ── DB — SQLite ──────────────────────────────────────────────────────────────
 DB_LOCK = threading.Lock()
+# Lock de alto nivel: serializa TODO ciclo load_db()->mutar->save_db(), tanto
+# en el thread HTTP (Mini App) como en el thread del loop de Telegram, para
+# evitar que una escritura pise a otra (full-dict rewrite en save_db exige esto).
+STATE_LOCK = threading.Lock()
+
+async def process_update_locked(app, update):
+    """Procesa un update de Telegram bajo STATE_LOCK, sin bloquear el event
+    loop mientras espera el lock (el acquire real corre en un thread pool).
+    Esto serializa el procesamiento de updates entre si Y contra el thread
+    HTTP de la Mini App, para que dos escrituras no se pisen entre si."""
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, STATE_LOCK.acquire)
+    try:
+        await app.process_update(update)
+    finally:
+        STATE_LOCK.release()
 
 # ── Integración Milton / Mundial — ❌ ELIMINADA (el Mundial ya pasó, nunca se activó) ──
 
@@ -4729,6 +4745,10 @@ class MiniAppHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def do_GET(self):
+        with STATE_LOCK:
+            self._do_GET_locked()
+
+    def _do_GET_locked(self):
         parsed = urlparse(self.path)
         path   = parsed.path
         params = parse_qs(parsed.query)
@@ -6249,6 +6269,10 @@ footer{{margin-top:48px;padding-bottom:32px;font-size:11px;color:#CCC;text-align
             self.send_json({"status": "Panther Mini App API", "version": "1.0"})
 
     def do_POST(self):
+        with STATE_LOCK:
+            self._do_POST_locked()
+
+    def _do_POST_locked(self):
         parsed  = urlparse(self.path)
         path    = parsed.path
         length  = int(self.headers.get("Content-Length", 0))
@@ -6585,7 +6609,7 @@ class CombinedHandler(MiniAppHandler):
                 try:
                     update = Update.de_json(json.loads(body), CombinedHandler.tg_app.bot)
                     asyncio.run_coroutine_threadsafe(
-                        CombinedHandler.tg_app.process_update(update),
+                        process_update_locked(CombinedHandler.tg_app, update),
                         CombinedHandler.tg_loop
                     )
                 except Exception as e:
